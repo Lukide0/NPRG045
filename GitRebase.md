@@ -56,5 +56,5 @@ Pokud provádíme rebase na commity, mezi kterými je merge commit, budeme muset
 
 ## Zdroje
 
-- [](https://jvns.ca/blog/2023/11/06/rebasing-what-can-go-wrong-/)
-- [](https://git-scm.com/docs/git-rebase)
+- [Blog](https://jvns.ca/blog/2023/11/06/rebasing-what-can-go-wrong-/)
+- [Git](https://git-scm.com/docs/git-rebase)
