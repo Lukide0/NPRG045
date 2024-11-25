@@ -9,5 +9,7 @@
   - možnost zobrazení příkazů, které se provedou
 - možnost rozdělit commit na dva
 - cherry pick
-- správa větví
 - git hooks (upozornění)
+- poznámky
+- squash commitů
+  - zobrazení zpráv
