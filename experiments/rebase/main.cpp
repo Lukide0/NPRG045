@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
 
     git_libgit2_init();
 
-    int err = git_repository_init(&g_repo, ".", 0);
+    int err = git_repository_open(&g_repo, ".");
     if (err != 0) {
         show_last_err();
         return 1;

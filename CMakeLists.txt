@@ -11,6 +11,7 @@ include(cmake/create_executable.cmake)
 # Libs
 
 include(cmake/libgit2.cmake)
+include(cmake/qt.cmake)
 
 # -----------------------------------------------------------------------------
 # Options
