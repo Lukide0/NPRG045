@@ -1,4 +1,4 @@
-#include "util.h"
+#include "utils.h"
 #include <cstring>
 #include <git2.h>
 #include <git2/apply.h>
@@ -62,6 +62,7 @@ int main(int argc, char** argv) {
         res = squash(args.subspan(1));
     } else if (std::strcmp(cmd, "fixup") == 0) {
         res = fixup(args.subspan(1));
+
     } else {
         std::cerr << "ERROR: Unknown command: " << cmd << std::endl;
         res = 1;
@@ -166,7 +167,7 @@ int reword(args_t args) {
 
     git_commit_parents_t parents;
 
-    if (!get_all_parents(parents, commit)) {
+    if (!get_all_parents(parents, commit.commit)) {
         show_last_err();
         return 1;
     }
@@ -198,7 +199,7 @@ int combine_commits(git_commit_t& commit, git_commit_t& parent_commit, const cha
     git_tree_t parent_tree;
 
     git_commit_parents_t parents;
-    if (!get_all_parents(parents, parent_commit)) {
+    if (!get_all_parents(parents, parent_commit.commit)) {
         show_last_err();
         return 1;
     }
