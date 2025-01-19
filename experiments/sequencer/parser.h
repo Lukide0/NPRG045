@@ -80,7 +80,7 @@ struct CommitAction {
     std::string hash;
 };
 
-std::string_view skip_whitespace(std::string_view str) {
+inline std::string_view skip_whitespace(std::string_view str) {
     std::uint32_t index = 0;
     for (; index < str.size() && (std::isspace(str[index]) != 0); ++index) { }
 
@@ -89,7 +89,7 @@ std::string_view skip_whitespace(std::string_view str) {
     return str.substr(index);
 }
 
-std::string_view extract_word(std::string_view str, std::string& out) {
+inline std::string_view extract_word(std::string_view str, std::string& out) {
     str = skip_whitespace(str);
 
     std::uint32_t index = 0;
@@ -102,7 +102,7 @@ std::string_view extract_word(std::string_view str, std::string& out) {
     return str.substr(index);
 }
 
-LineResult parse_line(std::string_view line) {
+inline LineResult parse_line(std::string_view line) {
     using namespace std::string_view_literals;
 
     const auto full_match = [](std::string_view& str, std::string_view full_name, char short_name) -> bool {
@@ -156,7 +156,7 @@ struct ParseResult {
     std::string err;
 };
 
-ParseResult parse_file(const std::string& filepath) {
+inline ParseResult parse_file(const std::string& filepath) {
     auto file = std::ifstream(filepath);
     ParseResult res;
     if (!file.good()) {

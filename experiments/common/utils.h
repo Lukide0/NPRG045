@@ -79,7 +79,7 @@ struct git_commit_parents_t {
     }
 };
 
-bool get_commit_from_hash(git_commit_t& out_commit, const char* hash, git_repository* repo) {
+inline bool get_commit_from_hash(git_commit_t& out_commit, const char* hash, git_repository* repo) {
 
     git_object* obj = nullptr;
 
@@ -92,12 +92,12 @@ bool get_commit_from_hash(git_commit_t& out_commit, const char* hash, git_reposi
     return true;
 }
 
-bool get_last_commit(git_commit_t& out_commit, git_repository* repo) {
+inline bool get_last_commit(git_commit_t& out_commit, git_repository* repo) {
     git_oid id;
     return git_reference_name_to_id(&id, repo, "HEAD") == 0 && git_commit_lookup(&out_commit.commit, repo, &id) == 0;
 }
 
-bool get_all_parents(git_commit_parents_t& parents, git_commit* commit) {
+inline bool get_all_parents(git_commit_parents_t& parents, git_commit* commit) {
     const auto parents_count = git_commit_parentcount(commit);
 
     auto** parent_commits = new git_commit*[parents_count];
@@ -115,16 +115,15 @@ bool get_all_parents(git_commit_parents_t& parents, git_commit* commit) {
     return true;
 }
 
-bool check_commit(git_commit* a, git_commit* b) {
+inline bool check_commit(git_commit* a, git_commit* b) {
     const auto* id_a = git_commit_id(a);
     const auto* id_b = git_commit_id(b);
 
     return git_oid_equal(id_a, id_b) != 0;
 }
 
-bool _get_all_commits_in_range(
-    std::vector<git_commit_t>& out, git_commit* start, git_commit* end, git_repository* repo
-) {
+inline bool
+_get_all_commits_in_range(std::vector<git_commit_t>& out, git_commit* start, git_commit* end, git_repository* repo) {
 
     git_commit_parents_t parents;
 
@@ -152,9 +151,8 @@ bool _get_all_commits_in_range(
     return false;
 }
 
-bool get_all_commits_in_range(
-    std::vector<git_commit_t>& out, const char* start, const char* end, git_repository* repo
-) {
+inline bool
+get_all_commits_in_range(std::vector<git_commit_t>& out, const char* start, const char* end, git_repository* repo) {
 
     git_commit_t start_commit;
     git_commit_t end_commit;
