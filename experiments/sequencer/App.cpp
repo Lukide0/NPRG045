@@ -26,6 +26,9 @@
 MainWindow::MainWindow() {
     git_libgit2_init();
 
+    QPalette palette;
+    palette.setColor(QPalette::Window, Qt::white);
+    setPalette(palette);
     // TOP BAR ------------------------------------------------------------
     auto* menu = new QMenuBar(this);
     setMenuBar(menu);

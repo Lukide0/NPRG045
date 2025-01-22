@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <git2/commit.h>
 #include <git2/diff.h>
 #include <git2/index.h>
@@ -16,6 +17,7 @@
 #include <git2/types.h>
 #include <limits>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -120,51 +122,6 @@ inline bool check_commit(git_commit* a, git_commit* b) {
     const auto* id_b = git_commit_id(b);
 
     return git_oid_equal(id_a, id_b) != 0;
-}
-
-inline bool
-_get_all_commits_in_range(std::vector<git_commit_t>& out, git_commit* start, git_commit* end, git_repository* repo) {
-
-    git_commit_parents_t parents;
-
-    if (!get_all_parents(parents, start) || parents.count == 0) {
-        return false;
-    }
-
-    if (parents.count > 1) {
-        // TODO: implement
-        assert(false);
-    }
-
-    for (std::uint32_t i = 0; i < parents.count; ++i) {
-        auto* parent = parents.parents[i];
-
-        if (check_commit(end, parent) || _get_all_commits_in_range(out, parent, end, repo)) {
-            git_commit_t copy;
-            git_commit_dup(&copy.commit, parent);
-
-            out.push_back(std::move(copy));
-            return true;
-        }
-    }
-
-    return false;
-}
-
-inline bool
-get_all_commits_in_range(std::vector<git_commit_t>& out, const char* start, const char* end, git_repository* repo) {
-
-    git_commit_t start_commit;
-    git_commit_t end_commit;
-
-    if (!get_commit_from_hash(start_commit, start, repo) || !get_commit_from_hash(end_commit, end, repo)) {
-        return false;
-    }
-
-    bool res = _get_all_commits_in_range(out, start_commit.commit, end_commit.commit, repo);
-    out.push_back(std::move(start_commit));
-
-    return res;
 }
 
 template <std::uint8_t HashSize = 7> std::array<char, HashSize + 1> format_oid(const git_commit* commit) {

@@ -11,6 +11,7 @@
 #include <source_location>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 [[noreturn]] static void TODO(std::string_view msg = "", std::source_location loc = std::source_location()) {
@@ -164,6 +165,8 @@ inline ParseResult parse_file(const std::string& filepath) {
         return res;
     }
 
+    // TODO: Return information about the rename (-C, -c)
+
     std::string line;
     while (std::getline(file, line)) {
         auto line_res = parse_line(line);
@@ -196,7 +199,20 @@ inline ParseResult parse_file(const std::string& filepath) {
             break;
         case CmdType::LABEL:
         case CmdType::RESET:
+            // NOTE: The commit hash is used as the label name
+            args_raw = extract_word(args_raw, commit_hash);
+            break;
         case CmdType::MERGE:
+            if (args_raw.starts_with("-C") || args_raw.starts_with("-c")) {
+                args_raw = args_raw.substr(2);
+                std::string tmp;
+                args_raw = extract_word(args_raw, tmp);
+            }
+
+            // NOTE: The commit hash is used as the label name
+            args_raw = extract_word(args_raw, commit_hash);
+            break;
+
         case CmdType::UPDATE_REF:
             TODO("Implement");
             break;

@@ -1,15 +1,16 @@
 #pragma once
 
-#include <iostream>
 #include <QColor>
+#include <QLabel>
 #include <QListWidgetItem>
+#include <QPalette>
 #include <vector>
 
 class ListItem : public QListWidgetItem {
 public:
     using QListWidgetItem::QListWidgetItem;
 
-    void addConnection(QListWidgetItem* item) { m_connected.push_back(item); }
+    void addConnection(QLabel* item) { m_connected.push_back(item); }
 
     void setItemColor(QColor color) { m_color = color; }
 
@@ -30,12 +31,17 @@ public:
 
     void setColorToAll(QColor color) {
         setBackground(color);
+        QPalette pallete;
+        pallete.setColor(QPalette::Window, color);
+        pallete.setColor(QPalette::WindowText, Qt::black);
+
         for (auto* item : m_connected) {
-            item->setBackground(color);
+            item->setAutoFillBackground(true);
+            item->setPalette(pallete);
         }
     }
 
 private:
-    std::vector<QListWidgetItem*> m_connected;
+    std::vector<QLabel*> m_connected;
     QColor m_color;
 };
