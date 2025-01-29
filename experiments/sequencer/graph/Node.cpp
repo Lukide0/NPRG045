@@ -34,7 +34,7 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
 
     painter->setPen(penRect);
 
-    painter->drawRect(0, 0, 80, 40);
+    painter->drawRoundedRect(0, 0, 80, 40, 10, 10, Qt::SizeMode::AbsoluteSize);
     painter->drawText(QRectF { 5, 5, 70, 30 }, m_hash.c_str(), rectOpts);
 
     painter->setPen(pen);
