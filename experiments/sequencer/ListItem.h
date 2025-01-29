@@ -1,5 +1,6 @@
 #pragma once
 
+#include "graph/Node.h"
 #include <QColor>
 #include <QLabel>
 #include <QListWidgetItem>
@@ -10,7 +11,7 @@ class ListItem : public QListWidgetItem {
 public:
     using QListWidgetItem::QListWidgetItem;
 
-    void addConnection(QLabel* item) { m_connected.push_back(item); }
+    void addConnection(Node* item) { m_connected.push_back(item); }
 
     void setItemColor(QColor color) { m_color = color; }
 
@@ -29,19 +30,15 @@ public:
 
     [[nodiscard]] const auto& getConnected() const { return m_connected; }
 
-    void setColorToAll(QColor color) {
+    void setColorToAll(const QColor& color) {
         setBackground(color);
-        QPalette pallete;
-        pallete.setColor(QPalette::Window, color);
-        pallete.setColor(QPalette::WindowText, Qt::black);
 
         for (auto* item : m_connected) {
-            item->setAutoFillBackground(true);
-            item->setPalette(pallete);
+            item->setFill(color);
         }
     }
 
 private:
-    std::vector<QLabel*> m_connected;
+    std::vector<Node*> m_connected;
     QColor m_color;
 };

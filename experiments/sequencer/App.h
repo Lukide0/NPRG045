@@ -31,7 +31,7 @@ constexpr auto* ONTO_FILE      = ".git/rebase-merge/onto";
 class MainWindow : public QMainWindow {
 public:
     MainWindow();
-    void open_repo();
+    void openRepo();
 
     ~MainWindow() override {
         git_repository_free(m_repo);
@@ -45,5 +45,6 @@ private:
     RebaseViewWidget* m_rebase_view;
     git_repository* m_repo = nullptr;
 
-    void show_rebase();
+    void showRebase();
+    void hideOldCommits(bool state);
 };

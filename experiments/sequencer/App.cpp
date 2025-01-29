@@ -37,9 +37,18 @@ MainWindow::MainWindow() {
 
     auto* repo_open = new QAction(QIcon::fromTheme(QIcon::ThemeIcon::FolderOpen), "Open", this);
     repo_open->setStatusTip("Open a repo");
-    connect(repo_open, &QAction::triggered, this, &MainWindow::open_repo);
+    connect(repo_open, &QAction::triggered, this, &MainWindow::openRepo);
 
     repo->addAction(repo_open);
+
+    auto* view             = menu->addMenu("View");
+    auto* hide_old_commits = new QAction("Hide old commits", this);
+
+    hide_old_commits->setCheckable(true);
+    hide_old_commits->setChecked(true);
+    connect(hide_old_commits, &QAction::triggered, this, &MainWindow::hideOldCommits);
+
+    view->addAction(hide_old_commits);
 
     // MAIN ---------------------------------------------------------------
     auto* main = new QWidget(this);
@@ -54,9 +63,18 @@ MainWindow::MainWindow() {
     m_layout->addWidget(m_rebase_view);
 
     m_rebase_view->hide();
+    m_rebase_view->hideOldCommits();
 }
 
-void MainWindow::open_repo() {
+void MainWindow::hideOldCommits(bool state) {
+    if (state) {
+        m_rebase_view->hideOldCommits();
+    } else {
+        m_rebase_view->showOldCommits();
+    }
+}
+
+void MainWindow::openRepo() {
     auto folder = QFileDialog::getExistingDirectory(
         this, "Select Repo folder", QString(), QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks
     );
@@ -83,10 +101,10 @@ void MainWindow::open_repo() {
 
     m_repo_path = path;
 
-    show_rebase();
+    showRebase();
 }
 
-void MainWindow::show_rebase() {
+void MainWindow::showRebase() {
     std::string head;
     std::string onto;
 

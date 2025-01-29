@@ -1,6 +1,6 @@
 function(create_executable name)
     set(options DONT_INCLUDE LTO_ENABLE)
-    set(oneValueArgs)
+    set(oneValueArgs INCLUDE_DIR)
     set(multivalueArgs SOURCES LIBS)
 
     cmake_parse_arguments(PARSE_ARGV 1 ARG "${options}" "${oneValueArgs}" "${multivalueArgs}")
@@ -9,6 +9,7 @@ function(create_executable name)
 
     target_compile_features("${name}" PRIVATE cxx_std_20)
 
+    target_include_directories("${name}" PRIVATE "${ARG_INCLUDE_DIR}")
     if(NOT ARG_DONT_INCLUDE)
         target_include_directories("${name}" PRIVATE "${PROJECT_SOURCE_DIR}/include")
     endif()

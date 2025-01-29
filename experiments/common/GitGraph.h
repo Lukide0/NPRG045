@@ -68,6 +68,8 @@ public:
 
     std::uint32_t max_depth() const { return m_nodes.rbegin()->depth; }
 
+    std::uint32_t max_width() const { return m_max_width; }
+
     const node_t& first_node() const { return *m_nodes.rbegin(); }
 
     node_t& first_node() { return *m_nodes.rbegin(); }
@@ -124,6 +126,7 @@ public:
 private:
     std::unordered_map<std::string, std::uint32_t> m_commit_map;
     std::vector<node_t> m_nodes;
+    std::uint32_t m_max_width = 0;
 
     GitGraph() = default;
 
@@ -164,6 +167,11 @@ private:
             return false;
         }
 
+        // TODO: Implement merge commits
+        if (parents.count != 1) {
+            return false;
+        }
+
         for (std::uint32_t i = 0; i < parents.count; ++i) {
             git_commit_t parent;
 
@@ -185,7 +193,6 @@ private:
                 continue;
             }
 
-            // NOTE: all parents must have common ancestor
             if (!try_create(graph, index, end_node, depth + 1)) {
                 return false;
             }
@@ -214,6 +221,19 @@ private:
         }
 
         std::stable_sort(vec.begin(), vec.end());
+
+        for (std::uint32_t i = 0; i < vec.size();) {
+
+            std::uint32_t depth = vec[i].depth;
+
+            std::uint32_t start = i;
+            while (i < vec.size() && vec[i].depth == depth) {
+                i += 1;
+            }
+
+            std::uint32_t count = i - start;
+            m_max_width         = std::max(count, m_max_width);
+        }
 
         std::vector<node_t> new_nodes;
         new_nodes.reserve(m_nodes.size());

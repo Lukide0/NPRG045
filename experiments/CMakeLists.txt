@@ -11,8 +11,12 @@ create_executable("sequencer"
         sequencer/main.cpp
         sequencer/App.cpp
         sequencer/RebaseViewWidget.cpp
+        sequencer/graph/Graph.cpp
+        sequencer/graph/Node.cpp
 
+    INCLUDE_DIR sequencer
     DONT_INCLUDE
+
     LIBS git2 ${QT_WIDGETS})
 
 target_include_directories("sequencer" PRIVATE common)
