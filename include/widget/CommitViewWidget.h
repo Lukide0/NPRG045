@@ -1,9 +1,13 @@
 #pragma once
 
 #include "widget/clear_layout.h"
+#include "widget/graph/Node.h"
+#include <ctime>
+#include <git2/commit.h>
 #include <git2/types.h>
 #include <QGridLayout>
 #include <QLabel>
+#include <qobject.h>
 #include <QWidget>
 
 class CommitViewWidget : public QWidget {
@@ -15,18 +19,18 @@ public:
         setLayout(m_layout);
     }
 
-    void update(const char* hash, const char* summary, const char* description, const char* autor, const char* date) {
+    void update(Node* node) {
         clear_layout(m_layout);
 
-        create_row("Hash:", hash, 0);
-        create_row("Author:", autor, 1);
-        create_row("Date:", date, 2);
-        create_row("Summary:", summary, 3);
-        create_row("Description:", description, 4);
+        m_node = node;
+
+        create_rows();
+        prepare_diff();
     }
 
 private:
     QGridLayout* m_layout;
+    Node* m_node = nullptr;
 
     static QLabel* create_label(const QString& text) { return new QLabel(text); }
 
@@ -34,4 +38,7 @@ private:
         m_layout->addWidget(create_label(label), row, 0);
         m_layout->addWidget(create_label(value), row, 1);
     }
+
+    void create_rows();
+    void prepare_diff();
 };

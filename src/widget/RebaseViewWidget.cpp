@@ -81,23 +81,7 @@ void RebaseViewWidget::showCommit(Node* /*unused*/, Node* next) {
         return;
     }
 
-    auto* commit = next->getCommit();
-
-    std::string hash           = GitGraph<Node*>::get_commit_id(commit);
-    const char* summary        = git_commit_summary(commit);
-    const char* desc           = git_commit_body(commit);
-    const git_signature* autor = git_commit_author(commit);
-
-    std::stringstream ss;
-    {
-        std::chrono::seconds seconds { autor->when.time };
-        std::time_t time = seconds.count();
-        std::tm* t       = std::gmtime(&time);
-
-        ss << std::put_time(t, "%x %X");
-    }
-    auto time_str = ss.str();
-    m_commit_view->update(hash.c_str(), summary, desc, autor->name, time_str.c_str());
+    m_commit_view->update(next);
     m_commit_view->show();
 }
 
@@ -109,6 +93,7 @@ std::optional<std::string> RebaseViewWidget::update(
     m_new_commits_graph->clear();
 
     m_last_item = nullptr;
+    m_repo      = repo;
 
     auto graph_opt = GitGraph<Node*>::create(head.c_str(), onto.c_str(), repo);
     if (!graph_opt.has_value()) {
@@ -123,6 +108,7 @@ std::optional<std::string> RebaseViewWidget::update(
     // TODO: Implement merge commits
     assert(max_width == 1);
 
+    Node* parent = nullptr;
     m_graph.reverse_iterate([&](std::uint32_t depth, std::span<GitNode<Node*>> nodes) {
         auto y = max_depth - depth;
 
@@ -131,6 +117,8 @@ std::optional<std::string> RebaseViewWidget::update(
             commit_node->setCommit(node.commit.commit);
 
             node.data = commit_node;
+            node.data->setParentNode(parent);
+            parent = commit_node;
         }
     });
 
@@ -142,7 +130,7 @@ std::optional<std::string> RebaseViewWidget::update(
         auto* action_item = new ListItem(m_list_actions->get_list());
 
         QString text = cmd_to_str(action.type);
-        auto result  = prepareItem(action_item, text, action, repo);
+        auto result  = prepareItem(action_item, text, action);
         if (auto err = result) {
             return err;
         }
@@ -153,10 +141,10 @@ std::optional<std::string> RebaseViewWidget::update(
     return std::nullopt;
 }
 
-Node* RebaseViewWidget::findOldCommit(std::string short_hash, git_repository* repo) {
+Node* RebaseViewWidget::findOldCommit(std::string short_hash) {
     git_commit_t c;
 
-    if (!get_commit_from_hash(c, short_hash.c_str(), repo)) {
+    if (!get_commit_from_hash(c, short_hash.c_str(), m_repo)) {
         return nullptr;
     }
 
@@ -170,9 +158,8 @@ Node* RebaseViewWidget::findOldCommit(std::string short_hash, git_repository* re
     return node.data;
 }
 
-std::optional<std::string> RebaseViewWidget::prepareItem(
-    ListItem* item, QString& item_text, const CommitAction& action, [[maybe_unused]] git_repository* repo
-) {
+std::optional<std::string>
+RebaseViewWidget::prepareItem(ListItem* item, QString& item_text, const CommitAction& action) {
     switch (action.type) {
     case CmdType::INVALID:
     case CmdType::NONE:
@@ -182,7 +169,7 @@ std::optional<std::string> RebaseViewWidget::prepareItem(
     case CmdType::DROP: {
         item->setItemColor(QColor(255, 62, 65));
 
-        auto* old = findOldCommit(action.hash, repo);
+        Node* old = findOldCommit(action.hash);
         assert(old != nullptr);
         item->addConnection(old);
 
@@ -195,7 +182,7 @@ std::optional<std::string> RebaseViewWidget::prepareItem(
     case CmdType::SQUASH: {
         item->setItemColor(QColor(115, 137, 174));
 
-        auto* old = findOldCommit(action.hash, repo);
+        Node* old = findOldCommit(action.hash);
         assert(old != nullptr);
         item->addConnection(old);
         item->addConnection(m_last_new_commit);
@@ -220,12 +207,14 @@ std::optional<std::string> RebaseViewWidget::prepareItem(
         item_text += " ";
         item_text += action.hash.c_str();
 
-        auto* old = findOldCommit(action.hash, repo);
+        Node* old = findOldCommit(action.hash);
         assert(old != nullptr);
         item->addConnection(old);
 
-        auto* new_node = m_new_commits_graph->addNode();
+        Node* new_node = m_new_commits_graph->addNode();
         new_node->setCommit(old->getCommit());
+        new_node->setParentNode(m_last_new_commit);
+
         item->addConnection(new_node);
 
         m_last_new_commit = new_node;

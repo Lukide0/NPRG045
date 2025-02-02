@@ -41,13 +41,13 @@ private:
     Node* m_last_new_commit = nullptr;
 
     GitGraph<Node*> m_graph;
+    git_repository* m_repo;
 
     ListItem* m_last_item = nullptr;
 
-    std::optional<std::string>
-    prepareItem(ListItem* item, QString& item_text, const CommitAction& action, git_repository* repo);
+    std::optional<std::string> prepareItem(ListItem* item, QString& item_text, const CommitAction& action);
 
-    Node* findOldCommit(std::string short_hash, git_repository* repo);
+    Node* findOldCommit(std::string short_hash);
 
     void showCommit(Node* prev, Node* next);
 };

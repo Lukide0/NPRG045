@@ -3,6 +3,7 @@
 #include "git/types.h"
 #include <git2/commit.h>
 #include <git2/types.h>
+#include <iostream>
 #include <QColor>
 #include <QGraphicsItem>
 #include <QPainterPath>
@@ -30,6 +31,10 @@ public:
 
     git_commit* getCommit() { return m_commit; }
 
+    Node* getParentNode() { return m_parent; }
+
+    void setParentNode(Node* parent) { m_parent = parent; }
+
     void setFill(const QColor& color);
 
     [[nodiscard]] QRectF boundingRect() const override;
@@ -42,4 +47,5 @@ private:
     std::string m_hash;
     std::string m_msg;
     git_commit* m_commit;
+    Node* m_parent = nullptr;
 };
