@@ -1,8 +1,8 @@
 #pragma once
 
-#include "ListItem.h"
-#include "parser.h"
-#include "RebaseViewWidget.h"
+#include "git/parser.h"
+#include "widget/ListItem.h"
+#include "widget/RebaseViewWidget.h"
 
 #include <cassert>
 #include <cctype>

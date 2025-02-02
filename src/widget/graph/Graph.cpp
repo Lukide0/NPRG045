@@ -1,8 +1,8 @@
-#include "Graph.h"
-#include "Node.h"
+#include "widget/graph/Graph.h"
+#include "widget/graph/Node.h"
+
 #include <algorithm>
 #include <cstdint>
-#include <iostream>
 #include <QGraphicsSceneMouseEvent>
 #include <QMouseEvent>
 
@@ -28,6 +28,7 @@ void GraphWidget::clear() {
         scene()->removeItem(item);
         delete item;
     }
+    m_next_y = 0;
 }
 
 void GraphWidget::mousePressEvent(QMouseEvent* event) {

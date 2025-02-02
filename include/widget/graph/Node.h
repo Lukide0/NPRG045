@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils.h"
+#include "git/types.h"
 #include <git2/commit.h>
 #include <git2/types.h>
 #include <QColor>

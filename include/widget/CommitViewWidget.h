@@ -1,6 +1,6 @@
 #pragma once
 
-#include "clear_layout.h"
+#include "widget/clear_layout.h"
 #include <git2/types.h>
 #include <QGridLayout>
 #include <QLabel>

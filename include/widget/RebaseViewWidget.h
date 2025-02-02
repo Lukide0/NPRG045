@@ -1,12 +1,12 @@
 #pragma once
 
-#include "commit/CommitViewWidget.h"
-#include "GitGraph.h"
-#include "graph/Graph.h"
-#include "graph/Node.h"
-#include "ListItem.h"
-#include "NamedListWidget.h"
-#include "parser.h"
+#include "git/GitGraph.h"
+#include "git/parser.h"
+#include "widget/CommitViewWidget.h"
+#include "widget/graph/Graph.h"
+#include "widget/graph/Node.h"
+#include "widget/ListItem.h"
+#include "widget/NamedListWidget.h"
 
 #include <git2/types.h>
 #include <optional>
@@ -17,7 +17,6 @@
 #include <qobject.h>
 #include <QWidget>
 #include <string>
-#include <vector>
 
 class RebaseViewWidget : public QWidget {
 public:

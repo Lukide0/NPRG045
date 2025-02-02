@@ -4,20 +4,3 @@ create_executable("rebase" SOURCES rebase/main.cpp
 )
 
 target_include_directories("rebase" PRIVATE common)
-
-
-create_executable("sequencer"
-    SOURCES
-        sequencer/main.cpp
-        sequencer/App.cpp
-        sequencer/RebaseViewWidget.cpp
-        sequencer/graph/Graph.cpp
-        sequencer/graph/Node.cpp
-
-    INCLUDE_DIR sequencer
-    DONT_INCLUDE
-
-    LIBS git2 ${QT_WIDGETS})
-
-target_include_directories("sequencer" PRIVATE common)
-

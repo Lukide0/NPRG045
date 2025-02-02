@@ -1,6 +1,6 @@
 #include "App.h"
 
-#include "parser.h"
+#include "git/parser.h"
 
 #include <cassert>
 #include <cctype>
@@ -39,7 +39,11 @@ MainWindow::MainWindow() {
     repo_open->setStatusTip("Open a repo");
     connect(repo_open, &QAction::triggered, this, &MainWindow::openRepo);
 
+    auto* repo_refresh = new QAction(QIcon::fromTheme(QIcon::ThemeIcon::ViewRefresh), "Refresh", this);
+    connect(repo_refresh, &QAction::triggered, this, [&]() { showRebase(); });
+
     repo->addAction(repo_open);
+    repo->addAction(repo_refresh);
 
     auto* view             = menu->addMenu("View");
     auto* hide_old_commits = new QAction("Hide old commits", this);

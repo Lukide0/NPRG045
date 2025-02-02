@@ -22,3 +22,12 @@ option(BUILD_EXPERIMENTS "Build the experiments" ON)
 if(BUILD_EXPERIMENTS)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/experiments")
 endif()
+
+
+create_executable(${PROJECT_NAME}
+    LIBS
+        git2
+        ${QT_WIDGETS}
+)
+
+add_subdirectory(src)
