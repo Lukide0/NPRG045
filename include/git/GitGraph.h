@@ -238,12 +238,27 @@ private:
         std::vector<node_t> new_nodes;
         new_nodes.reserve(m_nodes.size());
 
+        std::vector<uint32_t> child_map;
+        child_map.resize(m_nodes.size());
+
         for (std::uint32_t i = 0; i < vec.size(); ++i) {
             auto pos    = vec[i];
             auto&& node = std::move(m_nodes[pos.index]);
-            node.index  = i;
+
+            child_map[node.index] = i;
+
+            node.index = i;
             update_record(node);
+
             new_nodes.push_back(std::move(node));
+        }
+
+        // Update children
+        for (auto&& node : new_nodes) {
+            std::set<uint32_t> new_chilren;
+            for (auto&& child : node.children) {
+                new_chilren.insert(child_map[child]);
+            }
         }
 
         m_nodes = std::move(new_nodes);
