@@ -12,8 +12,12 @@
 #include <cassert>
 #include <cstdint>
 #include <ctime>
+#include <git2/cherrypick.h>
 #include <git2/commit.h>
+#include <git2/index.h>
+#include <git2/merge.h>
 #include <git2/types.h>
+#include <iostream>
 #include <optional>
 #include <qboxlayout.h>
 #include <qcolor.h>
@@ -25,7 +29,6 @@
 #include <QSplitter>
 #include <QWidget>
 #include <span>
-#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -75,9 +78,14 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_new_commits_graph->setHandle(handle);
 }
 
-void RebaseViewWidget::showCommit(Node* /*unused*/, Node* next) {
+void RebaseViewWidget::showCommit(Node* prev, Node* next) {
     if (next == nullptr) {
         m_commit_view->hide();
+        return;
+    }
+
+    if (prev == next) {
+        m_commit_view->show();
         return;
     }
 
@@ -109,6 +117,7 @@ std::optional<std::string> RebaseViewWidget::update(
     assert(max_width == 1);
 
     Node* parent = nullptr;
+    std::string err_msg;
     m_graph.reverse_iterate([&](std::uint32_t depth, std::span<GitNode<Node*>> nodes) {
         auto y = max_depth - depth;
 
@@ -116,14 +125,31 @@ std::optional<std::string> RebaseViewWidget::update(
             auto* commit_node = m_old_commits_graph->addNode(y);
             commit_node->setCommit(node.commit.commit);
 
+            git_tree* tree;
+            if (git_commit_tree(&tree, node.commit.commit) != 0) {
+                err_msg = "Could not find commit tree";
+                return;
+            }
+
+            commit_node->setGitTree(tree);
+
             node.data = commit_node;
             node.data->setParentNode(parent);
             parent = commit_node;
         }
     });
 
-    auto* last = m_new_commits_graph->addNode(0);
-    last->setCommit(m_graph.first_node().commit.commit);
+    if (!err_msg.empty()) {
+        return err_msg;
+    }
+
+    auto* last      = m_new_commits_graph->addNode(0);
+    auto& last_node = m_graph.first_node();
+    m_root_node     = last_node.data;
+
+    last->setCommit(last_node.commit.commit);
+    last->setGitTree(last_node.data->getGitTree());
+
     m_last_new_commit = last;
 
     for (const auto& action : actions) {
@@ -144,6 +170,7 @@ std::optional<std::string> RebaseViewWidget::update(
 Node* RebaseViewWidget::findOldCommit(std::string short_hash) {
     git_commit_t c;
 
+    git_tree_t ancestor;
     if (!get_commit_from_hash(c, short_hash.c_str(), m_repo)) {
         return nullptr;
     }
@@ -156,6 +183,21 @@ Node* RebaseViewWidget::findOldCommit(std::string short_hash) {
     auto& node = m_graph.get(id);
 
     return node.data;
+}
+
+void RebaseViewWidget::updateNode(Node* node, Node* current, Node* changes) {
+    auto* current_commit = current->getCommit();
+    auto* changes_commit = changes->getCommit();
+
+    git_index_t index;
+
+    if (git_cherrypick_commit(&index.index, m_repo, changes_commit, current_commit, 0, nullptr) != 0) {
+        return;
+    }
+
+    if (git_index_has_conflicts(index.index) != 0) {
+        node->setConflict(true);
+    }
 }
 
 std::optional<std::string>
@@ -187,6 +229,8 @@ RebaseViewWidget::prepareItem(ListItem* item, QString& item_text, const CommitAc
         item->addConnection(old);
         item->addConnection(m_last_new_commit);
 
+        updateNode(m_last_new_commit, m_last_new_commit, old);
+
         item_text += " ";
         item_text += action.hash.c_str();
         break;
@@ -213,9 +257,12 @@ RebaseViewWidget::prepareItem(ListItem* item, QString& item_text, const CommitAc
 
         Node* new_node = m_new_commits_graph->addNode();
         new_node->setCommit(old->getCommit());
+        new_node->setGitTree(old->getGitTree());
         new_node->setParentNode(m_last_new_commit);
 
         item->addConnection(new_node);
+
+        updateNode(new_node, m_last_new_commit, new_node);
 
         m_last_new_commit = new_node;
         break;

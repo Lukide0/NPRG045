@@ -18,6 +18,12 @@ void Node::setFill(const QColor& color) {
 
 void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, QWidget* /*widget*/) {
 
+    if (hasConflict()) {
+        auto brushStatus = QBrush(Qt::yellow);
+        painter->setBrush(brushStatus);
+        painter->drawRect(0, 13, 14, 14);
+    }
+
     QFont font = painter->font();
 
     auto pen     = QPen(Qt::black);
@@ -30,13 +36,14 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
         penRect.setWidth(2);
         font.setBold(true);
     }
+
     painter->setFont(font);
 
     painter->setPen(penRect);
 
-    painter->drawRoundedRect(0, 0, 80, 40, 10, 10, Qt::SizeMode::AbsoluteSize);
-    painter->drawText(QRectF { 5, 5, 70, 30 }, m_hash.c_str(), rectOpts);
+    painter->drawRoundedRect(20, 0, 80, 40, 10, 10, Qt::SizeMode::AbsoluteSize);
+    painter->drawText(QRectF { 25, 5, 70, 30 }, m_hash.c_str(), rectOpts);
 
     painter->setPen(pen);
-    painter->drawText(QRectF { 100, 5, 200, 30 }, m_msg.c_str(), QTextOption(Qt::AlignLeft | Qt::AlignVCenter));
+    painter->drawText(QRectF { 120, 5, 180, 30 }, m_msg.c_str(), QTextOption(Qt::AlignLeft | Qt::AlignVCenter));
 }

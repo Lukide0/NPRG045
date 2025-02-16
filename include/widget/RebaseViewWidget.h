@@ -44,10 +44,14 @@ private:
     git_repository* m_repo;
 
     ListItem* m_last_item = nullptr;
+    Node* m_root_node;
 
+private:
     std::optional<std::string> prepareItem(ListItem* item, QString& item_text, const CommitAction& action);
 
     Node* findOldCommit(std::string short_hash);
+
+    void updateNode(Node* node, Node* current, Node* changes);
 
     void showCommit(Node* prev, Node* next);
 };

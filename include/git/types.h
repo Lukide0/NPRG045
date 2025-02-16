@@ -37,11 +37,53 @@ struct git_commit_t {
 struct git_index_t {
     git_index* index = nullptr;
 
+    git_index_t() = default;
+
+    git_index_t(git_index_t&& other)
+        : index(other.index) {
+        other.index = nullptr;
+    }
+
+    git_index_t& operator=(git_index_t&& other) {
+        std::swap(index, other.index);
+        return *this;
+    }
+
+    git_index_t& operator=(git_index* other) {
+        if (index != nullptr) {
+            git_index_free(index);
+        }
+
+        index = other;
+        return *this;
+    }
+
     ~git_index_t() { git_index_free(index); }
 };
 
 struct git_tree_t {
     git_tree* tree = nullptr;
+
+    git_tree_t() = default;
+
+    git_tree_t(git_tree_t&& other)
+        : tree(other.tree) {
+        other.tree = nullptr;
+    }
+
+    git_tree_t& operator=(git_tree_t&& other) {
+        std::swap(tree, other.tree);
+        return *this;
+    }
+
+    git_tree_t& operator=(git_tree* other) {
+        if (tree != nullptr) {
+            git_tree_free(tree);
+        }
+
+        tree = other;
+        return *this;
+    }
 
     ~git_tree_t() { git_tree_free(tree); }
 };

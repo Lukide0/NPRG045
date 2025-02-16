@@ -35,6 +35,14 @@ public:
 
     void setParentNode(Node* parent) { m_parent = parent; }
 
+    void setGitTree(git_tree* tree) { m_tree = tree; }
+
+    void setConflict(bool conflict) { m_has_conflict = conflict; }
+
+    [[nodiscard]] bool hasConflict() const { return m_has_conflict; }
+
+    [[nodiscard]] git_tree* getGitTree() const { return m_tree.tree; }
+
     void setFill(const QColor& color);
 
     [[nodiscard]] QRectF boundingRect() const override;
@@ -47,5 +55,7 @@ private:
     std::string m_hash;
     std::string m_msg;
     git_commit* m_commit;
-    Node* m_parent = nullptr;
+    git_tree_t m_tree;
+    Node* m_parent      = nullptr;
+    bool m_has_conflict = false;
 };
