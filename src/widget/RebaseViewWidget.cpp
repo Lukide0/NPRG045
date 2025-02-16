@@ -17,7 +17,6 @@
 #include <git2/index.h>
 #include <git2/merge.h>
 #include <git2/types.h>
-#include <iostream>
 #include <optional>
 #include <qboxlayout.h>
 #include <qcolor.h>
@@ -48,7 +47,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_layout->addWidget(m_new_commits_graph);
 
     m_commit_view = new CommitViewWidget();
-    m_commit_view->hide();
+    m_commit_view->update(nullptr);
 
     m_main_layout->addItem(m_layout);
     m_main_layout->addWidget(m_commit_view);
@@ -80,17 +79,15 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
 void RebaseViewWidget::showCommit(Node* prev, Node* next) {
     if (next == nullptr) {
-        m_commit_view->hide();
+        m_commit_view->update(nullptr);
         return;
     }
 
     if (prev == next) {
-        m_commit_view->show();
         return;
     }
 
     m_commit_view->update(next);
-    m_commit_view->show();
 }
 
 std::optional<std::string> RebaseViewWidget::update(

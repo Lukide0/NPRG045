@@ -2,6 +2,7 @@
 
 #include "widget/clear_layout.h"
 #include "widget/graph/Node.h"
+#include "widget/NamedListWidget.h"
 #include <ctime>
 #include <git2/commit.h>
 #include <git2/types.h>
@@ -30,6 +31,7 @@ public:
 
 private:
     QGridLayout* m_layout;
+    NamedListWidget* m_changes;
     Node* m_node = nullptr;
 
     static QLabel* create_label(const QString& text) { return new QLabel(text); }

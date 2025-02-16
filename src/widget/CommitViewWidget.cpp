@@ -4,17 +4,25 @@
 #include "widget/graph/Node.h"
 #include <chrono>
 #include <ctime>
-#include <format>
 #include <git2/commit.h>
 #include <git2/diff.h>
 #include <git2/tree.h>
 #include <git2/types.h>
 #include <iomanip>
-#include <iostream>
+#include <QMessageBox>
 #include <sstream>
 #include <string>
 
 void CommitViewWidget::create_rows() {
+
+    if (m_node == nullptr) {
+        create_row("Hash:", "", 0);
+        create_row("Author:", "", 1);
+        create_row("Date:", "", 2);
+        create_row("Summary:", "", 3);
+        create_row("Description:", "", 4);
+        return;
+    }
 
     git_commit* commit = m_node->getCommit();
 
@@ -42,81 +50,92 @@ void CommitViewWidget::create_rows() {
 }
 
 void CommitViewWidget::prepare_diff() {
+    m_changes = new NamedListWidget("Changes");
+    m_layout->addWidget(m_changes, 0, 2, 0, 4);
 
-    Node* parentNode = m_node->getParentNode();
-    if (parentNode == nullptr) {
-        std::cout << "NO PARENT FOR NODE:" << m_node << "\n";
+    if (m_node == nullptr) {
         return;
     }
 
-    git_commit* curr   = m_node->getCommit();
-    git_commit* parent = parentNode->getCommit();
-
+    Node* parentNode = m_node->getParentNode();
     git_tree_t curr_tree;
     git_tree_t parent_tree;
 
-    if (git_commit_tree(&curr_tree.tree, curr) != 0 || git_commit_tree(&parent_tree.tree, parent) != 0) {
-        std::cout << "FAILED TO FIND TREES\n";
-        return;
+    if (parentNode != nullptr) {
+        git_commit* curr   = m_node->getCommit();
+        git_commit* parent = parentNode->getCommit();
+
+        if (git_commit_tree(&curr_tree.tree, curr) != 0 || git_commit_tree(&parent_tree.tree, parent) != 0) {
+            QMessageBox::critical(this, "Commit diff error", "Failed to retrieve tree from commit");
+            return;
+        }
+    } else {
+        parent_tree.tree = nullptr;
+        git_commit* curr = m_node->getCommit();
+
+        if (git_commit_tree(&curr_tree.tree, curr) != 0) {
+            QMessageBox::critical(this, "Commit diff error", "Failed to retrieve tree from commit");
+            return;
+        }
     }
 
     git_diff_t diff;
     git_repository* repo = git_tree_owner(curr_tree.tree);
     if (git_diff_tree_to_tree(&diff.diff, repo, parent_tree.tree, curr_tree.tree, nullptr) != 0) {
-        std::cout << "FAILED TO FIND DIFF\n";
+        QMessageBox::critical(this, "Commit diff error", "Failed to create diff");
         return;
     }
 
-    std::cout << "----------------- DIFF START -----------------\n";
     git_diff_foreach(
         diff.diff,
-        [](const git_diff_delta* delta, float progress, void*) -> int {
-            std::cout << std::format("Old file: {}\nNew file: {}\n", delta->old_file.path, delta->new_file.path);
-            std::cout << std::format("Progress: {}\n", progress);
+        [](const git_diff_delta* delta, float /*unused*/, void* list_raw) -> int {
+            auto* list = reinterpret_cast<QListWidget*>(list_raw);
 
-            std::cout << "Status: ";
+            QString str;
             switch (delta->status) {
             case GIT_DELTA_UNMODIFIED:
-                std::cout << "UNMODIFIED\n";
+            case GIT_DELTA_UNREADABLE:
+            case GIT_DELTA_CONFLICTED:
+            case GIT_DELTA_UNTRACKED:
+            case GIT_DELTA_IGNORED:
                 break;
             case GIT_DELTA_ADDED:
-                std::cout << "ADDED\n";
+                str += "Added ";
+                str += delta->new_file.path;
                 break;
             case GIT_DELTA_DELETED:
-                std::cout << "DELETED\n";
+                str += "Deleted ";
+                str += delta->old_file.path;
                 break;
             case GIT_DELTA_MODIFIED:
-                std::cout << "MODIFIED\n";
+                str += "Modified ";
+                str += delta->new_file.path;
                 break;
             case GIT_DELTA_RENAMED:
-                std::cout << "RENAMED\n";
+                str += "Renamed ";
+                str += delta->old_file.path;
+                str += " -> ";
+                str += delta->new_file.path;
                 break;
             case GIT_DELTA_COPIED:
-                std::cout << "COPIED\n";
-                break;
-            case GIT_DELTA_IGNORED:
-                std::cout << "IGNORED\n";
-                break;
-            case GIT_DELTA_UNTRACKED:
-                std::cout << "UNTRACKED\n";
+                str += "Copied ";
+                str += delta->old_file.path;
+                str += " -> ";
+                str += delta->new_file.path;
                 break;
             case GIT_DELTA_TYPECHANGE:
-                std::cout << "TYPECHANGE\n";
-                break;
-            case GIT_DELTA_UNREADABLE:
-                std::cout << "UNREADABLE\n";
-                break;
-            case GIT_DELTA_CONFLICTED:
-                std::cout << "CONFLICTED\n";
+                str += "Typechange ";
+                str += delta->old_file.path;
                 break;
             }
-            std::cout << "-----------------\n";
+
+            list->addItem(str);
 
             return 0;
         },
         nullptr,
         nullptr,
         nullptr,
-        nullptr
+        m_changes->get_list()
     );
 }

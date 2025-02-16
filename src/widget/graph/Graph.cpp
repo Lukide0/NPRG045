@@ -5,18 +5,29 @@
 #include <cstdint>
 #include <QGraphicsSceneMouseEvent>
 #include <QMouseEvent>
+#include <QScrollBar>
 
 Node* GraphWidget::addNode(std::uint32_t y) {
     auto* node = new Node(this);
     scene()->addItem(node);
 
+    auto node_height = node->boundingRect().height();
+
     auto padding = 10;
     auto gap     = 10;
-    auto pos_y   = y * (node->boundingRect().height() + gap);
+    auto pos_y   = y * (node_height + gap);
 
-    node->setPos(padding, pos_y + padding);
+    node->setPos(padding, pos_y + gap);
 
     m_next_y = std::max<std::uint32_t>(y + 1, m_next_y);
+
+    double new_height  = ((y + 1) * (node_height + gap)) + gap;
+    double curr_height = sceneRect().height();
+
+    auto rect = sceneRect();
+    rect.setHeight(std::max(new_height, curr_height));
+
+    setSceneRect(rect);
 
     return node;
 }

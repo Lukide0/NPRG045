@@ -18,11 +18,10 @@ public:
         scene->setSceneRect(0, 0, 100, 100);
         setScene(scene);
 
-        setCacheMode(CacheBackground);
-        setViewportUpdateMode(BoundingRectViewportUpdate);
         setRenderHint(QPainter::RenderHint::Antialiasing);
         setTransformationAnchor(AnchorUnderMouse);
         setAlignment(Qt::AlignLeft | Qt::AlignTop);
+        setVerticalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOn);
 
         scale(qreal(0.95), qreal(0.95));
     }
