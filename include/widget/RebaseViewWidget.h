@@ -49,9 +49,13 @@ private:
 private:
     std::optional<std::string> prepareItem(ListItem* item, QString& item_text, const CommitAction& action);
 
+    std::optional<std::string> prepareActions(const std::vector<CommitAction>& actions);
+
     Node* findOldCommit(std::string short_hash);
 
     void updateNode(Node* node, Node* current, Node* changes);
+
+    void updateActions();
 
     void showCommit(Node* prev, Node* next);
 };

@@ -4,7 +4,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <git2/commit.h>
 #include <git2/diff.h>
 #include <git2/index.h>
@@ -15,11 +14,9 @@
 #include <git2/signature.h>
 #include <git2/tree.h>
 #include <git2/types.h>
-#include <limits>
 #include <string>
 #include <string_view>
 #include <utility>
-#include <vector>
 
 struct git_commit_t {
     git_commit* commit = nullptr;
@@ -69,6 +66,14 @@ struct git_tree_t {
     git_tree_t(git_tree_t&& other)
         : tree(other.tree) {
         other.tree = nullptr;
+    }
+
+    git_tree* release() {
+        auto* tmp = tree;
+
+        tree = nullptr;
+
+        return tmp;
     }
 
     git_tree_t& operator=(git_tree_t&& other) {

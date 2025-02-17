@@ -3,6 +3,7 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QVBoxLayout>
+#include <QWidget>
 
 class NamedListWidget : public QWidget {
 public:
@@ -15,6 +16,7 @@ public:
         m_layout->addWidget(m_list);
 
         this->setLayout(m_layout);
+        m_list->setSelectionMode(QAbstractItemView::SelectionMode::SingleSelection);
     }
 
     NamedListWidget(QString header, QWidget* parent = nullptr)
@@ -27,13 +29,19 @@ public:
         m_layout->addWidget(m_list);
 
         this->setLayout(m_layout);
+        m_list->setSelectionMode(QAbstractItemView::SelectionMode::SingleSelection);
     }
 
-    QListWidget* get_list() { return m_list; }
+    QListWidget* getList() { return m_list; }
 
-    void set_header(QString text) { m_header->setText(text); }
+    void setHeader(QString text) { m_header->setText(text); }
 
     void clear() { m_list->clear(); }
+
+    void enableDrag() {
+        m_list->setDragEnabled(true);
+        m_list->setDragDropMode(QAbstractItemView::DragDropMode::InternalMove);
+    }
 
 private:
     QLabel* m_header;

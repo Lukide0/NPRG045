@@ -1,5 +1,6 @@
 #pragma once
 
+#include "git/parser.h"
 #include "graph/Node.h"
 #include <QColor>
 #include <QLabel>
@@ -10,6 +11,10 @@
 class ListItem : public QListWidgetItem {
 public:
     using QListWidgetItem::QListWidgetItem;
+
+    void setCommitAction(const CommitAction& action) { m_action = action; }
+
+    [[nodiscard]] const CommitAction& getCommitAction() const { return m_action; }
 
     void addConnection(Node* item) { m_connected.push_back(item); }
 
@@ -40,5 +45,6 @@ public:
 
 private:
     std::vector<Node*> m_connected;
+    CommitAction m_action;
     QColor m_color;
 };

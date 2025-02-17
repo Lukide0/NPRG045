@@ -136,6 +136,6 @@ void CommitViewWidget::prepare_diff() {
         nullptr,
         nullptr,
         nullptr,
-        m_changes->get_list()
+        m_changes->getList()
     );
 }

@@ -54,7 +54,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
     setLayout(m_main_layout);
 
-    connect(m_list_actions->get_list(), &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
+    connect(m_list_actions->getList(), &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
         if (m_last_item != nullptr) {
             m_last_item->setColorToAll(Qt::white);
         }
@@ -75,6 +75,12 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
     m_old_commits_graph->setHandle(handle);
     m_new_commits_graph->setHandle(handle);
+
+    m_list_actions->enableDrag();
+
+    connect(m_list_actions->getList()->model(), &QAbstractItemModel::rowsMoved, this, [this]() {
+        this->updateActions();
+    });
 }
 
 void RebaseViewWidget::showCommit(Node* prev, Node* next) {
@@ -93,12 +99,8 @@ void RebaseViewWidget::showCommit(Node* prev, Node* next) {
 std::optional<std::string> RebaseViewWidget::update(
     git_repository* repo, const std::string& head, const std::string& onto, const std::vector<CommitAction>& actions
 ) {
-    m_list_actions->clear();
     m_old_commits_graph->clear();
-    m_new_commits_graph->clear();
-
-    m_last_item = nullptr;
-    m_repo      = repo;
+    m_repo = repo;
 
     auto graph_opt = GitGraph<Node*>::create(head.c_str(), onto.c_str(), repo);
     if (!graph_opt.has_value()) {
@@ -128,7 +130,7 @@ std::optional<std::string> RebaseViewWidget::update(
                 return;
             }
 
-            commit_node->setGitTree(tree);
+            commit_node->setGitTreeOwnership(tree);
 
             node.data = commit_node;
             node.data->setParentNode(parent);
@@ -140,6 +142,14 @@ std::optional<std::string> RebaseViewWidget::update(
         return err_msg;
     }
 
+    return prepareActions(actions);
+}
+
+std::optional<std::string> RebaseViewWidget::prepareActions(const std::vector<CommitAction>& actions) {
+    m_new_commits_graph->clear();
+    m_list_actions->clear();
+    m_last_item = nullptr;
+
     auto* last      = m_new_commits_graph->addNode(0);
     auto& last_node = m_graph.first_node();
     m_root_node     = last_node.data;
@@ -150,7 +160,7 @@ std::optional<std::string> RebaseViewWidget::update(
     m_last_new_commit = last;
 
     for (const auto& action : actions) {
-        auto* action_item = new ListItem(m_list_actions->get_list());
+        auto* action_item = new ListItem(m_list_actions->getList());
 
         QString text = cmd_to_str(action.type);
         auto result  = prepareItem(action_item, text, action);
@@ -158,10 +168,33 @@ std::optional<std::string> RebaseViewWidget::update(
             return err;
         }
 
-        m_list_actions->get_list()->addItem(action_item);
+        m_list_actions->getList()->addItem(action_item);
     }
 
     return std::nullopt;
+}
+
+void RebaseViewWidget::updateActions() {
+    std::vector<CommitAction> actions;
+    auto* last      = m_new_commits_graph->addNode(0);
+    auto& last_node = m_graph.first_node();
+    m_root_node     = last_node.data;
+
+    last->setCommit(last_node.commit.commit);
+    last->setGitTree(last_node.data->getGitTree());
+
+    m_last_new_commit = last;
+
+    auto* list = m_list_actions->getList();
+    for (int i = 0; i < list->count(); ++i) {
+        auto* item = reinterpret_cast<ListItem*>(list->item(i));
+
+        assert(item != nullptr);
+
+        actions.push_back(item->getCommitAction());
+    }
+
+    prepareActions(actions);
 }
 
 Node* RebaseViewWidget::findOldCommit(std::string short_hash) {
@@ -266,6 +299,7 @@ RebaseViewWidget::prepareItem(ListItem* item, QString& item_text, const CommitAc
     }
     }
 
+    item->setCommitAction(action);
     item->setText(item_text);
     return std::nullopt;
 }

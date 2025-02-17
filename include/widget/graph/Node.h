@@ -37,11 +37,21 @@ public:
 
     void setGitTree(git_tree* tree) { m_tree = tree; }
 
+    void setGitTreeOwnership(git_tree* tree) {
+        m_tree_owner = tree;
+        m_tree = tree;
+    }
+
+    git_tree* clearGitTreeOwnership()
+    {
+        return m_tree_owner.release();
+    }
+
     void setConflict(bool conflict) { m_has_conflict = conflict; }
 
     [[nodiscard]] bool hasConflict() const { return m_has_conflict; }
 
-    [[nodiscard]] git_tree* getGitTree() const { return m_tree.tree; }
+    [[nodiscard]] git_tree* getGitTree() const { return m_tree; }
 
     void setFill(const QColor& color);
 
@@ -55,7 +65,8 @@ private:
     std::string m_hash;
     std::string m_msg;
     git_commit* m_commit;
-    git_tree_t m_tree;
+    git_tree* m_tree    = nullptr;
+    git_tree_t m_tree_owner;
     Node* m_parent      = nullptr;
     bool m_has_conflict = false;
 };

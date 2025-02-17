@@ -35,11 +35,11 @@ MainWindow::MainWindow() {
 
     auto* repo = menu->addMenu("Repo");
 
-    auto* repo_open = new QAction(QIcon::fromTheme(QIcon::ThemeIcon::FolderOpen), "Open", this);
+    auto* repo_open = new QAction(QIcon::fromTheme("folder-open"), "Open", this);
     repo_open->setStatusTip("Open a repo");
     connect(repo_open, &QAction::triggered, this, &MainWindow::openRepo);
 
-    auto* repo_refresh = new QAction(QIcon::fromTheme(QIcon::ThemeIcon::ViewRefresh), "Refresh", this);
+    auto* repo_refresh = new QAction(QIcon::fromTheme("view-refresh"), "Refresh", this);
     connect(repo_refresh, &QAction::triggered, this, [&]() { showRebase(); });
 
     repo->addAction(repo_open);
