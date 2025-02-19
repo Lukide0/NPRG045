@@ -27,6 +27,7 @@ void CommitViewWidget::create_rows() {
     git_commit* commit = m_node->getCommit();
 
     std::string hash = GitGraph<Node*>::get_commit_id(commit);
+    hash             = hash.substr(0, 7);
 
     const char* summary        = git_commit_summary(commit);
     const char* desc           = git_commit_body(commit);
