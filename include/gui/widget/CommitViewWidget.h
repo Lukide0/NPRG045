@@ -1,8 +1,8 @@
 #pragma once
 
-#include "widget/clear_layout.h"
-#include "widget/graph/Node.h"
-#include "widget/NamedListWidget.h"
+#include "gui/clear_layout.h"
+#include "gui/widget/graph/Node.h"
+#include "gui/widget/NamedListWidget.h"
 #include <ctime>
 #include <git2/commit.h>
 #include <git2/types.h>

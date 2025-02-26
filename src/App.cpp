@@ -1,6 +1,7 @@
 #include "App.h"
 
-#include "git/parser.h"
+#include "core/git/parser.h"
+#include "core/git/paths.h"
 
 #include <cassert>
 #include <cctype>
@@ -113,8 +114,8 @@ void MainWindow::showRebase() {
     std::string onto;
 
     {
-        auto head_file = std::ifstream(m_repo_path + '/' + HEAD_FILE);
-        auto onto_file = std::ifstream(m_repo_path + '/' + ONTO_FILE);
+        auto head_file = std::ifstream(m_repo_path + '/' + core::git::HEAD_FILE.c_str());
+        auto onto_file = std::ifstream(m_repo_path + '/' + core::git::ONTO_FILE.c_str());
 
         if (!head_file.good() || !onto_file.good()) {
             QMessageBox::critical(this, "Rebase Error", "Could not find rebase files");
@@ -125,7 +126,7 @@ void MainWindow::showRebase() {
         std::getline(onto_file, onto);
     }
 
-    auto filepath = m_repo_path + '/' + TODO_FILE_PATH;
+    auto filepath = m_repo_path + '/' + core::git::TODO_FILE.c_str();
 
     auto res = parse_file(filepath);
     if (!res.err.empty()) {

@@ -1,15 +1,18 @@
-#include "widget/CommitViewWidget.h"
-#include "git/GitGraph.h"
-#include "git/types.h"
-#include "widget/graph/Node.h"
-#include <chrono>
-#include <ctime>
+#include "gui/widget/CommitViewWidget.h"
+#include "core/git/GitGraph.h"
+#include "core/git/types.h"
+#include "gui/widget/graph/Node.h"
+
 #include <git2/commit.h>
 #include <git2/diff.h>
 #include <git2/tree.h>
 #include <git2/types.h>
-#include <iomanip>
+
 #include <QMessageBox>
+
+#include <chrono>
+#include <ctime>
+#include <iomanip>
 #include <sstream>
 #include <string>
 

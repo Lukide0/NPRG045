@@ -1,5 +1,5 @@
-#include "widget/graph/Graph.h"
-#include "widget/graph/Node.h"
+#include "gui/widget/graph/Graph.h"
+#include "gui/widget/graph/Node.h"
 
 #include <algorithm>
 #include <cstdint>

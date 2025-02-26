@@ -1,13 +1,13 @@
-#include "widget/RebaseViewWidget.h"
+#include "gui/widget/RebaseViewWidget.h"
 
-#include "git/GitGraph.h"
-#include "git/parser.h"
-#include "git/types.h"
-#include "widget/CommitViewWidget.h"
-#include "widget/graph/Graph.h"
-#include "widget/graph/Node.h"
-#include "widget/ListItem.h"
-#include "widget/NamedListWidget.h"
+#include "core/git/GitGraph.h"
+#include "core/git/parser.h"
+#include "core/git/types.h"
+#include "gui/widget/CommitViewWidget.h"
+#include "gui/widget/graph/Graph.h"
+#include "gui/widget/graph/Node.h"
+#include "gui/widget/ListItem.h"
+#include "gui/widget/NamedListWidget.h"
 
 #include <cassert>
 #include <cstdint>

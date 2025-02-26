@@ -1,4 +1,4 @@
-#include "widget/graph/Node.h"
+#include "gui/widget/graph/Node.h"
 #include <QGraphicsItem>
 #include <QPainter>
 #include <QStyleOptionGraphicsItem>

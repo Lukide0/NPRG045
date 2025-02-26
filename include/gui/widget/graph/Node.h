@@ -1,12 +1,14 @@
 #pragma once
 
-#include "git/types.h"
+#include "core/git/types.h"
+
 #include <git2/commit.h>
 #include <git2/types.h>
-#include <iostream>
+
 #include <QColor>
 #include <QGraphicsItem>
 #include <QPainterPath>
+
 #include <string>
 
 class GraphWidget;
@@ -39,13 +41,10 @@ public:
 
     void setGitTreeOwnership(git_tree* tree) {
         m_tree_owner = tree;
-        m_tree = tree;
+        m_tree       = tree;
     }
 
-    git_tree* clearGitTreeOwnership()
-    {
-        return m_tree_owner.release();
-    }
+    git_tree* clearGitTreeOwnership() { return m_tree_owner.release(); }
 
     void setConflict(bool conflict) { m_has_conflict = conflict; }
 
@@ -65,7 +64,7 @@ private:
     std::string m_hash;
     std::string m_msg;
     git_commit* m_commit;
-    git_tree* m_tree    = nullptr;
+    git_tree* m_tree = nullptr;
     git_tree_t m_tree_owner;
     Node* m_parent      = nullptr;
     bool m_has_conflict = false;

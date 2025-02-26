@@ -1,8 +1,6 @@
 #pragma once
 
-#include "git/parser.h"
-#include "widget/ListItem.h"
-#include "widget/RebaseViewWidget.h"
+#include "gui/widget/RebaseViewWidget.h"
 
 #include <cassert>
 #include <cctype>
@@ -24,16 +22,12 @@
 #include <QString>
 #include <string>
 
-constexpr auto* TODO_FILE_PATH = ".git/rebase-merge/git-rebase-todo";
-constexpr auto* HEAD_FILE      = ".git/rebase-merge/orig-head";
-constexpr auto* ONTO_FILE      = ".git/rebase-merge/onto";
-
 class MainWindow : public QMainWindow {
 public:
     MainWindow();
     void openRepo();
 
-    ~MainWindow() override {
+    ~MainWindow() {
         git_repository_free(m_repo);
         git_libgit2_shutdown();
     }

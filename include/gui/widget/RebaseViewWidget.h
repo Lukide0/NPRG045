@@ -1,12 +1,12 @@
 #pragma once
 
-#include "git/GitGraph.h"
-#include "git/parser.h"
-#include "widget/CommitViewWidget.h"
-#include "widget/graph/Graph.h"
-#include "widget/graph/Node.h"
-#include "widget/ListItem.h"
-#include "widget/NamedListWidget.h"
+#include "core/git/GitGraph.h"
+#include "core/git/parser.h"
+#include "gui/widget/CommitViewWidget.h"
+#include "gui/widget/graph/Graph.h"
+#include "gui/widget/graph/Node.h"
+#include "gui/widget/ListItem.h"
+#include "gui/widget/NamedListWidget.h"
 
 #include <git2/types.h>
 #include <optional>

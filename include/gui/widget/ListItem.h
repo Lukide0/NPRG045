@@ -1,11 +1,13 @@
 #pragma once
 
-#include "git/parser.h"
-#include "graph/Node.h"
+#include "core/git/parser.h"
+#include "gui/widget/graph/Node.h"
+
 #include <QColor>
 #include <QLabel>
 #include <QListWidgetItem>
 #include <QPalette>
+
 #include <vector>
 
 class ListItem : public QListWidgetItem {
