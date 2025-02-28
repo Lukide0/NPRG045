@@ -1,7 +1,7 @@
 #include "App.h"
 
-#include "core/git/parser.h"
 #include "core/git/paths.h"
+#include "core/state/CommandHistory.h"
 
 #include <cassert>
 #include <cctype>
@@ -27,6 +27,8 @@
 #include <string>
 
 MainWindow::MainWindow() {
+    using core::state::CommandHistory;
+
     git_libgit2_init();
 
     QPalette palette;
@@ -40,22 +42,57 @@ MainWindow::MainWindow() {
 
     auto* repo_open = new QAction(QIcon::fromTheme("folder-open"), "Open", this);
     repo_open->setStatusTip("Open a repo");
-    connect(repo_open, &QAction::triggered, this, &MainWindow::openRepoDialog);
 
-    auto* repo_refresh = new QAction(QIcon::fromTheme("view-refresh"), "Refresh", this);
-    connect(repo_refresh, &QAction::triggered, this, [&]() { showRebase(); });
+    connect(repo_open, &QAction::triggered, this, [this] {
+        if (CommandHistory::CanUndo() || CommandHistory::CanRedo()) {
+            auto ans = QMessageBox::question(
+                this,
+                "Unsaved changes",
+                "You have unsaved changes, are you sure you want to open another repo?",
+                QMessageBox::Yes | QMessageBox::No,
+                QMessageBox::No
+            );
+
+            if (ans == QMessageBox::No) {
+                return;
+            }
+        }
+
+        openRepoDialog();
+    });
 
     repo->addAction(repo_open);
-    repo->addAction(repo_refresh);
 
-    auto* view             = menu->addMenu("View");
-    auto* hide_old_commits = new QAction("Hide old commits", this);
+    {
+        auto* edit = menu->addMenu("Edit");
 
-    hide_old_commits->setCheckable(true);
-    hide_old_commits->setChecked(true);
-    connect(hide_old_commits, &QAction::triggered, this, &MainWindow::hideOldCommits);
+        auto* edit_undo = new QAction(QIcon::fromTheme("edit-undo"), "Undo", this);
+        edit_undo->setEnabled(false);
+        connect(edit_undo, &QAction::triggered, this, [] { CommandHistory::Undo(); });
 
-    view->addAction(hide_old_commits);
+        auto* edit_redo = new QAction(QIcon::fromTheme("edit-redo"), "Redo", this);
+        edit_redo->setEnabled(false);
+        connect(edit_redo, &QAction::triggered, this, [] { CommandHistory::Redo(); });
+
+        edit->addAction(edit_undo);
+        edit->addAction(edit_redo);
+
+        edit_undo->setShortcut(QKeySequence::Undo);
+        edit_redo->setShortcut(QKeySequence::Redo);
+
+        CommandHistory::SetUndo(edit_undo);
+        CommandHistory::SetRedo(edit_redo);
+    }
+    {
+        auto* view             = menu->addMenu("View");
+        auto* hide_old_commits = new QAction("Hide old commits", this);
+
+        hide_old_commits->setCheckable(true);
+        hide_old_commits->setChecked(true);
+        connect(hide_old_commits, &QAction::triggered, this, &MainWindow::hideOldCommits);
+
+        view->addAction(hide_old_commits);
+    }
 
     // MAIN ---------------------------------------------------------------
     auto* main = new QWidget(this);
@@ -118,6 +155,7 @@ void MainWindow::openRepoCLI(const std::string& todo_file) {
 
 bool MainWindow::openRepo(const std::string& path) {
     m_rebase_view->hide();
+    core::state::CommandHistory::Clear();
 
     if (git_repository_open(&m_repo, path.c_str()) != 0) {
 

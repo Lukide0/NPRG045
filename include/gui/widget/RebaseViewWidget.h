@@ -24,6 +24,7 @@ public:
     std::optional<std::string> update(
         git_repository* repo, const std::string& head, const std::string& onto, const std::vector<CommitAction>& actions
     );
+    void updateActions();
 
     void hideOldCommits() { m_old_commits_graph->hide(); }
 
@@ -54,8 +55,6 @@ private:
     Node* findOldCommit(std::string short_hash);
 
     void updateNode(Node* node, Node* current, Node* changes);
-
-    void updateActions();
 
     void showCommit(Node* prev, Node* next);
 };

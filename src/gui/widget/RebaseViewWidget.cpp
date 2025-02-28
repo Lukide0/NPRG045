@@ -3,6 +3,8 @@
 #include "core/git/GitGraph.h"
 #include "core/git/parser.h"
 #include "core/git/types.h"
+#include "core/state/Command.h"
+#include "core/state/CommandHistory.h"
 #include "gui/widget/CommitViewWidget.h"
 #include "gui/widget/graph/Graph.h"
 #include "gui/widget/graph/Node.h"
@@ -17,6 +19,7 @@
 #include <git2/index.h>
 #include <git2/merge.h>
 #include <git2/types.h>
+#include <memory>
 #include <optional>
 #include <qboxlayout.h>
 #include <qcolor.h>
@@ -31,6 +34,38 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+class ListItemMoveCommand : public core::state::Command {
+public:
+    ListItemMoveCommand(RebaseViewWidget* rebase, QListWidget* parent, int prev_row, int curr_row)
+        : m_rebase(rebase)
+        , m_parent(parent)
+        , m_prev(prev_row)
+        , m_curr(curr_row) { }
+
+    ~ListItemMoveCommand() override = default;
+
+    void execute() override {
+        move(m_prev, m_curr);
+        m_rebase->updateActions();
+    }
+
+    void undo() override {
+        move(m_curr, m_prev);
+        m_rebase->updateActions();
+    }
+
+private:
+    RebaseViewWidget* m_rebase;
+    QListWidget* m_parent;
+    int m_prev;
+    int m_curr;
+
+    void move(int from, int to) {
+        auto* item = m_parent->takeItem(from);
+        m_parent->insertItem(to, item);
+    }
+};
 
 RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     : QWidget(parent)
@@ -78,9 +113,27 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
     m_list_actions->enableDrag();
 
-    connect(m_list_actions->getList()->model(), &QAbstractItemModel::rowsMoved, this, [this]() {
-        this->updateActions();
-    });
+    connect(
+        m_list_actions->getList()->model(),
+        &QAbstractItemModel::rowsMoved,
+        this,
+        [this](
+            const QModelIndex& source, int source_row, int _end, const QModelIndex& _destination, int destination_row
+        ) {
+            assert(source_row == _end);
+            assert(source == _destination);
+
+            if (source_row == destination_row) {
+                return;
+            }
+
+            core::state::CommandHistory::Add(
+                std::make_unique<ListItemMoveCommand>(this, m_list_actions->getList(), source_row, destination_row)
+            );
+
+            this->updateActions();
+        }
+    );
 }
 
 void RebaseViewWidget::showCommit(Node* prev, Node* next) {
