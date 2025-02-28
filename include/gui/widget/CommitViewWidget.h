@@ -18,7 +18,7 @@ public:
         : QWidget(parent) {
         m_layout = new QGridLayout();
         m_layout->setColumnStretch(0, 1);
-        m_layout->setColumnStretch(1, 1);
+        m_layout->setColumnStretch(1, 2);
         m_layout->setColumnStretch(2, 2);
         setLayout(m_layout);
     }
