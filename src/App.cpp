@@ -5,6 +5,7 @@
 
 #include <cassert>
 #include <cctype>
+#include <cstdlib>
 #include <fstream>
 #include <git2.h>
 #include <git2/commit.h>
@@ -13,6 +14,7 @@
 #include <git2/repository.h>
 #include <git2/types.h>
 #include <QAction>
+#include <QApplication>
 #include <QFileDialog>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -38,7 +40,7 @@ MainWindow::MainWindow() {
 
     auto* repo_open = new QAction(QIcon::fromTheme("folder-open"), "Open", this);
     repo_open->setStatusTip("Open a repo");
-    connect(repo_open, &QAction::triggered, this, &MainWindow::openRepo);
+    connect(repo_open, &QAction::triggered, this, &MainWindow::openRepoDialog);
 
     auto* repo_refresh = new QAction(QIcon::fromTheme("view-refresh"), "Refresh", this);
     connect(repo_refresh, &QAction::triggered, this, [&]() { showRebase(); });
@@ -69,6 +71,15 @@ MainWindow::MainWindow() {
 
     m_rebase_view->hide();
     m_rebase_view->hideOldCommits();
+
+    auto args = QApplication::arguments();
+    args.removeFirst(); // program path
+
+    if (!args.empty()) {
+        // NOTE: Disable open repo action when opening from command line
+        repo_open->setEnabled(false);
+        openRepoCLI(args.front().toStdString());
+    }
 }
 
 void MainWindow::hideOldCommits(bool state) {
@@ -79,17 +90,33 @@ void MainWindow::hideOldCommits(bool state) {
     }
 }
 
-void MainWindow::openRepo() {
+bool MainWindow::openRepoDialog() {
     auto folder = QFileDialog::getExistingDirectory(
         this, "Select Repo folder", QString(), QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks
     );
 
     if (folder.isEmpty()) {
-        return;
+        return false;
     }
 
     auto path = folder.toStdString();
+    return openRepo(path);
+}
 
+void MainWindow::openRepoCLI(const std::string& todo_file) {
+
+    auto path = core::git::repo_path_from_todo(todo_file);
+
+    if (!openRepo(path)) {
+        // NOTE: If this method is called before QApplication::exec() then it will do nothing.
+        QApplication::exit(1);
+
+        // NOTE: Only called in before QApplication::exec()
+        std::exit(1);
+    }
+}
+
+bool MainWindow::openRepo(const std::string& path) {
     m_rebase_view->hide();
 
     if (git_repository_open(&m_repo, path.c_str()) != 0) {
@@ -101,15 +128,15 @@ void MainWindow::openRepo() {
 
         const auto* err = git_error_last();
         QMessageBox::critical(this, "Repo Error", err->message);
-        return;
+        return false;
     }
 
     m_repo_path = path;
 
-    showRebase();
+    return showRebase();
 }
 
-void MainWindow::showRebase() {
+bool MainWindow::showRebase() {
     std::string head;
     std::string onto;
 
@@ -119,7 +146,7 @@ void MainWindow::showRebase() {
 
         if (!head_file.good() || !onto_file.good()) {
             QMessageBox::critical(this, "Rebase Error", "Could not find rebase files");
-            return;
+            return false;
         }
 
         std::getline(head_file, head);
@@ -131,16 +158,18 @@ void MainWindow::showRebase() {
     auto res = parse_file(filepath);
     if (!res.err.empty()) {
         QMessageBox::critical(this, "Rebase Error", res.err.c_str());
-        return;
+        return false;
     }
 
     auto rebase_res = m_rebase_view->update(m_repo, head, onto, res.actions);
 
     if (rebase_res.has_value()) {
         QMessageBox::critical(this, "Rebase Error", rebase_res.value().c_str());
-        return;
+        return false;
     }
 
     m_help_label->hide();
     m_rebase_view->show();
+
+    return true;
 }

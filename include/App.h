@@ -25,7 +25,8 @@
 class MainWindow : public QMainWindow {
 public:
     MainWindow();
-    void openRepo();
+    bool openRepoDialog();
+    bool openRepo(const std::string& path);
 
     ~MainWindow() {
         git_repository_free(m_repo);
@@ -39,6 +40,7 @@ private:
     RebaseViewWidget* m_rebase_view;
     git_repository* m_repo = nullptr;
 
-    void showRebase();
+    bool showRebase();
     void hideOldCommits(bool state);
+    void openRepoCLI(const std::string& todo_file);
 };
