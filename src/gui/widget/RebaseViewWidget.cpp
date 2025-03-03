@@ -298,8 +298,10 @@ RebaseViewWidget::prepareItem(ListItem* item, QString& item_text, const CommitAc
         assert(old != nullptr);
         item->addConnection(old);
 
-        item_text += " ";
+        item_text += " [";
         item_text += action.hash.c_str();
+        item_text += "]: ";
+        item_text += git_commit_summary(old->getCommit());
         break;
     }
 
@@ -314,8 +316,10 @@ RebaseViewWidget::prepareItem(ListItem* item, QString& item_text, const CommitAc
 
         updateNode(m_last_new_commit, m_last_new_commit, old);
 
-        item_text += " ";
+        item_text += " [";
         item_text += action.hash.c_str();
+        item_text += "]: ";
+        item_text += git_commit_summary(old->getCommit());
         break;
     }
 
@@ -329,14 +333,15 @@ RebaseViewWidget::prepareItem(ListItem* item, QString& item_text, const CommitAc
     case CmdType::PICK:
     case CmdType::REWORD:
     case CmdType::EDIT: {
-
-        item->setItemColor(QColor(49, 216, 67));
-        item_text += " ";
-        item_text += action.hash.c_str();
-
         Node* old = findOldCommit(action.hash);
         assert(old != nullptr);
         item->addConnection(old);
+
+        item->setItemColor(QColor(49, 216, 67));
+        item_text += " [";
+        item_text += action.hash.c_str();
+        item_text += "]: ";
+        item_text += git_commit_summary(old->getCommit());
 
         Node* new_node = m_new_commits_graph->addNode();
         new_node->setCommit(old->getCommit());
