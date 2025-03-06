@@ -28,14 +28,13 @@ public:
     bool openRepoDialog();
     bool openRepo(const std::string& path);
 
-    ~MainWindow() {
+    ~MainWindow() override {
         git_repository_free(m_repo);
         git_libgit2_shutdown();
     }
 
 private:
     std::string m_repo_path;
-    QWidget* m_help_label;
     QHBoxLayout* m_layout;
     RebaseViewWidget* m_rebase_view;
     git_repository* m_repo = nullptr;

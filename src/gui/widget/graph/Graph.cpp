@@ -12,6 +12,7 @@ Node* GraphWidget::addNode(std::uint32_t y) {
     scene()->addItem(node);
 
     auto node_height = node->boundingRect().height();
+    auto node_width  = node->boundingRect().width();
 
     auto padding = 10;
     auto gap     = 10;
@@ -21,11 +22,15 @@ Node* GraphWidget::addNode(std::uint32_t y) {
 
     m_next_y = std::max<std::uint32_t>(y + 1, m_next_y);
 
-    double new_height  = ((y + 1) * (node_height + gap)) + gap;
+    double new_height = ((y + 1) * (node_height + gap)) + gap;
+    double new_width  = node_width + padding;
+
     double curr_height = sceneRect().height();
+    double curr_width  = sceneRect().width();
 
     auto rect = sceneRect();
     rect.setHeight(std::max(new_height, curr_height));
+    rect.setWidth(std::max(new_width, curr_width));
 
     setSceneRect(rect);
 

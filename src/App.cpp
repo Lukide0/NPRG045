@@ -2,6 +2,7 @@
 
 #include "core/git/paths.h"
 #include "core/state/CommandHistory.h"
+#include "gui/widget/RebaseViewWidget.h"
 
 #include <cassert>
 #include <cctype>
@@ -100,9 +101,6 @@ MainWindow::MainWindow() {
 
     m_layout = new QHBoxLayout(main);
 
-    m_help_label = new QLabel("Open a repo with rebase in progress", main);
-    m_layout->addWidget(m_help_label);
-
     m_rebase_view = new RebaseViewWidget();
     m_layout->addWidget(m_rebase_view);
 
@@ -140,11 +138,14 @@ bool MainWindow::openRepoDialog() {
     return openRepo(path);
 }
 
-void MainWindow::openRepoCLI(const std::string& todo_file) {
+void MainWindow::openRepoCLI(const std::string& path) {
 
-    auto path = core::git::repo_path_from_todo(todo_file);
+    std::string repo_path = path;
+    if (!std::filesystem::is_directory(path)) {
+        repo_path = core::git::repo_path_from_todo(path);
+    }
 
-    if (!openRepo(path)) {
+    if (!openRepo(repo_path)) {
         // NOTE: If this method is called before QApplication::exec() then it will do nothing.
         QApplication::exit(1);
 
@@ -158,9 +159,6 @@ bool MainWindow::openRepo(const std::string& path) {
     core::state::CommandHistory::Clear();
 
     if (git_repository_open(&m_repo, path.c_str()) != 0) {
-
-        m_help_label->show();
-
         git_repository_free(m_repo);
         m_repo = nullptr;
 
@@ -206,7 +204,6 @@ bool MainWindow::showRebase() {
         return false;
     }
 
-    m_help_label->hide();
     m_rebase_view->show();
 
     return true;

@@ -18,6 +18,10 @@ public:
 
     [[nodiscard]] const CommitAction& getCommitAction() const { return m_action; }
 
+    void setNode(Node* node) { m_node = node; }
+
+    Node* getNode() { return m_node; }
+
     void addConnection(Node* item) { m_connected.push_back(item); }
 
     void setItemColor(QColor color) { m_color = color; }
@@ -46,6 +50,7 @@ public:
     }
 
 private:
+    Node* m_node = nullptr;
     std::vector<Node*> m_connected;
     CommitAction m_action;
     QColor m_color;

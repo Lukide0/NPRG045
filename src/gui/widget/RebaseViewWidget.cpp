@@ -6,6 +6,7 @@
 #include "core/state/Command.h"
 #include "core/state/CommandHistory.h"
 #include "gui/widget/CommitViewWidget.h"
+#include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Graph.h"
 #include "gui/widget/graph/Node.h"
 #include "gui/widget/ListItem.h"
@@ -70,24 +71,35 @@ private:
 RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     : QWidget(parent)
     , m_graph(GitGraph<Node*>::empty()) {
-    m_main_layout = new QVBoxLayout();
-    m_layout      = new QHBoxLayout();
 
-    m_list_actions      = new NamedListWidget("Actions");
-    m_old_commits_graph = new GraphWidget(this);
-    m_new_commits_graph = new GraphWidget(this);
+    m_layout = new QHBoxLayout();
+    setLayout(m_layout);
 
-    m_layout->addWidget(m_list_actions);
-    m_layout->addWidget(m_old_commits_graph);
-    m_layout->addWidget(m_new_commits_graph);
+    m_left_layout  = new QVBoxLayout();
+    m_right_layout = new QVBoxLayout();
 
+    m_layout->addLayout(m_left_layout, 1);
+    m_layout->addLayout(m_right_layout, 2);
+
+    m_list_actions  = new NamedListWidget("Actions");
+    m_graphs_layout = new QHBoxLayout();
+
+    //-- LEFT LAYOUT --------------------------------------------------------//
+    m_left_layout->addWidget(m_list_actions);
+    m_left_layout->addLayout(m_graphs_layout);
+
+    m_old_commits_graph = new GraphWidget();
+    m_new_commits_graph = new GraphWidget();
+
+    m_graphs_layout->addWidget(m_old_commits_graph, 1);
+    m_graphs_layout->addWidget(m_new_commits_graph, 1);
+
+    //-- RIGHT LAYOUT -------------------------------------------------------//
+    m_diff_widget = new DiffWidget();
     m_commit_view = new CommitViewWidget();
-    m_commit_view->update(nullptr);
 
-    m_main_layout->addItem(m_layout);
-    m_main_layout->addWidget(m_commit_view);
-
-    setLayout(m_main_layout);
+    m_right_layout->addWidget(m_diff_widget, 1);
+    m_right_layout->addWidget(m_commit_view);
 
     connect(m_list_actions->getList(), &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
         if (m_last_item != nullptr) {
@@ -100,9 +112,11 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
             if (list_item == nullptr) {
                 return;
             }
+            m_last_item = list_item;
 
             list_item->setColorToAll(list_item->getItemColor());
-            m_last_item = list_item;
+            m_commit_view->update(m_last_item->getNode());
+            m_diff_widget->update(m_last_item->getNode());
         }
     });
 
@@ -139,6 +153,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 void RebaseViewWidget::showCommit(Node* prev, Node* next) {
     if (next == nullptr) {
         m_commit_view->update(nullptr);
+        m_diff_widget->update(nullptr);
         return;
     }
 
@@ -147,6 +162,7 @@ void RebaseViewWidget::showCommit(Node* prev, Node* next) {
     }
 
     m_commit_view->update(next);
+    m_diff_widget->update(next);
 }
 
 std::optional<std::string> RebaseViewWidget::update(
@@ -297,6 +313,7 @@ RebaseViewWidget::prepareItem(ListItem* item, QString& item_text, const CommitAc
         Node* old = findOldCommit(action.hash);
         assert(old != nullptr);
         item->addConnection(old);
+        item->setNode(old);
 
         item_text += " [";
         item_text += action.hash.c_str();
@@ -313,6 +330,7 @@ RebaseViewWidget::prepareItem(ListItem* item, QString& item_text, const CommitAc
         assert(old != nullptr);
         item->addConnection(old);
         item->addConnection(m_last_new_commit);
+        item->setNode(m_last_new_commit);
 
         updateNode(m_last_new_commit, m_last_new_commit, old);
 
@@ -349,6 +367,7 @@ RebaseViewWidget::prepareItem(ListItem* item, QString& item_text, const CommitAc
         new_node->setParentNode(m_last_new_commit);
 
         item->addConnection(new_node);
+        item->setNode(new_node);
 
         updateNode(new_node, m_last_new_commit, new_node);
 

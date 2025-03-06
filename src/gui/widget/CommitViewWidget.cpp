@@ -1,6 +1,7 @@
 #include "gui/widget/CommitViewWidget.h"
 #include "core/git/GitGraph.h"
 #include "core/git/types.h"
+#include "gui/clear_layout.h"
 #include "gui/widget/graph/Node.h"
 
 #include <git2/commit.h>
@@ -17,13 +18,14 @@
 #include <string>
 
 void CommitViewWidget::create_rows() {
+    clear_layout(m_info_layout);
 
     if (m_node == nullptr) {
-        create_row("Hash:", "", 0);
-        create_row("Author:", "", 1);
-        create_row("Date:", "", 2);
-        create_row("Summary:", "", 3);
-        create_row("Description:", "", 4);
+        m_info_layout->addRow("Hash:", new QLabel(""));
+        m_info_layout->addRow("Author:", new QLabel(""));
+        m_info_layout->addRow("Date:", new QLabel(""));
+        m_info_layout->addRow("Summary:", new QLabel(""));
+        m_info_layout->addRow("Description:", new QLabel(""));
         return;
     }
 
@@ -45,16 +47,15 @@ void CommitViewWidget::create_rows() {
     }
     auto time_str = ss.str();
 
-    create_row("Hash:", hash.c_str(), 0);
-    create_row("Author:", autor->name, 1);
-    create_row("Date:", time_str.c_str(), 2);
-    create_row("Summary:", summary, 3);
-    create_row("Description:", desc, 4);
+    m_info_layout->addRow("Hash:", new QLabel(hash.c_str()));
+    m_info_layout->addRow("Author:", new QLabel(autor->name));
+    m_info_layout->addRow("Date:", new QLabel(time_str.c_str()));
+    m_info_layout->addRow("Summary:", new QLabel(summary));
+    m_info_layout->addRow("Description:", new QLabel(desc));
 }
 
 void CommitViewWidget::prepare_diff() {
-    m_changes = new NamedListWidget("Changes");
-    m_layout->addWidget(m_changes, 0, 2, 0, 4);
+    m_changes->clear();
 
     if (m_node == nullptr) {
         return;

@@ -3,6 +3,7 @@
 #include "core/git/GitGraph.h"
 #include "core/git/parser.h"
 #include "gui/widget/CommitViewWidget.h"
+#include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Graph.h"
 #include "gui/widget/graph/Node.h"
 #include "gui/widget/ListItem.h"
@@ -32,13 +33,21 @@ public:
 
 private:
     QHBoxLayout* m_layout;
-    QVBoxLayout* m_main_layout;
+    // Contains: actions and graphs
+    QVBoxLayout* m_left_layout;
+    // Contains: diff and commit
+    QVBoxLayout* m_right_layout;
 
-    CommitViewWidget* m_commit_view;
-    NamedListWidget* m_list_actions;
+    QHBoxLayout* m_graphs_layout;
 
     GraphWidget* m_old_commits_graph;
     GraphWidget* m_new_commits_graph;
+
+    NamedListWidget* m_list_actions;
+
+    CommitViewWidget* m_commit_view;
+    DiffWidget* m_diff_widget;
+
     Node* m_last_new_commit = nullptr;
 
     GitGraph<Node*> m_graph;
