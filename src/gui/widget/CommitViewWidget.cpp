@@ -1,9 +1,12 @@
 #include "gui/widget/CommitViewWidget.h"
+#include "core/git/diff.h"
 #include "core/git/GitGraph.h"
 #include "core/git/types.h"
 #include "gui/clear_layout.h"
 #include "gui/widget/graph/Node.h"
 
+#include <cstdlib>
+#include <format>
 #include <git2/commit.h>
 #include <git2/diff.h>
 #include <git2/tree.h>
@@ -17,7 +20,7 @@
 #include <sstream>
 #include <string>
 
-void CommitViewWidget::create_rows() {
+void CommitViewWidget::createRows() {
     clear_layout(m_info_layout);
 
     if (m_node == nullptr) {
@@ -33,17 +36,25 @@ void CommitViewWidget::create_rows() {
 
     std::string hash = GitGraph<Node*>::get_commit_id(commit);
 
-    const char* summary        = git_commit_summary(commit);
-    const char* desc           = git_commit_body(commit);
-    const git_signature* autor = git_commit_author(commit);
+    const char* summary          = git_commit_summary(commit);
+    const char* desc             = git_commit_body(commit);
+    const git_signature* autor   = git_commit_author(commit);
+    const git_time_t commit_time = git_commit_time(commit);
+    const int commit_time_offset = git_commit_time_offset(commit);
 
     std::stringstream ss;
     {
-        std::chrono::seconds seconds { autor->when.time };
-        std::time_t time = seconds.count();
-        std::tm* t       = std::gmtime(&time);
+        std::time_t time  = commit_time;
+        std::tm* timeInfo = std::gmtime(&time);
 
-        ss << std::put_time(t, "%x %X");
+        int offset_hours   = std::abs(commit_time_offset) / 60;
+        int offset_minutes = std::abs(commit_time_offset) % 60;
+
+        // clang-format off
+        ss << std::put_time(timeInfo, "%Y-%m-%dT%H:%M:%S")
+           << ((commit_time_offset < 0) ? '-' : '+')
+           << std::format("{:02}:{:02}", offset_hours, offset_minutes);
+        // clang-format on
     }
     auto time_str = ss.str();
 
@@ -54,7 +65,7 @@ void CommitViewWidget::create_rows() {
     m_info_layout->addRow("Description:", new QLabel(desc));
 }
 
-void CommitViewWidget::prepare_diff() {
+void CommitViewWidget::prepareDiff() {
     m_changes->clear();
 
     if (m_node == nullptr) {
@@ -62,36 +73,25 @@ void CommitViewWidget::prepare_diff() {
     }
 
     Node* parentNode = m_node->getParentNode();
-    git_tree_t curr_tree;
-    git_tree_t parent_tree;
 
-    if (parentNode != nullptr) {
-        git_commit* curr   = m_node->getCommit();
-        git_commit* parent = parentNode->getCommit();
+    git_commit* curr_commit   = m_node->getCommit();
+    git_commit* parent_commit = (parentNode != nullptr) ? parentNode->getCommit() : nullptr;
 
-        if (git_commit_tree(&curr_tree.tree, curr) != 0 || git_commit_tree(&parent_tree.tree, parent) != 0) {
-            QMessageBox::critical(this, "Commit diff error", "Failed to retrieve tree from commit");
-            return;
-        }
-    } else {
-        parent_tree.tree = nullptr;
-        git_commit* curr = m_node->getCommit();
+    diff_result_t res = prepare_diff(parent_commit, curr_commit);
+    switch (res.state) {
+    case diff_result_t::FAILED_TO_RETRIEVE_TREE:
+        QMessageBox::critical(this, "Commit diff error", "Failed to retrieve tree from commit");
+        return;
 
-        if (git_commit_tree(&curr_tree.tree, curr) != 0) {
-            QMessageBox::critical(this, "Commit diff error", "Failed to retrieve tree from commit");
-            return;
-        }
-    }
-
-    git_diff_t diff;
-    git_repository* repo = git_tree_owner(curr_tree.tree);
-    if (git_diff_tree_to_tree(&diff.diff, repo, parent_tree.tree, curr_tree.tree, nullptr) != 0) {
+    case diff_result_t::FAILED_TO_CREATE_DIFF:
         QMessageBox::critical(this, "Commit diff error", "Failed to create diff");
         return;
+    case diff_result_t::OK:
+        break;
     }
 
     git_diff_foreach(
-        diff.diff,
+        res.diff.diff,
         [](const git_diff_delta* delta, float /*unused*/, void* list_raw) -> int {
             auto* list = reinterpret_cast<QListWidget*>(list_raw);
 

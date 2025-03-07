@@ -1,22 +1,15 @@
 #pragma once
 
+#include "core/utils/todo.h"
 #include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
-#include <format>
 #include <fstream>
-#include <iostream>
-#include <source_location>
 #include <string>
 #include <string_view>
 #include <vector>
-
-[[noreturn]] static void TODO(std::string_view msg = "", std::source_location loc = std::source_location()) {
-    std::cerr << std::format("TODO[{}:{}]: {}", loc.file_name(), loc.line(), msg) << std::endl;
-    assert(false);
-}
 
 enum class CmdType {
     INVALID,

@@ -5,6 +5,7 @@
 #include "core/git/types.h"
 #include "core/state/Command.h"
 #include "core/state/CommandHistory.h"
+#include "core/utils/todo.h"
 #include "gui/widget/CommitViewWidget.h"
 #include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Graph.h"

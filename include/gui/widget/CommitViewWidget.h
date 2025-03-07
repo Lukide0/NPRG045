@@ -27,14 +27,14 @@ public:
         m_changes = new NamedListWidget("Changes");
         m_layout->addWidget(m_changes);
 
-        create_rows();
+        createRows();
     }
 
     void update(Node* node) {
         m_node = node;
 
-        create_rows();
-        prepare_diff();
+        createRows();
+        prepareDiff();
     }
 
 private:
@@ -45,6 +45,6 @@ private:
 
     static QLabel* create_label(const QString& text) { return new QLabel(text); }
 
-    void create_rows();
-    void prepare_diff();
+    void createRows();
+    void prepareDiff();
 };
