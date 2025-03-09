@@ -17,6 +17,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QFileDialog>
+#include <QFont>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLayout>

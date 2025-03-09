@@ -1,11 +1,20 @@
 #include "gui/widget/DiffWidget.h"
 #include "core/git/diff.h"
+#include "core/utils/todo.h"
+#include "gui/clear_layout.h"
+#include "gui/widget/DiffEditor.h"
+#include "gui/widget/DiffEditorLine.h"
+#include "gui/widget/DiffFile.h"
 #include "gui/widget/graph/Node.h"
 
+#include <format>
 #include <git2/diff.h>
 #include <git2/types.h>
 #include <QMessageBox>
+#include <QTextBlock>
 #include <QTextDocument>
+#include <QTextEdit>
+#include <vector>
 
 DiffWidget::DiffWidget(QWidget* parent)
     : QWidget(parent) {
@@ -15,6 +24,7 @@ DiffWidget::DiffWidget(QWidget* parent)
 
 void DiffWidget::update(Node* node) {
     m_node = node;
+    clear_layout(m_layout);
 
     if (m_node == nullptr) {
         return;
@@ -41,4 +51,134 @@ void DiffWidget::update(Node* node) {
     }
 
     m_diffs = create_diff(res.diff.diff);
+
+    for (const auto& file_diff : m_diffs) {
+        createFileDiff(file_diff);
+    }
+}
+
+void DiffWidget::createFileDiff(const diff_files_t& diff) {
+    auto* file_diff = new DiffFile();
+    m_curr_editor   = file_diff->getEditor();
+
+    QString header;
+    switch (diff.state) {
+    case diff_files_t::State::ADDED:
+        header += "New: ";
+        header += diff.new_file.path;
+        break;
+    case diff_files_t::State::DELETED:
+        header += "Deleted: ";
+        header += diff.old_file.path;
+        break;
+    case diff_files_t::State::MODIFIED:
+        header += "Modified: ";
+        header += diff.new_file.path;
+        break;
+    case diff_files_t::State::RENAMED:
+        header += "Moved: ";
+        header += diff.old_file.path;
+        header += " -> ";
+        header += diff.new_file.path;
+        break;
+    case diff_files_t::State::COPIED:
+        header += "Copied: ";
+        header += diff.old_file.path;
+        header += " -> ";
+        header += diff.new_file.path;
+        break;
+    default:
+        TODO("Unsupported file state");
+        break;
+    }
+
+    file_diff->setHeader(header);
+
+    std::vector<section_t> sections;
+
+    for (const auto& hunk : diff.hunks) {
+        addHunkDiff(hunk, sections);
+    }
+
+    QList<QTextEdit::ExtraSelection> text_sections;
+    for (auto&& section : sections) {
+
+        QTextCursor cursor(m_curr_editor->document());
+        cursor.setPosition(section.start);
+        cursor.setPosition(section.end, QTextCursor::KeepAnchor);
+
+        QTextEdit::ExtraSelection text_section;
+        text_section.cursor = cursor;
+        text_section.format.setForeground(DiffEditorLine::ConvertToColor(section.type));
+
+        if (section.type == section_t::Type::HUNK_INFO) {
+            text_section.format.setFontWeight(QFont::Bold);
+        }
+
+        text_sections.append(text_section);
+    }
+
+    m_curr_editor->setExtraSelections(text_sections);
+    m_layout->addWidget(file_diff);
+}
+
+void DiffWidget::addHunkDiff(const diff_hunk_t& hunk, std::vector<section_t>& sections) {
+
+    QString hunk_info;
+    hunk_info += std::format(
+        "@@ -{},{} +{},{} @@", hunk.old_file.offset, hunk.old_file.count, hunk.new_file.offset, hunk.new_file.count
+    );
+
+    m_curr_editor->appendPlainText(hunk_info);
+
+    auto* document = m_curr_editor->document();
+    QTextCursor cursor(document);
+    cursor.movePosition(QTextCursor::MoveOperation::End);
+
+    QTextBlock block = cursor.block();
+    section_t section;
+    section.type  = section_t::Type::HUNK_INFO;
+    section.start = block.position();
+    section.end   = section.start + block.length() - 1;
+
+    sections.push_back(section);
+
+    for (const auto& line : hunk.lines) {
+        addLineDiff(hunk, line, sections);
+    }
+}
+
+void DiffWidget::addLineDiff(const diff_hunk_t& hunk, const diff_line_t& line, std::vector<section_t>& sections) {
+
+    m_curr_editor->appendPlainText(line.content.c_str());
+
+    auto* document = m_curr_editor->document();
+
+    QTextCursor cursor(document);
+    cursor.movePosition(QTextCursor::MoveOperation::End);
+
+    QTextBlock block = cursor.block();
+    block.setUserData(new DiffEditorLineData(&line, &hunk));
+
+    section_t::Type type;
+    switch (line.type) {
+    case diff_line_t::Type::CONTEXT:
+    case diff_line_t::Type::CONTEXT_NO_NEWLINE:
+        return;
+    case diff_line_t::Type::ADDITION:
+    case diff_line_t::Type::ADDITION_NEWLINE:
+        type = section_t::Type::ADDITION;
+        break;
+    case diff_line_t::Type::DELETION:
+    case diff_line_t::Type::DELETION_NEWLINE:
+        type = section_t::Type::DELETION;
+        break;
+    }
+
+    section_t section;
+    section.type  = type;
+    section.start = block.position();
+    section.end   = section.start + block.length() - 1;
+
+    sections.push_back(section);
 }

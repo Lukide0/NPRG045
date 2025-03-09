@@ -1,6 +1,8 @@
 #pragma once
 
 #include "core/git/types.h"
+#include <cstddef>
+#include <cstdint>
 #include <git2/diff.h>
 #include <git2/oid.h>
 #include <git2/types.h>
@@ -41,6 +43,8 @@ struct diff_line_t {
     Type type;
     int old_lineno;
     int new_lineno;
+
+    std::string content;
 };
 
 struct diff_hunk_t {

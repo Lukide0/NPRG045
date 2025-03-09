@@ -1,10 +1,12 @@
 #include "core/git/diff.h"
 #include "core/git/types.h"
 #include "core/utils/unexpected.h"
+#include <cstdint>
 #include <git2/commit.h>
 #include <git2/diff.h>
 #include <git2/tree.h>
 #include <git2/types.h>
+#include <string_view>
 #include <vector>
 
 // NOTE: This callback is called once per file
@@ -163,6 +165,8 @@ int diff_hunk_callback(const git_diff_delta* /*unused*/, const git_diff_hunk* hu
 int diff_line_callback(
     const git_diff_delta* /*unused*/, const git_diff_hunk* /*unused*/, const git_diff_line* line, void* state_raw
 ) {
+    assert(line->num_lines == 1);
+
     auto* state            = reinterpret_cast<diff_state_t*>(state_raw);
     diff_hunk_t& file_hunk = state->get_hunk();
 
@@ -171,6 +175,17 @@ int diff_line_callback(
     diff_line_t diff;
     diff.new_lineno = line->new_lineno;
     diff.old_lineno = line->old_lineno;
+
+    std::string_view line_content(line->content, line->content_len);
+
+    if (line_content.ends_with('\n')) {
+        line_content = line_content.substr(0, line_content.size() - 1);
+    }
+    if (line_content.ends_with('\r')) {
+        line_content = line_content.substr(0, line_content.size() - 1);
+    }
+
+    diff.content = line_content;
 
     switch (origin) {
     case GIT_DIFF_LINE_CONTEXT:
