@@ -79,13 +79,15 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_left_layout  = new QVBoxLayout();
     m_right_layout = new QVBoxLayout();
 
-    m_layout->addLayout(m_left_layout, 1);
-    m_layout->addLayout(m_right_layout, 2);
+    m_layout->addLayout(m_left_layout);
+    m_layout->addLayout(m_right_layout, 1);
 
     m_list_actions  = new NamedListWidget("Actions");
     m_graphs_layout = new QHBoxLayout();
+    m_graphs_layout->setSizeConstraint(QLayout::SetMinimumSize);
 
     //-- LEFT LAYOUT --------------------------------------------------------//
+    m_left_layout->addStretch();
     m_left_layout->addWidget(m_list_actions);
     m_left_layout->addLayout(m_graphs_layout);
 
@@ -99,6 +101,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_diff_widget = new DiffWidget();
     m_commit_view = new CommitViewWidget(m_diff_widget);
 
+    m_right_layout->addStretch();
     m_right_layout->addWidget(m_diff_widget, 1);
     m_right_layout->addWidget(m_commit_view);
 

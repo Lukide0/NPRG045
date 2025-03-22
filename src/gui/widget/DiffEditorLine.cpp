@@ -9,7 +9,7 @@ QColor DiffEditorLine::ConvertToColor(Type type) {
     case Type::DELETION:
         return { 239, 91, 111 };
     case Type::HUNK_INFO:
-        return { 7, 59, 76 };
+        return { 44, 7, 156 };
     }
 
     UNEXPECTED("Invalid type");

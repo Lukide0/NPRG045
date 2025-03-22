@@ -51,6 +51,8 @@ struct diff_hunk_t {
     hunk_lines_info new_file;
     hunk_lines_info old_file;
 
+    std::string header_context;
+
     std::vector<diff_line_t> lines;
 };
 

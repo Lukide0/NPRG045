@@ -22,8 +22,10 @@ public:
         setTransformationAnchor(AnchorUnderMouse);
         setAlignment(Qt::AlignLeft | Qt::AlignTop);
         setVerticalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOn);
+        setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
 
         scale(qreal(0.95), qreal(0.95));
+        setViewportMargins(0, 0, 10, 0);
     }
 
     ~GraphWidget() override = default;

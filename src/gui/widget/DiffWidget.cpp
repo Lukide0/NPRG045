@@ -18,13 +18,27 @@
 
 DiffWidget::DiffWidget(QWidget* parent)
     : QWidget(parent) {
-    m_layout = new QVBoxLayout();
+
+    m_scrollarea = new QScrollArea(this);
+    m_scrollarea->setWidgetResizable(true);
+
+    m_scroll_content = new QWidget();
+
+    m_scroll_layout = new QVBoxLayout(m_scroll_content);
+    m_scroll_layout->setSizeConstraint(QLayout::SetMinAndMaxSize);
+    m_scroll_layout->setContentsMargins(0, 0, 0, 0);
+    m_scroll_layout->addStretch();
+
+    m_scrollarea->setWidget(m_scroll_content);
+
+    m_layout = new QVBoxLayout(this);
+    m_layout->addWidget(m_scrollarea);
     setLayout(m_layout);
 }
 
 void DiffWidget::update(Node* node) {
     m_node = node;
-    clear_layout(m_layout);
+    clear_layout(m_scroll_layout);
 
     if (m_node == nullptr) {
         return;
@@ -52,7 +66,16 @@ void DiffWidget::update(Node* node) {
 
     m_diffs = create_diff(res.diff.diff);
 
-    for (const auto& file_diff : m_diffs) {
+    for (std::size_t i = 0; i < m_diffs.size(); ++i) {
+        if (i != 0) {
+            auto* line = new QFrame(this);
+            line->setFrameShape(QFrame::HLine);
+            line->setFrameShadow(QFrame::Sunken);
+            line->setLineWidth(1);
+            m_scroll_layout->addWidget(line);
+        }
+
+        const auto& file_diff = m_diffs[i];
         createFileDiff(file_diff);
     }
 }
@@ -118,15 +141,22 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
         text_sections.append(text_section);
     }
 
+    file_diff->updateEditorHeight();
+
     m_curr_editor->setExtraSelections(text_sections);
-    m_layout->addWidget(file_diff);
+    m_scroll_layout->addWidget(file_diff);
 }
 
 void DiffWidget::addHunkDiff(const diff_hunk_t& hunk, std::vector<section_t>& sections) {
 
     QString hunk_info;
     hunk_info += std::format(
-        "@@ -{},{} +{},{} @@", hunk.old_file.offset, hunk.old_file.count, hunk.new_file.offset, hunk.new_file.count
+        "@@ -{},{} +{},{} @@ {}",
+        hunk.old_file.offset,
+        hunk.old_file.count,
+        hunk.new_file.offset,
+        hunk.new_file.count,
+        hunk.header_context
     );
 
     m_curr_editor->appendPlainText(hunk_info);

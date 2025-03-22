@@ -7,18 +7,20 @@
 #include <QTextBlock>
 #include <QWidget>
 
+// TODO: Line numbers
 
 DiffEditor::DiffEditor(QWidget* parent)
     : QPlainTextEdit(parent) {
 
     m_line = new DiffEditorLine(this);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setFrameShape(QFrame::NoFrame);
 
     connect(this, &DiffEditor::blockCountChanged, this, &DiffEditor::updateDiffLineWidth);
     connect(this, &DiffEditor::updateRequest, this, &DiffEditor::updateDiffLine);
-    // connect(this, &DiffEditor::cursorPositionChanged, this, &DiffEditor::highlightCurrentLine);
 
     updateDiffLineWidth();
-    // highlightCurrentLine();
 
     setReadOnly(true);
 }

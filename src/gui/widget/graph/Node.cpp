@@ -44,6 +44,19 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
     painter->drawRoundedRect(20, 0, 80, 40, 10, 10, Qt::SizeMode::AbsoluteSize);
     painter->drawText(QRectF { 25, 5, 70, 30 }, m_hash.c_str(), rectOpts);
 
+    auto fm           = painter->fontMetrics();
+    int size          = fm.horizontalAdvance(m_msg.c_str());
+    int avg_char_size = fm.averageCharWidth();
+
+    QString msg = QString::fromStdString(m_msg);
+
+    if (size > 190) {
+        int new_size = 190 / avg_char_size;
+        new_size     = std::max(new_size - 3, 0);
+        msg.resize(new_size);
+        msg += "...";
+    }
+
     painter->setPen(pen);
-    painter->drawText(QRectF { 120, 5, 180, 30 }, m_msg.c_str(), QTextOption(Qt::AlignLeft | Qt::AlignVCenter));
+    painter->drawText(QRectF { 110, 5, 190, 30 }, msg, QTextOption(Qt::AlignLeft | Qt::AlignVCenter));
 }

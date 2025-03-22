@@ -149,9 +149,26 @@ int diff_hunk_callback(const git_diff_delta* /*unused*/, const git_diff_hunk* hu
     auto* state            = reinterpret_cast<diff_state_t*>(state_raw);
     diff_hunk_t& file_hunk = state->add_hunk();
 
-    file_hunk.new_file = {
-        .offset = hunk->new_start,
-        .count  = hunk->new_lines,
+    std::string_view str(hunk->header, hunk->header_len);
+    // "@@ ... @@ ..."
+    str = str.substr(2);
+    // " ... @@ ..."
+    str = str.substr(str.find_first_of('@'));
+    // "@@ ...
+    str = str.substr(3);
+
+    if (str.ends_with('\r')) {
+        str = str.substr(0, str.size() - 1);
+    }
+
+    if (str.ends_with('\n')) {
+        str = str.substr(0, str.size() - 1);
+    }
+
+    file_hunk.header_context = str;
+    file_hunk.new_file       = {
+              .offset = hunk->new_start,
+              .count  = hunk->new_lines,
     };
 
     file_hunk.old_file = {
@@ -165,7 +182,6 @@ int diff_hunk_callback(const git_diff_delta* /*unused*/, const git_diff_hunk* hu
 int diff_line_callback(
     const git_diff_delta* /*unused*/, const git_diff_hunk* /*unused*/, const git_diff_line* line, void* state_raw
 ) {
-    assert(line->num_lines == 1);
 
     auto* state            = reinterpret_cast<diff_state_t*>(state_raw);
     diff_hunk_t& file_hunk = state->get_hunk();
@@ -178,10 +194,11 @@ int diff_line_callback(
 
     std::string_view line_content(line->content, line->content_len);
 
-    if (line_content.ends_with('\n')) {
+    if (line_content.ends_with('\r')) {
         line_content = line_content.substr(0, line_content.size() - 1);
     }
-    if (line_content.ends_with('\r')) {
+
+    if (line_content.ends_with('\n')) {
         line_content = line_content.substr(0, line_content.size() - 1);
     }
 

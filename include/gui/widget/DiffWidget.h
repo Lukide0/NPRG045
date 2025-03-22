@@ -4,6 +4,7 @@
 #include "gui/widget/DiffEditor.h"
 #include "gui/widget/DiffEditorLine.h"
 #include "gui/widget/graph/Node.h"
+#include <QScrollArea>
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -22,7 +23,11 @@ private:
     Node* m_node = nullptr;
     std::vector<diff_files_t> m_diffs;
     std::vector<DiffEditor*> m_editors;
+    QVBoxLayout* m_scroll_layout;
     QVBoxLayout* m_layout;
+    QScrollArea* m_scrollarea;
+
+    QWidget* m_scroll_content;
     DiffEditor* m_curr_editor;
 
     struct section_t {
