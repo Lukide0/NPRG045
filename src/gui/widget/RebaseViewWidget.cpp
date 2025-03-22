@@ -97,7 +97,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
     //-- RIGHT LAYOUT -------------------------------------------------------//
     m_diff_widget = new DiffWidget();
-    m_commit_view = new CommitViewWidget();
+    m_commit_view = new CommitViewWidget(m_diff_widget);
 
     m_right_layout->addWidget(m_diff_widget, 1);
     m_right_layout->addWidget(m_commit_view);
@@ -117,7 +117,6 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
             list_item->setColorToAll(list_item->getItemColor());
             m_commit_view->update(m_last_item->getNode());
-            m_diff_widget->update(m_last_item->getNode());
         }
     });
 
@@ -154,7 +153,6 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 void RebaseViewWidget::showCommit(Node* prev, Node* next) {
     if (next == nullptr) {
         m_commit_view->update(nullptr);
-        m_diff_widget->update(nullptr);
         return;
     }
 
@@ -163,7 +161,6 @@ void RebaseViewWidget::showCommit(Node* prev, Node* next) {
     }
 
     m_commit_view->update(next);
-    m_diff_widget->update(next);
 }
 
 std::optional<std::string> RebaseViewWidget::update(

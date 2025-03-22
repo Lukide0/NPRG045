@@ -26,6 +26,8 @@ public:
         scale(qreal(0.95), qreal(0.95));
     }
 
+    ~GraphWidget() override = default;
+
     Node* addNode(std::uint32_t y);
     Node* addNode();
     void clear();

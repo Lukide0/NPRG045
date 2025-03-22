@@ -2,6 +2,7 @@
 #include "core/git/diff.h"
 #include "core/git/GitGraph.h"
 #include "core/git/types.h"
+#include "core/utils/unexpected.h"
 #include "gui/clear_layout.h"
 #include "gui/widget/graph/Node.h"
 
@@ -72,74 +73,45 @@ void CommitViewWidget::prepareDiff() {
         return;
     }
 
-    Node* parentNode = m_node->getParentNode();
+    auto* list = m_changes->getList();
 
-    git_commit* curr_commit   = m_node->getCommit();
-    git_commit* parent_commit = (parentNode != nullptr) ? parentNode->getCommit() : nullptr;
+    for (const auto& file_diff : m_diff->getDiffs()) {
+        QString item;
+        switch (file_diff.state) {
+        case diff_files_t::State::UNMODIFIED:
+        case diff_files_t::State::UNREADABLE:
+        case diff_files_t::State::UNTRACKED:
+        case diff_files_t::State::CONFLICTED:
+        case diff_files_t::State::IGNORED:
+        case diff_files_t::State::TYPECHANGE:
+            UNEXPECTED("Unexpected state");
 
-    diff_result_t res = prepare_diff(parent_commit, curr_commit);
-    switch (res.state) {
-    case diff_result_t::FAILED_TO_RETRIEVE_TREE:
-        QMessageBox::critical(this, "Commit diff error", "Failed to retrieve tree from commit");
-        return;
+        case diff_files_t::State::ADDED:
+            item += "New ";
+            item += file_diff.new_file.path;
+            break;
+        case diff_files_t::State::DELETED:
+            item += "Deleted ";
+            item += file_diff.old_file.path;
+            break;
+        case diff_files_t::State::MODIFIED:
+            item += "Modified ";
+            item += file_diff.new_file.path;
+            break;
+        case diff_files_t::State::RENAMED:
+            item += "Renamed ";
+            item += file_diff.old_file.path;
+            item += " -> ";
+            item += file_diff.new_file.path;
+            break;
+        case diff_files_t::State::COPIED:
+            item += "Copied ";
+            item += file_diff.old_file.path;
+            item += " -> ";
+            item += file_diff.new_file.path;
+            break;
+        }
 
-    case diff_result_t::FAILED_TO_CREATE_DIFF:
-        QMessageBox::critical(this, "Commit diff error", "Failed to create diff");
-        return;
-    case diff_result_t::OK:
-        break;
+        list->addItem(item);
     }
-
-    git_diff_foreach(
-        res.diff.diff,
-        [](const git_diff_delta* delta, float /*unused*/, void* list_raw) -> int {
-            auto* list = reinterpret_cast<QListWidget*>(list_raw);
-
-            QString str;
-            switch (delta->status) {
-            case GIT_DELTA_UNMODIFIED:
-            case GIT_DELTA_UNREADABLE:
-            case GIT_DELTA_CONFLICTED:
-            case GIT_DELTA_UNTRACKED:
-            case GIT_DELTA_IGNORED:
-                break;
-            case GIT_DELTA_ADDED:
-                str += "Added ";
-                str += delta->new_file.path;
-                break;
-            case GIT_DELTA_DELETED:
-                str += "Deleted ";
-                str += delta->old_file.path;
-                break;
-            case GIT_DELTA_MODIFIED:
-                str += "Modified ";
-                str += delta->new_file.path;
-                break;
-            case GIT_DELTA_RENAMED:
-                str += "Renamed ";
-                str += delta->old_file.path;
-                str += " -> ";
-                str += delta->new_file.path;
-                break;
-            case GIT_DELTA_COPIED:
-                str += "Copied ";
-                str += delta->old_file.path;
-                str += " -> ";
-                str += delta->new_file.path;
-                break;
-            case GIT_DELTA_TYPECHANGE:
-                str += "Typechange ";
-                str += delta->old_file.path;
-                break;
-            }
-
-            list->addItem(str);
-
-            return 0;
-        },
-        nullptr,
-        nullptr,
-        nullptr,
-        m_changes->getList()
-    );
 }

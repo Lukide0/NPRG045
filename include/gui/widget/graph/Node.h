@@ -20,6 +20,8 @@ public:
         setFlags(QGraphicsItem::ItemIsSelectable | QGraphicsItem::ItemIsFocusable);
     }
 
+    ~Node() override = default;
+
     static constexpr int Type = UserType + 1;
 
     [[nodiscard]] int type() const override { return Type; }

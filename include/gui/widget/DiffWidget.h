@@ -12,12 +12,16 @@
 class DiffWidget : public QWidget {
 public:
     DiffWidget(QWidget* parent = nullptr);
+    ~DiffWidget() override = default;
 
     void update(Node* node);
+
+    [[nodiscard]] const std::vector<diff_files_t>& getDiffs() const { return m_diffs; }
 
 private:
     Node* m_node = nullptr;
     std::vector<diff_files_t> m_diffs;
+    std::vector<DiffEditor*> m_editors;
     QVBoxLayout* m_layout;
     DiffEditor* m_curr_editor;
 

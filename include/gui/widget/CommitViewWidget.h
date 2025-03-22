@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gui/clear_layout.h"
+#include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Node.h"
 #include "gui/widget/NamedListWidget.h"
 #include <ctime>
@@ -16,8 +17,9 @@
 class CommitViewWidget : public QWidget {
 
 public:
-    CommitViewWidget(QWidget* parent = nullptr)
-        : QWidget(parent) {
+    CommitViewWidget(DiffWidget* diff)
+        : m_diff(diff) {
+
         m_layout = new QHBoxLayout();
         setLayout(m_layout);
 
@@ -34,6 +36,8 @@ public:
         m_node = node;
 
         createRows();
+
+        m_diff->update(node);
         prepareDiff();
     }
 
@@ -41,6 +45,7 @@ private:
     QHBoxLayout* m_layout;
     QFormLayout* m_info_layout;
     NamedListWidget* m_changes;
+    DiffWidget* m_diff;
     Node* m_node = nullptr;
 
     static QLabel* create_label(const QString& text) { return new QLabel(text); }
