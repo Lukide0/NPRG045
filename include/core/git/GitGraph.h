@@ -162,13 +162,19 @@ private:
 
         git_commit_parents_t parents;
 
-        // NOTE: If count of parents is 0 it means that there is no directed path from end to start.
-        if (!get_all_parents(parents, start) || parents.count == 0) {
+        if (!get_all_parents(parents, start)) {
             return false;
         }
 
+        // NOTE: The graph has new root node
+        if (parents.count == 0) {
+            node_t& node = graph.m_nodes[end_node];
+            node.children.insert(start_node);
+            node.depth = std::max(depth + 1, node.depth);
+            return true;
+        }
         // TODO: Implement merge commits
-        if (parents.count != 1) {
+        else if (parents.count != 1) {
             return false;
         }
 
