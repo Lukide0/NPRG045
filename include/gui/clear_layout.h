@@ -13,6 +13,7 @@ inline void clear_layout_item(QLayoutItem* item) {
     }
 
     if (auto* w = item->widget()) {
+        w->hide();
         w->deleteLater();
     } else if (auto* l = item->layout()) {
         clear_layout(l);

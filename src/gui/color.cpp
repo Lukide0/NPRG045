@@ -1,37 +1,39 @@
-#include "gui/widget/DiffEditorLine.h"
+#include "gui/color.h"
 #include "core/git/diff.h"
 #include "core/utils/unexpected.h"
 
-QColor DiffEditorLine::ConvertToColor(Type type) {
+QColor convert_to_color(ColorType type) {
     switch (type) {
-    case Type::ADDITION:
+    case ColorType::NORMAL:
+        return {};
+    case ColorType::ADDITION:
         return { 6, 214, 160 };
-    case Type::DELETION:
+    case ColorType::DELETION:
         return { 239, 91, 111 };
-    case Type::HUNK_INFO:
+    case ColorType::INFO:
         return { 44, 7, 156 };
     }
 
-    UNEXPECTED("Invalid type");
+    UNEXPECTED("Invalid color type");
 }
 
-QColor DiffEditorLine::ConvertToColor(diff_line_t::Type type) {
+QColor convert_to_color(diff_line_t::Type type) {
     switch (type) {
     case diff_line_t::Type::CONTEXT:
     case diff_line_t::Type::CONTEXT_NO_NEWLINE:
-        return {};
+        return convert_to_color(ColorType::NORMAL);
     case diff_line_t::Type::ADDITION:
     case diff_line_t::Type::ADDITION_NEWLINE:
-        return { 6, 214, 160 };
+        return convert_to_color(ColorType::ADDITION);
     case diff_line_t::Type::DELETION:
     case diff_line_t::Type::DELETION_NEWLINE:
-        return { 239, 91, 111 };
+        return convert_to_color(ColorType::DELETION);
     }
 
-    UNEXPECTED("Invalid type");
+    UNEXPECTED("Invalid diff line type");
 }
 
-char DiffEditorLine::ConvertToSymbol(diff_line_t::Type type) {
+char convert_to_symbol(diff_line_t::Type type) {
     switch (type) {
     case diff_line_t::Type::CONTEXT:
     case diff_line_t::Type::CONTEXT_NO_NEWLINE:
@@ -44,5 +46,5 @@ char DiffEditorLine::ConvertToSymbol(diff_line_t::Type type) {
         return '-';
     }
 
-    UNEXPECTED("Invalid type");
+    UNEXPECTED("Invalid diff line type");
 }

@@ -3,7 +3,6 @@ target_sources(${PROJECT_NAME} PRIVATE
         CommitViewWidget.cpp
         DiffWidget.cpp
         DiffEditor.cpp
-        DiffEditorLine.cpp
         graph/Graph.cpp
         graph/Node.cpp
 )

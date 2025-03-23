@@ -1,5 +1,6 @@
 #include "gui/widget/DiffEditor.h"
 #include "core/git/diff.h"
+#include "gui/color.h"
 #include "gui/widget/DiffEditorLine.h"
 
 #include <QPainter>
@@ -68,13 +69,13 @@ void DiffEditor::diffLinePaintEvent(QPaintEvent* event) {
     while (block.isValid() && top <= event_bottom) {
         if (block.isVisible() && bottom >= event_top) {
 
-            auto* line_data = reinterpret_cast<DiffEditorLineData*>(block.userData());
+            auto* line_data = dynamic_cast<DiffEditorLineData*>(block.userData());
             if (line_data != nullptr) {
-                const auto* line = line_data->get_line();
+                const auto& line = line_data->get_line();
 
                 QString str;
-                str += DiffEditorLine::ConvertToSymbol(line->type);
-                painter.setPen(DiffEditorLine::ConvertToColor(line->type));
+                str += convert_to_symbol(line.type);
+                painter.setPen(convert_to_color(line.type));
                 painter.drawText(0, top, m_line->width(), fontMetrics().height(), Qt::AlignCenter, str);
             }
         }

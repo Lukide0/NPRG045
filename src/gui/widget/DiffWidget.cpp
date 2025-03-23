@@ -2,6 +2,7 @@
 #include "core/git/diff.h"
 #include "core/utils/todo.h"
 #include "gui/clear_layout.h"
+#include "gui/color.h"
 #include "gui/widget/DiffEditor.h"
 #include "gui/widget/DiffEditorLine.h"
 #include "gui/widget/DiffFile.h"
@@ -65,7 +66,6 @@ void DiffWidget::update(Node* node) {
     }
 
     m_diffs = create_diff(res.diff.diff);
-
     for (std::size_t i = 0; i < m_diffs.size(); ++i) {
         if (i != 0) {
             auto* line = new QFrame(this);
@@ -132,9 +132,9 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
 
         QTextEdit::ExtraSelection text_section;
         text_section.cursor = cursor;
-        text_section.format.setForeground(DiffEditorLine::ConvertToColor(section.type));
+        text_section.format.setForeground(convert_to_color(section.type));
 
-        if (section.type == section_t::Type::HUNK_INFO) {
+        if (section.type == section_t::Type::INFO) {
             text_section.format.setFontWeight(QFont::Bold);
         }
 
@@ -167,7 +167,7 @@ void DiffWidget::addHunkDiff(const diff_hunk_t& hunk, std::vector<section_t>& se
 
     QTextBlock block = cursor.block();
     section_t section;
-    section.type  = section_t::Type::HUNK_INFO;
+    section.type  = section_t::Type::INFO;
     section.start = block.position();
     section.end   = section.start + block.length() - 1;
 
@@ -188,7 +188,7 @@ void DiffWidget::addLineDiff(const diff_hunk_t& hunk, const diff_line_t& line, s
     cursor.movePosition(QTextCursor::MoveOperation::End);
 
     QTextBlock block = cursor.block();
-    block.setUserData(new DiffEditorLineData(&line, &hunk));
+    block.setUserData(new DiffEditorLineData(line, hunk));
 
     section_t::Type type;
     switch (line.type) {

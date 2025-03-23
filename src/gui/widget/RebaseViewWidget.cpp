@@ -6,6 +6,7 @@
 #include "core/state/Command.h"
 #include "core/state/CommandHistory.h"
 #include "core/utils/todo.h"
+#include "gui/color.h"
 #include "gui/widget/CommitViewWidget.h"
 #include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Graph.h"
@@ -87,9 +88,8 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_graphs_layout->setSizeConstraint(QLayout::SetMinimumSize);
 
     //-- LEFT LAYOUT --------------------------------------------------------//
-    m_left_layout->addStretch();
-    m_left_layout->addWidget(m_list_actions);
-    m_left_layout->addLayout(m_graphs_layout);
+    m_left_layout->addWidget(m_list_actions, 1);
+    m_left_layout->addLayout(m_graphs_layout, 1);
 
     m_old_commits_graph = new GraphWidget();
     m_new_commits_graph = new GraphWidget();
@@ -112,7 +112,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
         if (item != nullptr) {
 
-            auto* list_item = dynamic_cast<ListItem*>(item);
+            auto* list_item = dynamic_cast<ListItem*>(m_list_actions->getList()->itemWidget(item));
             if (list_item == nullptr) {
                 return;
             }
@@ -229,16 +229,19 @@ std::optional<std::string> RebaseViewWidget::prepareActions(const std::vector<Co
 
     m_last_new_commit = last;
 
+    auto* list = m_list_actions->getList();
     for (const auto& action : actions) {
-        auto* action_item = new ListItem(m_list_actions->getList());
+        auto* action_item = new ListItem();
 
-        QString text = cmd_to_str(action.type);
-        auto result  = prepareItem(action_item, text, action);
+        auto result = prepareItem(action_item, action);
         if (auto err = result) {
             return err;
         }
+        auto* item = new QListWidgetItem();
 
-        m_list_actions->getList()->addItem(action_item);
+        item->setSizeHint(action_item->sizeHint());
+        list->addItem(item);
+        list->setItemWidget(item, action_item);
     }
 
     return std::nullopt;
@@ -257,7 +260,7 @@ void RebaseViewWidget::updateActions() {
 
     auto* list = m_list_actions->getList();
     for (int i = 0; i < list->count(); ++i) {
-        auto* item = reinterpret_cast<ListItem*>(list->item(i));
+        auto* item = dynamic_cast<ListItem*>(list->itemWidget(list->item(i)));
 
         assert(item != nullptr);
 
@@ -300,8 +303,9 @@ void RebaseViewWidget::updateNode(Node* node, Node* current, Node* changes) {
     }
 }
 
-std::optional<std::string>
-RebaseViewWidget::prepareItem(ListItem* item, QString& item_text, const CommitAction& action) {
+std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, const CommitAction& action) {
+    QString item_text;
+
     switch (action.type) {
     case CmdType::INVALID:
     case CmdType::NONE:
@@ -309,7 +313,7 @@ RebaseViewWidget::prepareItem(ListItem* item, QString& item_text, const CommitAc
     case CmdType::BREAK:
         break;
     case CmdType::DROP: {
-        item->setItemColor(QColor(255, 62, 65));
+        item->setItemColor(convert_to_color(ColorType::DELETION));
 
         Node* old = findOldCommit(action.hash);
         assert(old != nullptr);
@@ -325,7 +329,7 @@ RebaseViewWidget::prepareItem(ListItem* item, QString& item_text, const CommitAc
 
     case CmdType::FIXUP:
     case CmdType::SQUASH: {
-        item->setItemColor(QColor(115, 137, 174));
+        item->setItemColor(convert_to_color(ColorType::INFO));
 
         Node* old = findOldCommit(action.hash);
         assert(old != nullptr);
@@ -356,7 +360,7 @@ RebaseViewWidget::prepareItem(ListItem* item, QString& item_text, const CommitAc
         assert(old != nullptr);
         item->addConnection(old);
 
-        item->setItemColor(QColor(49, 216, 67));
+        item->setItemColor(convert_to_color(ColorType::ADDITION));
         item_text += " [";
         item_text += action.hash.c_str();
         item_text += "]: ";
@@ -379,5 +383,13 @@ RebaseViewWidget::prepareItem(ListItem* item, QString& item_text, const CommitAc
 
     item->setCommitAction(action);
     item->setText(item_text);
+
+    auto* combo = item->getComboBox();
+
+    connect(combo, &QComboBox::currentIndexChanged, this, [&](int index) {
+        assert(index != -1);
+        updateActions();
+    });
+
     return std::nullopt;
 }

@@ -31,33 +31,33 @@ enum class CmdType {
 static constexpr const char* cmd_to_str(CmdType type) {
     switch (type) {
     case CmdType::INVALID:
-        return "INVALID";
+        return "invalid";
     case CmdType::NONE:
-        return "NONE";
+        return "none";
     case CmdType::BREAK:
-        return "BREAK";
+        return "break";
     case CmdType::EXEC:
-        return "EXEC";
+        return "exec";
     case CmdType::PICK:
-        return "PICK";
+        return "pick";
     case CmdType::REWORD:
-        return "REWORD";
+        return "reword";
     case CmdType::EDIT:
-        return "EDIT";
+        return "edit";
     case CmdType::SQUASH:
-        return "SQUASH";
+        return "squash";
     case CmdType::FIXUP:
-        return "FIXUP";
+        return "fixup";
     case CmdType::DROP:
-        return "DROP";
+        return "drop";
     case CmdType::LABEL:
-        return "LABEL";
+        return "label";
     case CmdType::RESET:
-        return "RESET";
+        return "reset";
     case CmdType::MERGE:
-        return "MERGE";
+        return "merge";
     case CmdType::UPDATE_REF:
-        return "UPDATE_REF";
+        return "update_ref";
     }
 
     return "";

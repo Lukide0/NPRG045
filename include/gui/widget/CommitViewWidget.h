@@ -1,6 +1,5 @@
 #pragma once
 
-#include "gui/clear_layout.h"
 #include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Node.h"
 #include "gui/widget/NamedListWidget.h"

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "core/git/diff.h"
+#include "gui/color.h"
 #include "gui/widget/DiffEditor.h"
-#include "gui/widget/DiffEditorLine.h"
 #include "gui/widget/graph/Node.h"
 #include <QScrollArea>
 #include <QTextEdit>
@@ -31,7 +31,7 @@ private:
     DiffEditor* m_curr_editor;
 
     struct section_t {
-        using Type = DiffEditorLine::Type;
+        using Type = ColorType;
 
         Type type;
         int start;

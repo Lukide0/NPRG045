@@ -57,7 +57,7 @@ private:
     Node* m_root_node;
 
 private:
-    std::optional<std::string> prepareItem(ListItem* item, QString& item_text, const CommitAction& action);
+    std::optional<std::string> prepareItem(ListItem* item, const CommitAction& action);
 
     std::optional<std::string> prepareActions(const std::vector<CommitAction>& actions);
 
