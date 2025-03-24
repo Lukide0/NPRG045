@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/git/parser.h"
+#include "core/state/Command.h"
 #include "gui/widget/graph/Node.h"
 
 #include <QBoxLayout>
@@ -13,6 +14,8 @@
 
 #include <array>
 #include <vector>
+
+class RebaseViewWidget;
 
 class ListItem : public QWidget {
 public:
@@ -35,41 +38,9 @@ public:
         return -1;
     }
 
-    ListItem(QWidget* widget = nullptr)
-        : QWidget(widget) {
-        m_combo = new QComboBox();
+    ListItem(RebaseViewWidget* rebase, QListWidget* list, int row);
 
-        for (auto&& item : items) {
-            m_combo->addItem(cmd_to_str(item), static_cast<int>(item));
-        }
-
-        m_text = new QLabel();
-        m_text->setMargin(0);
-        m_text->setContentsMargins(0, 0, 0, 0);
-
-        m_layout = new QHBoxLayout();
-        m_layout->setSizeConstraint(QLayout::SetMinAndMaxSize);
-        m_layout->addWidget(m_combo);
-        m_layout->addWidget(m_text, 1);
-
-        setLayout(m_layout);
-
-        connect(m_combo, &QComboBox::currentIndexChanged, this, [this](int index) {
-            assert(index != -1);
-
-            auto raw_type = m_combo->itemData(index).toInt();
-            m_action.type = static_cast<CmdType>(raw_type);
-        });
-    }
-
-    void setCommitAction(const CommitAction& action) {
-        m_action = action;
-
-        auto index = indexOf(action.type);
-        assert(index != -1);
-
-        m_combo->setCurrentIndex(index);
-    }
+    void setCommitAction(const CommitAction& action);
 
     QComboBox* getComboBox() { return m_combo; }
 
@@ -110,13 +81,68 @@ public:
         }
     }
 
+    void setActionType(CmdType type) {
+        m_action.type = type;
+
+        auto index = indexOf(type);
+        assert(index != -1);
+
+        m_combo->setCurrentIndex(index);
+    }
+
+    void setActionTypeNoSignal(CmdType type) {
+        m_combo->blockSignals(true);
+        setActionType(type);
+        m_combo->blockSignals(false);
+    }
+
 private:
     Node* m_node = nullptr;
     std::vector<Node*> m_connected;
     CommitAction m_action;
     QColor m_color;
 
+    RebaseViewWidget* m_rebase;
+    QListWidget* m_parent;
+    int m_row;
+
     QLabel* m_text;
     QHBoxLayout* m_layout;
+
     QComboBox* m_combo;
+};
+
+class ListItemMoveCommand : public core::state::Command {
+public:
+    ListItemMoveCommand(RebaseViewWidget* rebase, QListWidget* parent, int prev_row, int curr_row);
+    ~ListItemMoveCommand() override = default;
+
+    void execute() override;
+    void undo() override;
+
+private:
+    RebaseViewWidget* m_rebase;
+    QListWidget* m_parent;
+    int m_prev;
+    int m_curr;
+
+    void move(int from, int to);
+};
+
+class ListItemChangedCommand : public core::state::Command {
+public:
+    ListItemChangedCommand(RebaseViewWidget* rebase, QListWidget* parent, int row, CmdType prev, CmdType curr);
+    ~ListItemChangedCommand() override = default;
+
+    void execute() override;
+    void undo() override;
+
+private:
+    RebaseViewWidget* m_rebase;
+    QListWidget* m_parent;
+    int m_row;
+    CmdType m_prev;
+    CmdType m_curr;
+
+    void set_type(CmdType type);
 };

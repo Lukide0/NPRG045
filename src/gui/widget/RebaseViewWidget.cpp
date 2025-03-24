@@ -38,38 +38,6 @@
 #include <utility>
 #include <vector>
 
-class ListItemMoveCommand : public core::state::Command {
-public:
-    ListItemMoveCommand(RebaseViewWidget* rebase, QListWidget* parent, int prev_row, int curr_row)
-        : m_rebase(rebase)
-        , m_parent(parent)
-        , m_prev(prev_row)
-        , m_curr(curr_row) { }
-
-    ~ListItemMoveCommand() override = default;
-
-    void execute() override {
-        move(m_prev, m_curr);
-        m_rebase->updateActions();
-    }
-
-    void undo() override {
-        move(m_curr, m_prev);
-        m_rebase->updateActions();
-    }
-
-private:
-    RebaseViewWidget* m_rebase;
-    QListWidget* m_parent;
-    int m_prev;
-    int m_curr;
-
-    void move(int from, int to) {
-        auto* item = m_parent->takeItem(from);
-        m_parent->insertItem(to, item);
-    }
-};
-
 RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     : QWidget(parent)
     , m_graph(GitGraph<Node*>::empty()) {
@@ -142,6 +110,10 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
             if (source_row == destination_row) {
                 return;
+            }
+
+            if (source_row < destination_row) {
+                destination_row -= 1;
             }
 
             core::state::CommandHistory::Add(
@@ -231,7 +203,7 @@ std::optional<std::string> RebaseViewWidget::prepareActions(const std::vector<Co
 
     auto* list = m_list_actions->getList();
     for (const auto& action : actions) {
-        auto* action_item = new ListItem();
+        auto* action_item = new ListItem(this, list, list->count());
 
         auto result = prepareItem(action_item, action);
         if (auto err = result) {
@@ -260,7 +232,8 @@ void RebaseViewWidget::updateActions() {
 
     auto* list = m_list_actions->getList();
     for (int i = 0; i < list->count(); ++i) {
-        auto* item = dynamic_cast<ListItem*>(list->itemWidget(list->item(i)));
+        auto* list_item = list->item(i);
+        auto* item      = dynamic_cast<ListItem*>(list->itemWidget(list_item));
 
         assert(item != nullptr);
 
