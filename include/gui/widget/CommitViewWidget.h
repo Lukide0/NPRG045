@@ -16,20 +16,7 @@
 class CommitViewWidget : public QWidget {
 
 public:
-    CommitViewWidget(DiffWidget* diff)
-        : m_diff(diff) {
-
-        m_layout = new QHBoxLayout();
-        setLayout(m_layout);
-
-        m_info_layout = new QFormLayout();
-        m_layout->addLayout(m_info_layout, 2);
-
-        m_changes = new NamedListWidget("Changes");
-        m_layout->addWidget(m_changes);
-
-        createRows();
-    }
+    CommitViewWidget(DiffWidget* diff);
 
     void update(Node* node) {
         m_node = node;

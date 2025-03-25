@@ -3,6 +3,7 @@
 #include "core/git/diff.h"
 #include "gui/color.h"
 #include "gui/widget/DiffEditor.h"
+#include "gui/widget/DiffFile.h"
 #include "gui/widget/graph/Node.h"
 #include <QScrollArea>
 #include <QTextEdit>
@@ -19,10 +20,14 @@ public:
 
     [[nodiscard]] const std::vector<diff_files_t>& getDiffs() const { return m_diffs; }
 
+    DiffFile* getDiffFile(std::size_t i) { return m_files[i]; }
+
+    void ensureEditorVisible(DiffFile* file);
+
 private:
     Node* m_node = nullptr;
     std::vector<diff_files_t> m_diffs;
-    std::vector<DiffEditor*> m_editors;
+    std::vector<DiffFile*> m_files;
     QVBoxLayout* m_scroll_layout;
     QVBoxLayout* m_layout;
     QScrollArea* m_scrollarea;

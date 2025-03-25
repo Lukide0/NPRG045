@@ -12,6 +12,7 @@
 #include <git2/diff.h>
 #include <git2/types.h>
 #include <QMessageBox>
+#include <QScrollBar>
 #include <QTextBlock>
 #include <QTextDocument>
 #include <QTextEdit>
@@ -35,6 +36,11 @@ DiffWidget::DiffWidget(QWidget* parent)
     m_layout = new QVBoxLayout(this);
     m_layout->addWidget(m_scrollarea);
     setLayout(m_layout);
+}
+
+void DiffWidget::ensureEditorVisible(DiffFile* file) {
+    auto* bar = m_scrollarea->verticalScrollBar();
+    bar->setValue(file->y());
 }
 
 void DiffWidget::update(Node* node) {
@@ -145,6 +151,8 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
 
     m_curr_editor->setExtraSelections(text_sections);
     m_scroll_layout->addWidget(file_diff);
+
+    m_files.push_back(file_diff);
 }
 
 void DiffWidget::addHunkDiff(const diff_hunk_t& hunk, std::vector<section_t>& sections) {

@@ -13,6 +13,7 @@
 #include <git2/tree.h>
 #include <git2/types.h>
 
+#include <QHBoxLayout>
 #include <QMessageBox>
 
 #include <chrono>
@@ -20,6 +21,30 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+
+CommitViewWidget::CommitViewWidget(DiffWidget* diff)
+    : m_diff(diff) {
+
+    m_layout = new QHBoxLayout();
+    setLayout(m_layout);
+
+    m_info_layout = new QFormLayout();
+    m_layout->addLayout(m_info_layout, 2);
+
+    m_changes = new NamedListWidget("Changes");
+    m_layout->addWidget(m_changes);
+
+    createRows();
+
+    auto* list = m_changes->getList();
+
+    connect(list, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
+        auto index = item->data(Qt::UserRole).toInt();
+        auto* file = m_diff->getDiffFile(index);
+
+        m_diff->ensureEditorVisible(file);
+    });
+}
 
 void CommitViewWidget::createRows() {
     clear_layout(m_info_layout);
@@ -73,10 +98,12 @@ void CommitViewWidget::prepareDiff() {
         return;
     }
 
-    auto* list = m_changes->getList();
+    auto* list        = m_changes->getList();
+    const auto& diffs = m_diff->getDiffs();
 
-    for (const auto& file_diff : m_diff->getDiffs()) {
-        QString item;
+    for (std::size_t i = 0; i < diffs.size(); ++i) {
+        const auto& file_diff = diffs[i];
+        QString item_text;
         switch (file_diff.state) {
         case diff_files_t::State::UNMODIFIED:
         case diff_files_t::State::UNREADABLE:
@@ -87,31 +114,33 @@ void CommitViewWidget::prepareDiff() {
             UNEXPECTED("Unexpected state");
 
         case diff_files_t::State::ADDED:
-            item += "New ";
-            item += file_diff.new_file.path;
+            item_text += "New ";
+            item_text += file_diff.new_file.path;
             break;
         case diff_files_t::State::DELETED:
-            item += "Deleted ";
-            item += file_diff.old_file.path;
+            item_text += "Deleted ";
+            item_text += file_diff.old_file.path;
             break;
         case diff_files_t::State::MODIFIED:
-            item += "Modified ";
-            item += file_diff.new_file.path;
+            item_text += "Modified ";
+            item_text += file_diff.new_file.path;
             break;
         case diff_files_t::State::RENAMED:
-            item += "Renamed ";
-            item += file_diff.old_file.path;
-            item += " -> ";
-            item += file_diff.new_file.path;
+            item_text += "Renamed ";
+            item_text += file_diff.old_file.path;
+            item_text += " -> ";
+            item_text += file_diff.new_file.path;
             break;
         case diff_files_t::State::COPIED:
-            item += "Copied ";
-            item += file_diff.old_file.path;
-            item += " -> ";
-            item += file_diff.new_file.path;
+            item_text += "Copied ";
+            item_text += file_diff.old_file.path;
+            item_text += " -> ";
+            item_text += file_diff.new_file.path;
             break;
         }
 
+        auto* item = new QListWidgetItem(item_text);
+        item->setData(Qt::UserRole, QVariant::fromValue<int>(i));
         list->addItem(item);
     }
 }
