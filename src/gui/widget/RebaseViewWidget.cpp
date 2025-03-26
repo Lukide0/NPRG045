@@ -78,17 +78,18 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
             m_last_item->setColorToAll(Qt::white);
         }
 
-        if (item != nullptr) {
-
-            auto* list_item = dynamic_cast<ListItem*>(m_list_actions->getList()->itemWidget(item));
-            if (list_item == nullptr) {
-                return;
-            }
-            m_last_item = list_item;
-
-            list_item->setColorToAll(list_item->getItemColor());
-            m_commit_view->update(m_last_item->getNode());
+        if (item == nullptr) {
+            return;
         }
+
+        auto* list_item = dynamic_cast<ListItem*>(m_list_actions->getList()->itemWidget(item));
+        if (list_item == nullptr) {
+            return;
+        }
+        m_last_item = list_item;
+
+        list_item->setColorToAll(list_item->getItemColor());
+        m_commit_view->update(m_last_item->getNode());
     });
 
     auto handle = [&](Node* prev, Node* next) { this->showCommit(prev, next); };
@@ -121,6 +122,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
             );
 
             this->updateActions();
+            this->m_commit_view->update(nullptr);
         }
     );
 }
