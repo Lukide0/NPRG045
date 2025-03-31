@@ -46,6 +46,7 @@ void DiffWidget::ensureEditorVisible(DiffFile* file) {
 void DiffWidget::update(Node* node) {
     m_node = node;
     clear_layout(m_scroll_layout);
+    m_files.clear();
 
     if (m_node == nullptr) {
         return;
@@ -94,27 +95,27 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
     switch (diff.state) {
     case diff_files_t::State::ADDED:
         header += "New: ";
-        header += diff.new_file.path;
+        header += QString::fromStdString(diff.new_file.path);
         break;
     case diff_files_t::State::DELETED:
         header += "Deleted: ";
-        header += diff.old_file.path;
+        header += QString::fromStdString(diff.old_file.path);
         break;
     case diff_files_t::State::MODIFIED:
         header += "Modified: ";
-        header += diff.new_file.path;
+        header += QString::fromStdString(diff.new_file.path);
         break;
     case diff_files_t::State::RENAMED:
         header += "Moved: ";
-        header += diff.old_file.path;
+        header += QString::fromStdString(diff.old_file.path);
         header += " -> ";
-        header += diff.new_file.path;
+        header += QString::fromStdString(diff.new_file.path);
         break;
     case diff_files_t::State::COPIED:
         header += "Copied: ";
-        header += diff.old_file.path;
+        header += QString::fromStdString(diff.old_file.path);
         header += " -> ";
-        header += diff.new_file.path;
+        header += QString::fromStdString(diff.new_file.path);
         break;
     default:
         TODO("Unsupported file state");
@@ -157,15 +158,14 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
 
 void DiffWidget::addHunkDiff(const diff_hunk_t& hunk, std::vector<section_t>& sections) {
 
-    QString hunk_info;
-    hunk_info += std::format(
+    QString hunk_info = QString::fromStdString(std::format(
         "@@ -{},{} +{},{} @@ {}",
         hunk.old_file.offset,
         hunk.old_file.count,
         hunk.new_file.offset,
         hunk.new_file.count,
         hunk.header_context
-    );
+    ));
 
     m_curr_editor->appendPlainText(hunk_info);
 

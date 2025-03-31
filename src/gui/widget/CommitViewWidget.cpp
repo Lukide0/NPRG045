@@ -115,27 +115,27 @@ void CommitViewWidget::prepareDiff() {
 
         case diff_files_t::State::ADDED:
             item_text += "New ";
-            item_text += file_diff.new_file.path;
+            item_text += QString::fromStdString(file_diff.new_file.path);
             break;
         case diff_files_t::State::DELETED:
             item_text += "Deleted ";
-            item_text += file_diff.old_file.path;
+            item_text += QString::fromStdString(file_diff.old_file.path);
             break;
         case diff_files_t::State::MODIFIED:
             item_text += "Modified ";
-            item_text += file_diff.new_file.path;
+            item_text += QString::fromStdString(file_diff.new_file.path);
             break;
         case diff_files_t::State::RENAMED:
             item_text += "Renamed ";
-            item_text += file_diff.old_file.path;
+            item_text += QString::fromStdString(file_diff.old_file.path);
             item_text += " -> ";
-            item_text += file_diff.new_file.path;
+            item_text += QString::fromStdString(file_diff.new_file.path);
             break;
         case diff_files_t::State::COPIED:
             item_text += "Copied ";
-            item_text += file_diff.old_file.path;
+            item_text += QString::fromStdString(file_diff.old_file.path);
             item_text += " -> ";
-            item_text += file_diff.new_file.path;
+            item_text += QString::fromStdString(file_diff.new_file.path);
             break;
         }
 
