@@ -76,6 +76,9 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_right_split->addWidget(m_diff_widget);
     m_right_split->addWidget(m_commit_view);
 
+    m_right_split->setStretchFactor(0, 2);
+    m_right_split->setStretchFactor(1, 0);
+
     connect(m_list_actions->getList(), &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
         if (m_last_item != nullptr) {
             m_last_item->setColorToAll(Qt::white);
