@@ -43,35 +43,38 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     , m_graph(GitGraph<Node*>::empty()) {
 
     m_layout = new QHBoxLayout();
+    m_layout->setContentsMargins(0, 0, 0, 0);
     setLayout(m_layout);
 
-    m_left_layout  = new QVBoxLayout();
-    m_right_layout = new QVBoxLayout();
+    m_horizontal_split = new LineSplitter(Qt::Orientation::Horizontal);
+    m_left_split       = new LineSplitter(Qt::Orientation::Vertical);
+    m_right_split      = new LineSplitter(Qt::Orientation::Vertical);
 
-    m_layout->addLayout(m_left_layout);
-    m_layout->addLayout(m_right_layout, 1);
+    m_horizontal_split->addWidget(m_left_split);
+    m_horizontal_split->addWidget(m_right_split);
 
-    m_list_actions  = new NamedListWidget("Actions");
-    m_graphs_layout = new QHBoxLayout();
-    m_graphs_layout->setSizeConstraint(QLayout::SetMinimumSize);
+    m_layout->addWidget(m_horizontal_split);
+
+    m_list_actions = new NamedListWidget("Actions");
+    m_graphs_split = new LineSplitter(Qt::Orientation::Horizontal);
 
     //-- LEFT LAYOUT --------------------------------------------------------//
-    m_left_layout->addWidget(m_list_actions, 1);
-    m_left_layout->addLayout(m_graphs_layout, 1);
+
+    m_left_split->addWidget(m_list_actions);
+    m_left_split->addWidget(m_graphs_split);
 
     m_old_commits_graph = new GraphWidget();
     m_new_commits_graph = new GraphWidget();
 
-    m_graphs_layout->addWidget(m_old_commits_graph, 1);
-    m_graphs_layout->addWidget(m_new_commits_graph, 1);
+    m_graphs_split->addWidget(m_old_commits_graph);
+    m_graphs_split->addWidget(m_new_commits_graph);
 
     //-- RIGHT LAYOUT -------------------------------------------------------//
     m_diff_widget = new DiffWidget();
     m_commit_view = new CommitViewWidget(m_diff_widget);
 
-    m_right_layout->addStretch();
-    m_right_layout->addWidget(m_diff_widget, 1);
-    m_right_layout->addWidget(m_commit_view);
+    m_right_split->addWidget(m_diff_widget);
+    m_right_split->addWidget(m_commit_view);
 
     connect(m_list_actions->getList(), &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
         if (m_last_item != nullptr) {

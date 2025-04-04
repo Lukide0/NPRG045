@@ -8,8 +8,6 @@
 #include <QTextBlock>
 #include <QWidget>
 
-// TODO: Line numbers
-
 DiffEditor::DiffEditor(QWidget* parent)
     : QPlainTextEdit(parent) {
 
@@ -22,6 +20,7 @@ DiffEditor::DiffEditor(QWidget* parent)
     connect(this, &DiffEditor::updateRequest, this, &DiffEditor::updateDiffLine);
 
     updateDiffLineWidth();
+    setContentsMargins(0, 0, 0, 0);
 
     setReadOnly(true);
 }

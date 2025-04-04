@@ -18,6 +18,7 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row)
     : m_rebase(rebase)
     , m_parent(list)
     , m_row(row) {
+
     m_combo = new QComboBox();
 
     for (auto&& item : items) {
@@ -30,6 +31,7 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row)
 
     m_layout = new QHBoxLayout();
     m_layout->setSizeConstraint(QLayout::SetMinAndMaxSize);
+    m_layout->setContentsMargins(2, 2, 2, 2);
     m_layout->addWidget(m_combo);
     m_layout->addWidget(m_text, 1);
 

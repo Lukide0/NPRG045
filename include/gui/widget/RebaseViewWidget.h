@@ -6,16 +6,18 @@
 #include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Graph.h"
 #include "gui/widget/graph/Node.h"
+#include "gui/widget/LineSplitter.h"
 #include "gui/widget/ListItem.h"
 #include "gui/widget/NamedListWidget.h"
 
 #include <git2/types.h>
 #include <optional>
-#include <qboxlayout.h>
-#include <qgridlayout.h>
-#include <qlabel.h>
+#include <QBoxLayout>
+#include <QGridLayout>
+#include <QLabel>
 #include <QListWidgetItem>
-#include <qobject.h>
+#include <QObject>
+#include <QSplitter>
 #include <QWidget>
 #include <string>
 
@@ -29,16 +31,22 @@ public:
 
     void hideOldCommits() { m_old_commits_graph->hide(); }
 
+    void hideResultCommits() { m_new_commits_graph->hide(); }
+
     void showOldCommits() { m_old_commits_graph->show(); }
+
+    void showResultCommits() { m_new_commits_graph->show(); }
 
 private:
     QHBoxLayout* m_layout;
     // Contains: actions and graphs
-    QVBoxLayout* m_left_layout;
+    LineSplitter* m_left_split;
     // Contains: diff and commit
-    QVBoxLayout* m_right_layout;
+    LineSplitter* m_right_split;
 
-    QHBoxLayout* m_graphs_layout;
+    LineSplitter* m_horizontal_split;
+
+    LineSplitter* m_graphs_split;
 
     GraphWidget* m_old_commits_graph;
     GraphWidget* m_new_commits_graph;

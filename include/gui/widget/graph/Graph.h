@@ -22,7 +22,7 @@ public:
         setTransformationAnchor(AnchorUnderMouse);
         setAlignment(Qt::AlignLeft | Qt::AlignTop);
         setVerticalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOn);
-        setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
+        setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
 
         scale(qreal(0.95), qreal(0.95));
         setViewportMargins(0, 0, 10, 0);

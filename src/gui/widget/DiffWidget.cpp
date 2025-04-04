@@ -34,6 +34,7 @@ DiffWidget::DiffWidget(QWidget* parent)
     m_scrollarea->setWidget(m_scroll_content);
 
     m_layout = new QVBoxLayout(this);
+    m_layout->setContentsMargins(0, 0, 0, 0);
     m_layout->addWidget(m_scrollarea);
     setLayout(m_layout);
 }
@@ -158,14 +159,16 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
 
 void DiffWidget::addHunkDiff(const diff_hunk_t& hunk, std::vector<section_t>& sections) {
 
-    QString hunk_info = QString::fromStdString(std::format(
-        "@@ -{},{} +{},{} @@ {}",
-        hunk.old_file.offset,
-        hunk.old_file.count,
-        hunk.new_file.offset,
-        hunk.new_file.count,
-        hunk.header_context
-    ));
+    QString hunk_info = QString::fromStdString(
+        std::format(
+            "@@ -{},{} +{},{} @@ {}",
+            hunk.old_file.offset,
+            hunk.old_file.count,
+            hunk.new_file.offset,
+            hunk.new_file.count,
+            hunk.header_context
+        )
+    );
 
     m_curr_editor->appendPlainText(hunk_info);
 

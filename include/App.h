@@ -41,5 +41,6 @@ private:
 
     bool showRebase();
     void hideOldCommits(bool state);
+    void hideResultCommits(bool state);
     void openRepoCLI(const std::string& todo_file);
 };

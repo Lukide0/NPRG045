@@ -9,13 +9,17 @@ class NamedListWidget : public QWidget {
 public:
     NamedListWidget(QWidget* parent = nullptr)
         : QWidget(parent) {
+
         m_layout = new QVBoxLayout();
         m_list   = new QListWidget();
         m_header = new QLabel();
         m_layout->addWidget(m_header);
         m_layout->addWidget(m_list);
+        m_layout->setContentsMargins(0, 0, 0, 0);
 
-        this->setLayout(m_layout);
+        setLayout(m_layout);
+        setContentsMargins(0, 0, 0, 0);
+
         m_list->setSelectionMode(QAbstractItemView::SelectionMode::SingleSelection);
     }
 
@@ -27,8 +31,11 @@ public:
 
         m_layout->addWidget(m_header);
         m_layout->addWidget(m_list);
+        m_layout->setContentsMargins(0, 0, 0, 0);
 
-        this->setLayout(m_layout);
+        setLayout(m_layout);
+        setContentsMargins(0, 0, 0, 0);
+
         m_list->setSelectionMode(QAbstractItemView::SelectionMode::SingleSelection);
     }
 

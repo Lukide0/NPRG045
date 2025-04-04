@@ -14,8 +14,8 @@ Node* GraphWidget::addNode(std::uint32_t y) {
     auto node_height = node->boundingRect().height();
     auto node_width  = node->boundingRect().width();
 
-    auto padding = 10;
-    auto gap     = 10;
+    auto padding = 2;
+    auto gap     = 2;
     auto pos_y   = y * (node_height + gap);
 
     node->setPos(padding, pos_y + gap);

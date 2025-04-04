@@ -87,17 +87,25 @@ MainWindow::MainWindow() {
     }
     {
         auto* view             = menu->addMenu("View");
-        auto* hide_old_commits = new QAction("Hide old commits", this);
+        auto* hide_old_commits = new QAction("Show old commits", this);
 
         hide_old_commits->setCheckable(true);
-        hide_old_commits->setChecked(true);
+        hide_old_commits->setChecked(false);
         connect(hide_old_commits, &QAction::triggered, this, &MainWindow::hideOldCommits);
 
+        auto* hide_result_commits = new QAction("Show result commits", this);
+
+        hide_result_commits->setCheckable(true);
+        hide_result_commits->setChecked(true);
+        connect(hide_result_commits, &QAction::triggered, this, &MainWindow::hideResultCommits);
+
         view->addAction(hide_old_commits);
+        view->addAction(hide_result_commits);
     }
 
     // MAIN ---------------------------------------------------------------
     auto* main = new QWidget(this);
+    main->setContentsMargins(0, 0, 0, 0);
     setCentralWidget(main);
 
     m_layout = new QHBoxLayout(main);
@@ -119,10 +127,18 @@ MainWindow::MainWindow() {
 }
 
 void MainWindow::hideOldCommits(bool state) {
-    if (state) {
+    if (!state) {
         m_rebase_view->hideOldCommits();
     } else {
         m_rebase_view->showOldCommits();
+    }
+}
+
+void MainWindow::hideResultCommits(bool state) {
+    if (!state) {
+        m_rebase_view->hideResultCommits();
+    } else {
+        m_rebase_view->showResultCommits();
     }
 }
 
