@@ -1,5 +1,6 @@
 #include "gui/widget/RebaseViewWidget.h"
 
+#include "action/Action.h"
 #include "core/git/GitGraph.h"
 #include "core/git/parser.h"
 #include "core/git/types.h"
@@ -11,6 +12,7 @@
 #include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Graph.h"
 #include "gui/widget/graph/Node.h"
+#include "gui/widget/LineSplitter.h"
 #include "gui/widget/ListItem.h"
 #include "gui/widget/NamedListWidget.h"
 
@@ -127,10 +129,17 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
                 std::make_unique<ListItemMoveCommand>(this, m_list_actions->getList(), source_row, destination_row)
             );
 
+            this->moveAction(source_row, destination_row);
             this->updateActions();
             this->m_commit_view->update(nullptr);
         }
     );
+}
+
+void RebaseViewWidget::moveAction(int from, int to) {
+    assert(from >= 0 && to >= 0 && from != to);
+
+    m_actions.move(from, to);
 }
 
 void RebaseViewWidget::showCommit(Node* prev, Node* next) {
@@ -150,6 +159,8 @@ std::optional<std::string> RebaseViewWidget::update(
     git_repository* repo, const std::string& head, const std::string& onto, const std::vector<CommitAction>& actions
 ) {
     m_old_commits_graph->clear();
+    m_actions.clear();
+
     m_repo = repo;
 
     auto graph_opt = GitGraph<Node*>::create(head.c_str(), onto.c_str(), repo);
@@ -192,10 +203,51 @@ std::optional<std::string> RebaseViewWidget::update(
         return err_msg;
     }
 
-    return prepareActions(actions);
+    for (auto&& action : actions) {
+
+        git_oid id;
+        if (!get_oid_from_hash(id, action.hash.c_str(), m_repo)) {
+            return "Could not find commit";
+        }
+
+        switch (action.type) {
+        case CmdType::INVALID:
+        case CmdType::NONE:
+            TODO("Invalid command");
+            break;
+        case CmdType::PICK:
+            m_actions.append(Action(ActionType::PICK, id));
+            break;
+        case CmdType::REWORD:
+            m_actions.append(Action(ActionType::REWORD, id));
+            break;
+        case CmdType::EDIT:
+            m_actions.append(Action(ActionType::EDIT, id));
+            break;
+        case CmdType::SQUASH:
+            m_actions.append(Action(ActionType::SQUASH, id));
+            break;
+        case CmdType::FIXUP:
+            m_actions.append(Action(ActionType::FIXUP, id));
+            break;
+        case CmdType::DROP:
+            m_actions.append(Action(ActionType::DROP, id));
+            break;
+        case CmdType::LABEL:
+        case CmdType::EXEC:
+        case CmdType::BREAK:
+        case CmdType::RESET:
+        case CmdType::MERGE:
+        case CmdType::UPDATE_REF:
+            TODO("Unsupported command");
+            break;
+        }
+    }
+
+    return prepareActions();
 }
 
-std::optional<std::string> RebaseViewWidget::prepareActions(const std::vector<CommitAction>& actions) {
+std::optional<std::string> RebaseViewWidget::prepareActions() {
     m_new_commits_graph->clear();
     m_list_actions->clear();
     m_last_item = nullptr;
@@ -210,8 +262,8 @@ std::optional<std::string> RebaseViewWidget::prepareActions(const std::vector<Co
     m_last_new_commit = last;
 
     auto* list = m_list_actions->getList();
-    for (const auto& action : actions) {
-        auto* action_item = new ListItem(this, list, list->count());
+    for (auto& action : m_actions.get_actions()) {
+        auto* action_item = new ListItem(this, list, list->count(), action);
 
         auto result = prepareItem(action_item, action);
         if (auto err = result) {
@@ -228,7 +280,6 @@ std::optional<std::string> RebaseViewWidget::prepareActions(const std::vector<Co
 }
 
 void RebaseViewWidget::updateActions() {
-    std::vector<CommitAction> actions;
     auto* last      = m_new_commits_graph->addNode(0);
     auto& last_node = m_graph.first_node();
     m_root_node     = last_node.data;
@@ -237,25 +288,13 @@ void RebaseViewWidget::updateActions() {
     last->setGitTree(last_node.data->getGitTree());
 
     m_last_new_commit = last;
-
-    auto* list = m_list_actions->getList();
-    for (int i = 0; i < list->count(); ++i) {
-        auto* list_item = list->item(i);
-        auto* item      = dynamic_cast<ListItem*>(list->itemWidget(list_item));
-
-        assert(item != nullptr);
-
-        actions.push_back(item->getCommitAction());
-    }
-
-    prepareActions(actions);
+    prepareActions();
 }
 
-Node* RebaseViewWidget::findOldCommit(std::string short_hash) {
+Node* RebaseViewWidget::findOldCommit(const git_oid& oid) {
     git_commit_t c;
 
-    git_tree_t ancestor;
-    if (!get_commit_from_hash(c, short_hash.c_str(), m_repo)) {
+    if (git_commit_lookup(&c.commit, m_repo, &oid) != 0) {
         return nullptr;
     }
 
@@ -265,7 +304,6 @@ Node* RebaseViewWidget::findOldCommit(std::string short_hash) {
     }
 
     auto& node = m_graph.get(id);
-
     return node.data;
 }
 
@@ -284,67 +322,48 @@ void RebaseViewWidget::updateNode(Node* node, Node* current, Node* changes) {
     }
 }
 
-std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, const CommitAction& action) {
+std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, const Action& action) {
     QString item_text;
+    item_text += " [";
+    item_text += QString::fromStdString(format_oid_to_str<7>(&action.get_oid()));
+    item_text += "]: ";
 
-    switch (action.type) {
-    case CmdType::INVALID:
-    case CmdType::NONE:
-    case CmdType::EXEC:
-    case CmdType::BREAK:
-        break;
-    case CmdType::DROP: {
+    switch (action.get_type()) {
+    case ActionType::DROP: {
         item->setItemColor(convert_to_color(ColorType::DELETION));
 
-        Node* old = findOldCommit(action.hash);
+        Node* old = findOldCommit(action.get_oid());
         assert(old != nullptr);
         item->addConnection(old);
         item->setNode(old);
-
-        item_text += " [";
-        item_text += action.hash.c_str();
-        item_text += "]: ";
         item_text += git_commit_summary(old->getCommit());
+
         break;
     }
 
-    case CmdType::FIXUP:
-    case CmdType::SQUASH: {
+    case ActionType::FIXUP:
+    case ActionType::SQUASH: {
         item->setItemColor(convert_to_color(ColorType::INFO));
 
-        Node* old = findOldCommit(action.hash);
+        Node* old = findOldCommit(action.get_oid());
         assert(old != nullptr);
         item->addConnection(old);
         item->addConnection(m_last_new_commit);
         item->setNode(m_last_new_commit);
 
         updateNode(m_last_new_commit, m_last_new_commit, old);
-
-        item_text += " [";
-        item_text += action.hash.c_str();
-        item_text += "]: ";
         item_text += git_commit_summary(old->getCommit());
         break;
     }
 
-    case CmdType::RESET:
-    case CmdType::LABEL:
-    case CmdType::MERGE:
-    case CmdType::UPDATE_REF:
-        TODO("Implement");
-        break;
-
-    case CmdType::PICK:
-    case CmdType::REWORD:
-    case CmdType::EDIT: {
-        Node* old = findOldCommit(action.hash);
+    case ActionType::PICK:
+    case ActionType::REWORD:
+    case ActionType::EDIT: {
+        Node* old = findOldCommit(action.get_oid());
         assert(old != nullptr);
         item->addConnection(old);
 
         item->setItemColor(convert_to_color(ColorType::ADDITION));
-        item_text += " [";
-        item_text += action.hash.c_str();
-        item_text += "]: ";
         item_text += git_commit_summary(old->getCommit());
 
         Node* new_node = m_new_commits_graph->addNode();
@@ -362,7 +381,6 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, const C
     }
     }
 
-    item->setCommitAction(action);
     item->setText(item_text);
 
     auto* combo = item->getComboBox();

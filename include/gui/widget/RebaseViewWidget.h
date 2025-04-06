@@ -1,5 +1,6 @@
 #pragma once
 
+#include "action/ActionManager.h"
 #include "core/git/GitGraph.h"
 #include "core/git/parser.h"
 #include "gui/widget/CommitViewWidget.h"
@@ -37,6 +38,8 @@ public:
 
     void showResultCommits() { m_new_commits_graph->show(); }
 
+    void moveAction(int from, int to);
+
 private:
     QHBoxLayout* m_layout;
     // Contains: actions and graphs
@@ -59,17 +62,18 @@ private:
     Node* m_last_new_commit = nullptr;
 
     GitGraph<Node*> m_graph;
+    ActionsManager m_actions;
     git_repository* m_repo;
 
     ListItem* m_last_item = nullptr;
     Node* m_root_node;
 
 private:
-    std::optional<std::string> prepareItem(ListItem* item, const CommitAction& action);
+    std::optional<std::string> prepareItem(ListItem* item, const Action& action);
 
-    std::optional<std::string> prepareActions(const std::vector<CommitAction>& actions);
+    std::optional<std::string> prepareActions();
 
-    Node* findOldCommit(std::string short_hash);
+    Node* findOldCommit(const git_oid& oid);
 
     void updateNode(Node* node, Node* current, Node* changes);
 

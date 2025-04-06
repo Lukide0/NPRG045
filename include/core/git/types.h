@@ -141,6 +141,18 @@ inline bool get_commit_from_hash(git_commit_t& out_commit, const char* hash, git
     return true;
 }
 
+inline bool get_oid_from_hash(git_oid& out_oid, const char* hash, git_repository* repo) {
+    git_object* obj = nullptr;
+
+    if (git_revparse_single(&obj, repo, hash) != 0) {
+        return false;
+    }
+
+    out_oid = *git_object_id(obj);
+    git_object_free(obj);
+    return true;
+}
+
 inline bool get_last_commit(git_commit_t& out_commit, git_repository* repo) {
     git_oid id;
     return git_reference_name_to_id(&id, repo, "HEAD") == 0 && git_commit_lookup(&out_commit.commit, repo, &id) == 0;
@@ -171,20 +183,21 @@ inline bool check_commit(git_commit* a, git_commit* b) {
     return git_oid_equal(id_a, id_b) != 0;
 }
 
-template <std::uint8_t HashSize = 7> std::array<char, HashSize + 1> format_oid(const git_commit* commit) {
-    // NOTE: +1 is for '\0'
-    std::array<char, HashSize + 1> buff;
-    git_oid_tostr(buff.data(), buff.size(), git_commit_id(commit));
-
-    return buff;
-}
-
 template <std::uint8_t HashSize = 7> std::array<char, HashSize + 1> format_oid(const git_oid* id) {
     // NOTE: +1 is for '\0'
     std::array<char, HashSize + 1> buff;
     git_oid_tostr(buff.data(), buff.size(), id);
 
-    return buff.data();
+    return buff;
+}
+
+template <std::uint8_t HashSize = 7> std::array<char, HashSize + 1> format_oid(const git_commit* commit) {
+    return format_oid<HashSize>(git_commit_id(commit));
+}
+
+template <std::uint8_t HashSize = 7> std::string format_oid_to_str(const git_oid* oid) {
+    auto arr = format_oid<HashSize>(oid);
+    return std::string(arr.begin(), arr.end() - 1);
 }
 
 template <std::uint8_t HashSize = 7> std::string format_commit(git_commit* commit) {
