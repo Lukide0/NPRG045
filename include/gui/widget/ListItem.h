@@ -53,7 +53,13 @@ public:
 
     void addConnection(Node* item) { m_connected.push_back(item); }
 
-    void setItemColor(QColor color) { m_color = color; }
+    void setItemColor(QColor color) {
+        auto p = palette();
+        p.setColor(QPalette::Text, color);
+        setPalette(p);
+
+        m_color = color;
+    }
 
     [[nodiscard]] const QColor& getItemColor() const { return m_color; }
 
