@@ -1,5 +1,7 @@
 #pragma once
 
+#include "action/Action.h"
+#include "action/ActionManager.h"
 #include "gui/widget/graph/Node.h"
 #include <QHBoxLayout>
 #include <QPlainTextEdit>
@@ -7,36 +9,30 @@
 
 class CommitMessageWidget : public QWidget {
 public:
-    CommitMessageWidget(QWidget* parent = nullptr)
-        : QWidget(parent) {
-        m_layout = new QHBoxLayout();
-        setLayout(m_layout);
+    CommitMessageWidget(ActionsManager& manager, QWidget* parent = nullptr);
 
-        m_editor = new QPlainTextEdit();
-        m_editor->setReadOnly(true);
-
-        m_layout->addWidget(m_editor);
+    void clear() {
+        m_action = nullptr;
+        m_editor->clear();
     }
-
-    void clear() { m_editor->clear(); }
-
-    void setMsg(QString msg) { m_editor->setPlainText(msg); }
 
     void enableEdit() { m_editor->setReadOnly(false); }
 
     void disableEdit() { m_editor->setReadOnly(true); }
 
-    void setMsg(Node* node);
+    void setText(QString text) {
+        m_editor->blockSignals(true);
+        m_editor->setPlainText(text);
+        m_editor->blockSignals(false);
+    }
+
+    void setAction(Action* action);
+
+    Action* getAction() { return m_action; }
 
 private:
     QHBoxLayout* m_layout;
     QPlainTextEdit* m_editor;
+    Action* m_action = nullptr;
+    ActionsManager& m_manager;
 };
-
-inline void CommitMessageWidget::setMsg(Node* node) {
-    assert(node != nullptr);
-    auto* commit = node->getCommit();
-
-    const char* msg = git_commit_message(commit);
-    m_editor->setPlainText(msg);
-}

@@ -75,7 +75,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     //-- RIGHT LAYOUT -------------------------------------------------------//
     m_diff_widget = new DiffWidget();
     m_commit_view = new CommitViewWidget(m_diff_widget);
-    m_commit_msg  = new CommitMessageWidget();
+    m_commit_msg  = new CommitMessageWidget(m_actions);
 
     m_right_split->addWidget(m_commit_msg);
     m_right_split->addWidget(m_diff_commit_split);
@@ -103,7 +103,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
         list_item->setColorToAll(list_item->getItemColor());
         m_commit_view->update(m_last_item->getNode());
-        m_commit_msg->setMsg(m_last_item->getNode());
+        m_commit_msg->setAction(&m_last_item->getCommitAction());
     });
 
     auto handle = [&](Node* prev, Node* next) { this->showCommit(prev, next); };
@@ -161,7 +161,13 @@ void RebaseViewWidget::showCommit(Node* prev, Node* next) {
     }
 
     m_commit_view->update(next);
-    m_commit_msg->setMsg(next);
+    if (next->getAction() != nullptr) {
+        m_commit_msg->setAction(next->getAction());
+    } else {
+        m_commit_msg->clear();
+        m_commit_msg->disableEdit();
+        m_commit_msg->setText(git_commit_message(next->getCommit()));
+    }
 }
 
 std::optional<std::string> RebaseViewWidget::update(
@@ -225,22 +231,22 @@ std::optional<std::string> RebaseViewWidget::update(
             TODO("Invalid command");
             break;
         case CmdType::PICK:
-            m_actions.append(Action(ActionType::PICK, id));
+            m_actions.append(Action(ActionType::PICK, id, m_repo));
             break;
         case CmdType::REWORD:
-            m_actions.append(Action(ActionType::REWORD, id));
+            m_actions.append(Action(ActionType::REWORD, id, m_repo));
             break;
         case CmdType::EDIT:
-            m_actions.append(Action(ActionType::EDIT, id));
+            m_actions.append(Action(ActionType::EDIT, id, m_repo));
             break;
         case CmdType::SQUASH:
-            m_actions.append(Action(ActionType::SQUASH, id));
+            m_actions.append(Action(ActionType::SQUASH, id, m_repo));
             break;
         case CmdType::FIXUP:
-            m_actions.append(Action(ActionType::FIXUP, id));
+            m_actions.append(Action(ActionType::FIXUP, id, m_repo));
             break;
         case CmdType::DROP:
-            m_actions.append(Action(ActionType::DROP, id));
+            m_actions.append(Action(ActionType::DROP, id, m_repo));
             break;
         case CmdType::LABEL:
         case CmdType::EXEC:
@@ -297,6 +303,12 @@ void RebaseViewWidget::updateActions() {
     last->setGitTree(last_node.data->getGitTree());
 
     m_last_new_commit = last;
+
+    auto* action = m_commit_msg->getAction();
+    if (action != nullptr) {
+        m_commit_msg->setAction(action);
+    }
+
     prepareActions();
 }
 
@@ -331,7 +343,7 @@ void RebaseViewWidget::updateNode(Node* node, Node* current, Node* changes) {
     }
 }
 
-std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, const Action& action) {
+std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action& action) {
     QString item_text;
     item_text += " [";
     item_text += QString::fromStdString(format_oid_to_str<7>(&action.get_oid()));
@@ -379,6 +391,7 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, const A
         new_node->setCommit(old->getCommit());
         new_node->setGitTree(old->getGitTree());
         new_node->setParentNode(m_last_new_commit);
+        new_node->setAction(&action);
 
         item->addConnection(new_node);
         item->setNode(new_node);

@@ -72,7 +72,7 @@ private:
     Node* m_root_node;
 
 private:
-    std::optional<std::string> prepareItem(ListItem* item, const Action& action);
+    std::optional<std::string> prepareItem(ListItem* item, Action& action);
 
     std::optional<std::string> prepareActions();
 

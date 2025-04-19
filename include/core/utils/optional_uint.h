@@ -18,7 +18,7 @@ public:
         return optional_uint(value);
     }
 
-    [[nodiscard]] constexpr bool is_value() const { return (m_value & none_bit) != 0; }
+    [[nodiscard]] constexpr bool is_value() const { return (m_value & none_bit) == 0; }
 
     [[nodiscard]] constexpr bool is_none() const { return !is_value(); }
 

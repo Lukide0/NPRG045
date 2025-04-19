@@ -1,5 +1,6 @@
 #pragma once
 
+#include "action/Action.h"
 #include "core/git/types.h"
 
 #include <git2/commit.h>
@@ -33,6 +34,10 @@ public:
         m_msg    = git_commit_summary(commit);
     }
 
+    void setAction(Action* action) { m_action = action; }
+
+    Action* getAction() { return m_action; }
+
     git_commit* getCommit() { return m_commit; }
 
     Node* getParentNode() { return m_parent; }
@@ -63,11 +68,16 @@ public:
 private:
     GraphWidget* m_graph;
     QColor m_fill = Qt::white;
+
     std::string m_hash;
     std::string m_msg;
+
+    Action* m_action = nullptr;
     git_commit* m_commit;
     git_tree* m_tree = nullptr;
     git_tree_t m_tree_owner;
-    Node* m_parent      = nullptr;
+
+    Node* m_parent = nullptr;
+
     bool m_has_conflict = false;
 };
