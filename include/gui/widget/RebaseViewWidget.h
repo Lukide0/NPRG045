@@ -3,6 +3,7 @@
 #include "action/ActionManager.h"
 #include "core/git/GitGraph.h"
 #include "core/git/parser.h"
+#include "gui/widget/CommitMessageWidget.h"
 #include "gui/widget/CommitViewWidget.h"
 #include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Graph.h"
@@ -44,8 +45,9 @@ private:
     QHBoxLayout* m_layout;
     // Contains: actions and graphs
     LineSplitter* m_left_split;
-    // Contains: diff and commit
+    // Contains: diff, commit and commit message
     LineSplitter* m_right_split;
+    LineSplitter* m_diff_commit_split;
 
     LineSplitter* m_horizontal_split;
 
@@ -56,6 +58,7 @@ private:
 
     NamedListWidget* m_list_actions;
 
+    CommitMessageWidget* m_commit_msg;
     CommitViewWidget* m_commit_view;
     DiffWidget* m_diff_widget;
 

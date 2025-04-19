@@ -48,9 +48,10 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_layout->setContentsMargins(0, 0, 0, 0);
     setLayout(m_layout);
 
-    m_horizontal_split = new LineSplitter(Qt::Orientation::Horizontal);
-    m_left_split       = new LineSplitter(Qt::Orientation::Vertical);
-    m_right_split      = new LineSplitter(Qt::Orientation::Vertical);
+    m_horizontal_split  = new LineSplitter(Qt::Orientation::Horizontal);
+    m_left_split        = new LineSplitter(Qt::Orientation::Vertical);
+    m_right_split       = new LineSplitter(Qt::Orientation::Horizontal);
+    m_diff_commit_split = new LineSplitter(Qt::Orientation::Vertical);
 
     m_horizontal_split->addWidget(m_left_split);
     m_horizontal_split->addWidget(m_right_split);
@@ -74,12 +75,16 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     //-- RIGHT LAYOUT -------------------------------------------------------//
     m_diff_widget = new DiffWidget();
     m_commit_view = new CommitViewWidget(m_diff_widget);
+    m_commit_msg  = new CommitMessageWidget();
 
-    m_right_split->addWidget(m_diff_widget);
-    m_right_split->addWidget(m_commit_view);
+    m_right_split->addWidget(m_commit_msg);
+    m_right_split->addWidget(m_diff_commit_split);
 
-    m_right_split->setStretchFactor(0, 2);
-    m_right_split->setStretchFactor(1, 0);
+    m_diff_commit_split->addWidget(m_diff_widget);
+    m_diff_commit_split->addWidget(m_commit_view);
+
+    m_diff_commit_split->setStretchFactor(0, 2);
+    m_diff_commit_split->setStretchFactor(1, 0);
 
     connect(m_list_actions->getList(), &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
         if (m_last_item != nullptr) {
@@ -98,6 +103,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
         list_item->setColorToAll(list_item->getItemColor());
         m_commit_view->update(m_last_item->getNode());
+        m_commit_msg->setMsg(m_last_item->getNode());
     });
 
     auto handle = [&](Node* prev, Node* next) { this->showCommit(prev, next); };
@@ -132,6 +138,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
             this->moveAction(source_row, destination_row);
             this->updateActions();
             this->m_commit_view->update(nullptr);
+            this->m_commit_msg->clear();
         }
     );
 }
@@ -145,6 +152,7 @@ void RebaseViewWidget::moveAction(int from, int to) {
 void RebaseViewWidget::showCommit(Node* prev, Node* next) {
     if (next == nullptr) {
         m_commit_view->update(nullptr);
+        m_commit_msg->clear();
         return;
     }
 
@@ -153,6 +161,7 @@ void RebaseViewWidget::showCommit(Node* prev, Node* next) {
     }
 
     m_commit_view->update(next);
+    m_commit_msg->setMsg(next);
 }
 
 std::optional<std::string> RebaseViewWidget::update(
