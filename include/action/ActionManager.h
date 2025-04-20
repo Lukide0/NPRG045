@@ -40,14 +40,49 @@ public:
         auto from_it = m_action.begin();
         std::advance(from_it, from);
 
+        Action* from_prev   = nullptr;
+        Action* from_action = &*from_it;
+        Action* from_next   = from_action->get_next();
+
+        if (from_it != m_action.begin()) {
+            from_prev = &*std::prev(from_it);
+        }
+
         auto to_it = m_action.begin();
         std::advance(to_it, to);
+
+        Action* to_prev   = nullptr;
+        Action* to_action = &*to_it;
+        Action* to_next   = to_it->get_next();
+
+        if (to_it != m_action.begin()) {
+            to_prev = &*std::prev(to_it);
+        }
 
         if (from < to) {
             std::advance(to_it, 1);
         }
 
         m_action.splice(to_it, m_action, from_it);
+
+        if (from_prev != nullptr) {
+            from_prev->set_next(to_action);
+        }
+
+        if (to_prev != nullptr) {
+            to_prev->set_next(from_action);
+        }
+
+        if (from + 1 == to) {
+            to_action->set_next(from_action);
+            from_action->set_next(to_next);
+        } else if (to + 1 == from) {
+            from_action->set_next(to_action);
+            to_action->set_next(from_next);
+        } else {
+            to_action->set_next(from_next);
+            from_action->set_next(to_next);
+        }
     }
 
     void clear() {
@@ -65,5 +100,12 @@ private:
 };
 
 template <action_type Act> ActionsManager::ref_t ActionsManager::append(Act&& action) {
-    return m_action.emplace_back(std::forward<Act>(action));
+    auto& ref = m_action.emplace_back(std::forward<Act>(action));
+
+    if (m_action.size() > 1) {
+        auto prev = std::prev(m_action.end(), 2);
+        prev->set_next(&ref);
+    }
+
+    return ref;
 }

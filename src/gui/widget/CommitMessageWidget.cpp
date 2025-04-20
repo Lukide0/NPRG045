@@ -31,6 +31,54 @@ CommitMessageWidget::CommitMessageWidget(ActionsManager& manager, QWidget* paren
     });
 }
 
+QString create_commit_message(Action* action) {
+    std::string msg = git_commit_message(action->get_commit());
+
+    switch (action->get_type()) {
+    case ActionType::PICK:
+    case ActionType::EDIT:
+    case ActionType::REWORD:
+        break;
+    case ActionType::DROP:
+    case ActionType::SQUASH:
+    case ActionType::FIXUP:
+        return QString::fromStdString(msg);
+    }
+
+    Action* curr      = action->get_next();
+    std::size_t count = 1;
+    bool exit         = false;
+
+    while (curr != nullptr && !exit) {
+
+        switch (curr->get_type()) {
+        case ActionType::PICK:
+        case ActionType::FIXUP:
+        case ActionType::REWORD:
+        case ActionType::EDIT:
+            exit = true;
+            break;
+        case ActionType::DROP:
+            break;
+        case ActionType::SQUASH:
+            count += 1;
+            msg += std::format("# This is the commit message #{}:\n", count);
+            msg += '\n';
+            msg += git_commit_message(curr->get_commit());
+            msg += '\n';
+            break;
+        }
+
+        curr = curr->get_next();
+    }
+
+    if (count > 1) {
+        msg = std::format("# This is a combination of {} commits.\n# This is the commit message #1:\n{}", count, msg);
+    }
+
+    return QString::fromStdString(msg);
+}
+
 void CommitMessageWidget::setAction(Action* action) {
     QString msg;
     m_action = action;
@@ -39,7 +87,7 @@ void CommitMessageWidget::setAction(Action* action) {
     if (action->has_msg() && msg_id.is_value()) {
         msg = QString::fromStdString(m_manager.get_msg(msg_id.value()));
     } else {
-        msg = git_commit_message(action->get_commit());
+        msg = create_commit_message(action);
     }
 
     m_editor->setReadOnly(!action->can_edit_msg());

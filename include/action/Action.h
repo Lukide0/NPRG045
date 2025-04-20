@@ -32,6 +32,12 @@ public:
         init_commit(repo);
     }
 
+    Action* get_next() { return m_next; }
+
+    [[nodiscard]] const Action* get_next() const { return m_next; }
+
+    void set_next(Action* next) { m_next = next; }
+
     [[nodiscard]] const git_oid& get_oid() const { return m_oid; }
 
     [[nodiscard]] git_commit* get_commit() const { return m_commit.commit; }
@@ -42,9 +48,9 @@ public:
         switch (m_type) {
         case ActionType::PICK:
         case ActionType::DROP:
-            return false;
-        case ActionType::SQUASH:
         case ActionType::FIXUP:
+        case ActionType::SQUASH:
+            return false;
         case ActionType::REWORD:
         case ActionType::EDIT:
             return true;
@@ -57,9 +63,9 @@ public:
         switch (m_type) {
         case ActionType::PICK:
         case ActionType::DROP:
-            return false;
-        case ActionType::SQUASH:
         case ActionType::FIXUP:
+        case ActionType::SQUASH:
+            return false;
         case ActionType::REWORD:
         case ActionType::EDIT:
             return true;
@@ -94,6 +100,7 @@ public:
     }
 
 private:
+    Action* m_next = nullptr;
     git_commit_t m_commit;
     git_oid m_oid;
     optional_u31 m_msg_id;

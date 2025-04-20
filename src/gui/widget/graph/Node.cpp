@@ -1,5 +1,6 @@
 #include "gui/widget/graph/Node.h"
 #include "gui/color.h"
+#include <QFontDatabase>
 #include <QGraphicsItem>
 #include <QPainter>
 #include <QStyleOptionGraphicsItem>
@@ -26,7 +27,8 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
         painter->drawRect(0, 5, 8, 8);
     }
 
-    QFont font = painter->font();
+    QFont font = QFontDatabase::systemFont(QFontDatabase::FixedFont);
+    painter->setFont(font);
 
     auto pen      = QPen(Qt::black);
     auto pen_rect = QPen(Qt::black);
@@ -43,8 +45,8 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
 
     painter->setPen(pen_rect);
 
-    painter->drawRect(10, 0, 80, 20);
-    painter->drawText(QRectF { 12, 0, 76, 20 }, m_hash.c_str(), text_opts);
+    painter->drawRect(10, 0, 58, 20);
+    painter->drawText(QRectF { 12, 0, 56, 20 }, m_hash.c_str(), text_opts);
 
     auto fm           = painter->fontMetrics();
     int size          = fm.horizontalAdvance(m_msg.c_str());
@@ -52,13 +54,13 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
 
     QString msg = QString::fromStdString(m_msg);
 
-    if (size > 200) {
-        int new_size = 200 / avg_char_size;
+    if (size > 220) {
+        int new_size = 220 / avg_char_size;
         new_size     = std::max(new_size - 3, 0);
         msg.resize(new_size);
         msg += "...";
     }
 
     painter->setPen(pen);
-    painter->drawText(QRectF { 95, 0, 200, 20 }, msg, text_opts);
+    painter->drawText(QRectF { 75, 0, 220, 20 }, msg, text_opts);
 }
