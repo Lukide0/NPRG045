@@ -50,9 +50,9 @@ public:
         case ActionType::DROP:
         case ActionType::FIXUP:
         case ActionType::SQUASH:
+        case ActionType::EDIT:
             return false;
         case ActionType::REWORD:
-        case ActionType::EDIT:
             return true;
         }
 
@@ -65,9 +65,9 @@ public:
         case ActionType::DROP:
         case ActionType::FIXUP:
         case ActionType::SQUASH:
+        case ActionType::EDIT:
             return false;
         case ActionType::REWORD:
-        case ActionType::EDIT:
             return true;
         }
 

@@ -41,6 +41,8 @@ public:
 
     void moveAction(int from, int to);
 
+    const auto& getActionsManager() const { return m_actions; }
+
 private:
     QHBoxLayout* m_layout;
     // Contains: actions and graphs

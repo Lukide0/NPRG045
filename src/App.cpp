@@ -1,5 +1,6 @@
 #include "App.h"
 
+#include "action/Converter.h"
 #include "core/git/paths.h"
 #include "core/state/CommandHistory.h"
 #include "gui/widget/RebaseViewWidget.h"
@@ -40,30 +41,32 @@ MainWindow::MainWindow() {
     auto* menu = new QMenuBar(this);
     setMenuBar(menu);
 
-    auto* repo = menu->addMenu("Repo");
-
+    auto* repo      = menu->addMenu("Repo");
     auto* repo_open = new QAction(QIcon::fromTheme("folder-open"), "Open", this);
-    repo_open->setStatusTip("Open a repo");
 
-    connect(repo_open, &QAction::triggered, this, [this] {
-        if (CommandHistory::CanUndo() || CommandHistory::CanRedo()) {
-            auto ans = QMessageBox::question(
-                this,
-                "Unsaved changes",
-                "You have unsaved changes, are you sure you want to open another repo?",
-                QMessageBox::Yes | QMessageBox::No,
-                QMessageBox::No
-            );
+    {
+        repo_open->setStatusTip("Open a repo");
 
-            if (ans == QMessageBox::No) {
-                return;
+        connect(repo_open, &QAction::triggered, this, [this] {
+            if (CommandHistory::CanUndo() || CommandHistory::CanRedo()) {
+                auto ans = QMessageBox::question(
+                    this,
+                    "Unsaved changes",
+                    "You have unsaved changes, are you sure you want to open another repo?",
+                    QMessageBox::Yes | QMessageBox::No,
+                    QMessageBox::No
+                );
+
+                if (ans == QMessageBox::No) {
+                    return;
+                }
             }
-        }
 
-        openRepoDialog();
-    });
+            openRepoDialog();
+        });
 
-    repo->addAction(repo_open);
+        repo->addAction(repo_open);
+    }
 
     {
         auto* edit = menu->addMenu("Edit");
@@ -76,8 +79,16 @@ MainWindow::MainWindow() {
         edit_redo->setEnabled(false);
         connect(edit_redo, &QAction::triggered, this, [] { CommandHistory::Redo(); });
 
+        auto* edit_todo_save = new QAction(QIcon::fromTheme("edit-save"), "Save", this);
+        connect(edit_todo_save, &QAction::triggered, this, [this] {
+            const auto& manager = this->m_rebase_view->getActionsManager();
+
+            Converter::actions_to_todo(std::cout, manager.get_actions(), manager);
+        });
+
         edit->addAction(edit_undo);
         edit->addAction(edit_redo);
+        edit->addAction(edit_todo_save);
 
         edit_undo->setShortcut(QKeySequence::Undo);
         edit_redo->setShortcut(QKeySequence::Redo);
