@@ -74,10 +74,8 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
     //-- RIGHT LAYOUT -------------------------------------------------------//
     m_diff_widget = new DiffWidget();
-    m_commit_view = new CommitViewWidget(m_diff_widget);
-    m_commit_msg  = new CommitMessageWidget(m_actions);
+    m_commit_view = new CommitViewWidget(m_diff_widget, m_actions);
 
-    m_right_split->addWidget(m_commit_msg);
     m_right_split->addWidget(m_diff_commit_split);
 
     m_diff_commit_split->addWidget(m_diff_widget);
@@ -103,7 +101,6 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
         list_item->setColorToAll(list_item->getItemColor());
         m_commit_view->update(m_last_item->getNode());
-        m_commit_msg->setAction(&m_last_item->getCommitAction());
     });
 
     auto handle = [&](Node* prev, Node* next) { this->showCommit(prev, next); };
@@ -138,7 +135,6 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
             this->moveAction(source_row, destination_row);
             this->updateActions();
             this->m_commit_view->update(nullptr);
-            this->m_commit_msg->clear();
         }
     );
 }
@@ -152,7 +148,6 @@ void RebaseViewWidget::moveAction(int from, int to) {
 void RebaseViewWidget::showCommit(Node* prev, Node* next) {
     if (next == nullptr) {
         m_commit_view->update(nullptr);
-        m_commit_msg->clear();
         return;
     }
 
@@ -161,13 +156,6 @@ void RebaseViewWidget::showCommit(Node* prev, Node* next) {
     }
 
     m_commit_view->update(next);
-    if (next->getAction() != nullptr) {
-        m_commit_msg->setAction(next->getAction());
-    } else {
-        m_commit_msg->clear();
-        m_commit_msg->disableEdit();
-        m_commit_msg->setText(git_commit_message(next->getCommit()));
-    }
 }
 
 std::optional<std::string> RebaseViewWidget::update(
@@ -303,11 +291,7 @@ void RebaseViewWidget::updateActions() {
     last->setGitTree(last_node.data->getGitTree());
 
     m_last_new_commit = last;
-
-    auto* action = m_commit_msg->getAction();
-    if (action != nullptr) {
-        m_commit_msg->setAction(action);
-    }
+    m_commit_view->update();
 
     prepareActions();
 }

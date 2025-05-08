@@ -1,4 +1,5 @@
 #include "gui/widget/CommitViewWidget.h"
+#include "action/ActionManager.h"
 #include "core/git/diff.h"
 #include "core/git/GitGraph.h"
 #include "core/git/types.h"
@@ -22,8 +23,9 @@
 #include <sstream>
 #include <string>
 
-CommitViewWidget::CommitViewWidget(DiffWidget* diff)
-    : m_diff(diff) {
+CommitViewWidget::CommitViewWidget(DiffWidget* diff, ActionsManager& manager)
+    : m_manager(manager)
+    , m_diff(diff) {
 
     m_layout = new QHBoxLayout();
     setLayout(m_layout);
@@ -49,24 +51,35 @@ CommitViewWidget::CommitViewWidget(DiffWidget* diff)
 void CommitViewWidget::createRows() {
     clear_layout(m_info_layout);
 
-    if (m_node == nullptr) {
+    if (m_commit == nullptr) {
         m_info_layout->addRow("Hash:", new QLabel(""));
         m_info_layout->addRow("Author:", new QLabel(""));
         m_info_layout->addRow("Date:", new QLabel(""));
-        m_info_layout->addRow("Summary:", new QLabel(""));
-        m_info_layout->addRow("Description:", new QLabel(""));
+        m_info_layout->addRow("Message:", new QLabel(""));
         return;
     }
 
-    git_commit* commit = m_node->getCommit();
+    m_msg = new CommitMessageWidget(m_manager);
 
-    std::string hash = GitGraph<Node*>::get_commit_id(commit);
+    if (m_action == nullptr || !m_action->can_edit_msg()) {
+        m_msg->disableEdit();
+    } else {
+        m_msg->enableEdit();
+    }
 
-    const char* summary          = git_commit_summary(commit);
-    const char* desc             = git_commit_body(commit);
-    const git_signature* autor   = git_commit_author(commit);
-    const git_time_t commit_time = git_commit_time(commit);
-    const int commit_time_offset = git_commit_time_offset(commit);
+    if (m_action == nullptr || !m_action->has_msg()) {
+        const char* msg = git_commit_message(m_commit);
+        m_msg->setText(msg);
+
+    } else {
+        m_msg->setAction(m_action);
+    }
+
+    std::string hash = GitGraph<Node*>::get_commit_id(m_commit);
+
+    const git_signature* autor   = git_commit_author(m_commit);
+    const git_time_t commit_time = git_commit_time(m_commit);
+    const int commit_time_offset = git_commit_time_offset(m_commit);
 
     std::stringstream ss;
     {
@@ -87,14 +100,15 @@ void CommitViewWidget::createRows() {
     m_info_layout->addRow("Hash:", new QLabel(hash.c_str()));
     m_info_layout->addRow("Author:", new QLabel(autor->name));
     m_info_layout->addRow("Date:", new QLabel(time_str.c_str()));
-    m_info_layout->addRow("Summary:", new QLabel(summary));
-    m_info_layout->addRow("Description:", new QLabel(desc));
+    m_info_layout->addRow("Message:", m_msg);
+    // m_info_layout->addRow("Summary:", new QLabel(summary));
+    // m_info_layout->addRow("Description:", new QLabel(desc));
 }
 
 void CommitViewWidget::prepareDiff() {
     m_changes->clear();
 
-    if (m_node == nullptr) {
+    if (m_commit == nullptr) {
         return;
     }
 

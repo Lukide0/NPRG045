@@ -6,7 +6,6 @@
 #include "gui/widget/DiffEditor.h"
 #include "gui/widget/DiffEditorLine.h"
 #include "gui/widget/DiffFile.h"
-#include "gui/widget/graph/Node.h"
 
 #include <format>
 #include <git2/diff.h>
@@ -44,20 +43,15 @@ void DiffWidget::ensureEditorVisible(DiffFile* file) {
     bar->setValue(file->y());
 }
 
-void DiffWidget::update(Node* node) {
-    m_node = node;
+void DiffWidget::update(git_commit* child, git_commit* parent) {
     clear_layout(m_scroll_layout);
     m_files.clear();
 
-    if (m_node == nullptr) {
+    git_commit* commit        = child;
+    git_commit* parent_commit = parent;
+
+    if (child == nullptr) {
         return;
-    }
-
-    git_commit* commit        = node->getCommit();
-    git_commit* parent_commit = nullptr;
-
-    if (Node* parent_node = node->getParentNode()) {
-        parent_commit = parent_node->getCommit();
     }
 
     diff_result_t res = prepare_diff(parent_commit, commit);

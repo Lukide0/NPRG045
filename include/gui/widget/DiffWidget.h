@@ -16,7 +16,7 @@ public:
     DiffWidget(QWidget* parent = nullptr);
     ~DiffWidget() override = default;
 
-    void update(Node* node);
+    void update(git_commit* child, git_commit* parent);
 
     [[nodiscard]] const std::vector<diff_files_t>& getDiffs() const { return m_diffs; }
 
@@ -25,7 +25,6 @@ public:
     void ensureEditorVisible(DiffFile* file);
 
 private:
-    Node* m_node = nullptr;
     std::vector<diff_files_t> m_diffs;
     std::vector<DiffFile*> m_files;
     QVBoxLayout* m_scroll_layout;

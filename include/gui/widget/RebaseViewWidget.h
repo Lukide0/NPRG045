@@ -60,7 +60,6 @@ private:
 
     NamedListWidget* m_list_actions;
 
-    CommitMessageWidget* m_commit_msg;
     CommitViewWidget* m_commit_view;
     DiffWidget* m_diff_widget;
 

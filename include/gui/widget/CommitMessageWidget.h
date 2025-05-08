@@ -30,6 +30,8 @@ public:
 
     Action* getAction() { return m_action; }
 
+    ActionsManager& getManager() { return m_manager; }
+
 private:
     QHBoxLayout* m_layout;
     QPlainTextEdit* m_editor;
