@@ -3,6 +3,7 @@
 #include "gui/color.h"
 #include "gui/widget/DiffEditorLine.h"
 
+#include <iostream>
 #include <QPainter>
 #include <QPlainTextEdit>
 #include <QTextBlock>
@@ -18,6 +19,7 @@ DiffEditor::DiffEditor(QWidget* parent)
 
     connect(this, &DiffEditor::blockCountChanged, this, &DiffEditor::updateDiffLineWidth);
     connect(this, &DiffEditor::updateRequest, this, &DiffEditor::updateDiffLine);
+    connect(this, &QPlainTextEdit::selectionChanged, this, &DiffEditor::onSelectionChanged);
 
     updateDiffLineWidth();
     setContentsMargins(0, 0, 0, 0);
@@ -42,6 +44,40 @@ void DiffEditor::updateDiffLine(const QRect& rect, int dy) {
     if (rect.contains(viewport()->rect())) {
         updateDiffLineWidth();
     }
+}
+
+void DiffEditor::onSelectionChanged() {
+
+    QTextCursor cursor = textCursor();
+
+    if (!cursor.hasSelection()) {
+        return;
+    }
+
+    QSignalBlocker blocker(this);
+
+    int anchor = cursor.anchor();
+    int pos    = cursor.position();
+
+    auto anchor_block = document()->findBlock(anchor);
+    auto block        = document()->findBlock(pos);
+
+    int new_anchor;
+    int new_pos;
+
+    if (pos >= anchor) {
+        new_anchor = anchor_block.position();
+        new_pos    = block.position() + block.length() - 1;
+    } else {
+
+        new_anchor = anchor_block.position() + anchor_block.length() - 1;
+        new_pos    = block.position();
+    }
+
+    cursor.setPosition(new_anchor);
+    cursor.setPosition(new_pos, QTextCursor::KeepAnchor);
+
+    setTextCursor(cursor);
 }
 
 void DiffEditor::resizeEvent(QResizeEvent* event) {

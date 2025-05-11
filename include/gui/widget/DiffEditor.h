@@ -15,7 +15,7 @@ private:
     void resizeEvent(QResizeEvent* event) override;
 
     void updateDiffLineWidth(int new_block_count = 0);
-    // void highlightCurrentLine();
+    void onSelectionChanged();
     void updateDiffLine(const QRect& rect, int dy);
 
 private:
