@@ -42,7 +42,10 @@
 
 RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     : QWidget(parent)
-    , m_graph(GitGraph<Node*>::empty()) {
+    , m_graph(GitGraph<Node*>::empty())
+    , m_actions(ActionsManager::get()) {
+
+    m_actions.clear();
 
     m_layout = new QHBoxLayout();
     m_layout->setContentsMargins(0, 0, 0, 0);
@@ -74,7 +77,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
     //-- RIGHT LAYOUT -------------------------------------------------------//
     m_diff_widget = new DiffWidget();
-    m_commit_view = new CommitViewWidget(m_diff_widget, m_actions);
+    m_commit_view = new CommitViewWidget(m_diff_widget);
 
     m_right_split->addWidget(m_diff_commit_split);
 

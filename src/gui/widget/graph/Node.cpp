@@ -1,4 +1,5 @@
 #include "gui/widget/graph/Node.h"
+#include "action/ActionManager.h"
 #include "gui/color.h"
 #include <QFontDatabase>
 #include <QGraphicsItem>
@@ -46,21 +47,33 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
     painter->setPen(pen_rect);
 
     painter->drawRect(10, 0, 58, 20);
-    painter->drawText(QRectF { 12, 0, 56, 20 }, m_hash.c_str(), text_opts);
+
+    std::string msg = m_commit_msg;
+
+    if (m_action != nullptr && m_action->has_msg()) {
+        auto id = m_action->get_msg_id();
+        if (id.is_value()) {
+            msg = ActionsManager::get().get_msg(id.value());
+        }
+    }
+
+    const char* hash = m_commit_hash.c_str();
+
+    painter->drawText(QRectF { 12, 0, 56, 20 }, hash, text_opts);
 
     auto fm           = painter->fontMetrics();
-    int size          = fm.horizontalAdvance(m_msg.c_str());
+    int size          = fm.horizontalAdvance(msg.c_str(), msg.size());
     int avg_char_size = fm.averageCharWidth();
 
-    QString msg = QString::fromStdString(m_msg);
+    QString qmsg = QString::fromStdString(msg);
 
     if (size > 220) {
         int new_size = 220 / avg_char_size;
         new_size     = std::max(new_size - 3, 0);
-        msg.resize(new_size);
-        msg += "...";
+        qmsg.resize(new_size);
+        qmsg += "...";
     }
 
     painter->setPen(pen);
-    painter->drawText(QRectF { 75, 0, 220, 20 }, msg, text_opts);
+    painter->drawText(QRectF { 75, 0, 220, 20 }, qmsg, text_opts);
 }

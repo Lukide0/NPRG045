@@ -1,9 +1,9 @@
 #include "gui/widget/CommitMessageWidget.h"
 #include "action/ActionManager.h"
 
-CommitMessageWidget::CommitMessageWidget(ActionsManager& manager, QWidget* parent)
+CommitMessageWidget::CommitMessageWidget(QWidget* parent)
     : QWidget(parent)
-    , m_manager(manager) {
+    , m_manager(ActionsManager::get()) {
     m_layout = new QHBoxLayout();
     setLayout(m_layout);
 
@@ -28,6 +28,10 @@ CommitMessageWidget::CommitMessageWidget(ActionsManager& manager, QWidget* paren
         }
 
         m_action->set_msg_id(id);
+
+        if (m_handle != nullptr) {
+            m_handle(text);
+        }
     });
 }
 

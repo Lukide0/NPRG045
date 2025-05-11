@@ -3,13 +3,15 @@
 #include "action/Action.h"
 #include "action/ActionManager.h"
 #include "gui/widget/graph/Node.h"
+#include <functional>
 #include <QHBoxLayout>
 #include <QPlainTextEdit>
 #include <QWidget>
+#include <string>
 
 class CommitMessageWidget : public QWidget {
 public:
-    CommitMessageWidget(ActionsManager& manager, QWidget* parent = nullptr);
+    CommitMessageWidget(QWidget* parent = nullptr);
 
     void clear() {
         m_action = nullptr;
@@ -30,11 +32,12 @@ public:
 
     Action* getAction() { return m_action; }
 
-    ActionsManager& getManager() { return m_manager; }
+    void setTextChangeHandle(std::function<void(const std::string&)> handle) { m_handle = handle; }
 
 private:
     QHBoxLayout* m_layout;
     QPlainTextEdit* m_editor;
     Action* m_action = nullptr;
     ActionsManager& m_manager;
+    std::function<void(const std::string&)> m_handle = nullptr;
 };

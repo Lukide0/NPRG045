@@ -23,8 +23,8 @@
 #include <sstream>
 #include <string>
 
-CommitViewWidget::CommitViewWidget(DiffWidget* diff, ActionsManager& manager)
-    : m_manager(manager)
+CommitViewWidget::CommitViewWidget(DiffWidget* diff)
+    : m_manager(ActionsManager::get())
     , m_diff(diff) {
 
     m_layout = new QHBoxLayout();
@@ -59,13 +59,19 @@ void CommitViewWidget::createRows() {
         return;
     }
 
-    m_msg = new CommitMessageWidget(m_manager);
+    m_msg = new CommitMessageWidget();
 
     if (m_action == nullptr || !m_action->can_edit_msg()) {
         m_msg->disableEdit();
     } else {
         m_msg->enableEdit();
     }
+
+    m_msg->setTextChangeHandle([this](const std::string&) {
+        if (m_node != nullptr) {
+            m_node->update();
+        }
+    });
 
     if (m_action == nullptr || !m_action->has_msg()) {
         const char* msg = git_commit_message(m_commit);
@@ -101,8 +107,6 @@ void CommitViewWidget::createRows() {
     m_info_layout->addRow("Author:", new QLabel(autor->name));
     m_info_layout->addRow("Date:", new QLabel(time_str.c_str()));
     m_info_layout->addRow("Message:", m_msg);
-    // m_info_layout->addRow("Summary:", new QLabel(summary));
-    // m_info_layout->addRow("Description:", new QLabel(desc));
 }
 
 void CommitViewWidget::prepareDiff() {

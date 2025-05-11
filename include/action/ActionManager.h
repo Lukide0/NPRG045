@@ -14,9 +14,17 @@ template <typename T>
 concept action_type = std::is_same_v<std::decay_t<T>, Action>;
 
 class ActionsManager {
+
 public:
     using ref_t  = Action&;
     using type_t = ActionType;
+
+    ActionsManager()                      = default;
+    ActionsManager(const ActionsManager&) = delete;
+    ActionsManager(ActionsManager&&)      = delete;
+
+    ActionsManager& operator=(ActionsManager&&)      = delete;
+    ActionsManager& operator=(const ActionsManager&) = delete;
 
     template <action_type Act> ref_t append(Act&& action);
 
@@ -93,6 +101,11 @@ public:
     [[nodiscard]] const std::list<Action>& get_actions() const { return m_action; }
 
     std::list<Action>& get_actions() { return m_action; }
+
+    static ActionsManager& get() {
+        static ActionsManager manager;
+        return manager;
+    }
 
 private:
     std::list<Action> m_action;

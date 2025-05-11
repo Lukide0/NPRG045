@@ -66,7 +66,7 @@ private:
     Node* m_last_new_commit = nullptr;
 
     GitGraph<Node*> m_graph;
-    ActionsManager m_actions;
+    ActionsManager& m_actions;
     git_repository* m_repo;
 
     ListItem* m_last_item = nullptr;

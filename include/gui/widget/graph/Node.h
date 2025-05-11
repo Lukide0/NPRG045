@@ -28,11 +28,13 @@ public:
     [[nodiscard]] int type() const override { return Type; }
 
     void setCommit(git_commit* commit) {
-        auto id  = format_oid(commit);
-        m_commit = commit;
-        m_hash   = id.data();
-        m_msg    = git_commit_summary(commit);
+        auto id       = format_oid(commit);
+        m_commit      = commit;
+        m_commit_hash = id.data();
+        m_commit_msg  = git_commit_summary(commit);
     }
+
+    void setMessage(const std::string& str) { m_commit_msg = str; }
 
     void setAction(Action* action) { m_action = action; }
 
@@ -69,11 +71,11 @@ private:
     GraphWidget* m_graph;
     QColor m_fill = Qt::white;
 
-    std::string m_hash;
-    std::string m_msg;
+    git_commit* m_commit;
+    std::string m_commit_hash;
+    std::string m_commit_msg;
 
     Action* m_action = nullptr;
-    git_commit* m_commit;
     git_tree* m_tree = nullptr;
     git_tree_t m_tree_owner;
 
