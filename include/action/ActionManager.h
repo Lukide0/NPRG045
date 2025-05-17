@@ -3,9 +3,6 @@
 #include "Action.h"
 #include <cstdint>
 #include <git2/oid.h>
-#include <iterator>
-#include <list>
-#include <span>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -13,15 +10,49 @@
 template <typename T>
 concept action_type = std::is_same_v<std::decay_t<T>, Action>;
 
-class ActionsManager {
+template <bool Contant> class ActionIterator {
+private:
+    using value_t = std::conditional_t<Contant, const Action*, Action*>;
+    using ref_t   = std::conditional_t<Contant, const Action&, Action&>;
 
 public:
-    using ref_t  = Action&;
-    using type_t = ActionType;
+    ActionIterator(value_t action)
+        : m_action(action) { }
+
+    ActionIterator& operator++() {
+        m_action = m_action->get_next();
+        return *this;
+    }
+
+    ActionIterator& operator--() {
+        m_action = m_action->get_prev();
+        return *this;
+    }
+
+    value_t operator->() const { return m_action; }
+
+    ref_t operator*() const { return *m_action; }
+
+    bool operator==(const ActionIterator& other) const { return m_action == other.m_action; }
+
+    ActionIterator& operator=(const ActionIterator& other) = default;
+
+private:
+    value_t m_action;
+};
+
+class ActionsManager {
+public:
+    using ref_t            = Action&;
+    using type_t           = ActionType;
+    using iterator_t       = ActionIterator<false>;
+    using const_iterator_t = ActionIterator<true>;
 
     ActionsManager()                      = default;
     ActionsManager(const ActionsManager&) = delete;
     ActionsManager(ActionsManager&&)      = delete;
+
+    ~ActionsManager() { clear(); }
 
     ActionsManager& operator=(ActionsManager&&)      = delete;
     ActionsManager& operator=(const ActionsManager&) = delete;
@@ -45,62 +76,117 @@ public:
     }
 
     void move(std::uint32_t from, std::uint32_t to) {
-        auto from_it = m_action.begin();
-        std::advance(from_it, from);
-
-        Action* from_prev   = nullptr;
-        Action* from_action = &*from_it;
-        Action* from_next   = from_action->get_next();
-
-        if (from_it != m_action.begin()) {
-            from_prev = &*std::prev(from_it);
+        if (from == to) {
+            return;
         }
 
-        auto to_it = m_action.begin();
-        std::advance(to_it, to);
+        auto* from_ptr = get_action(from);
+        auto* to_ptr   = get_action(to);
 
-        Action* to_prev   = nullptr;
-        Action* to_action = &*to_it;
-        Action* to_next   = to_it->get_next();
+        auto* from_prev = from_ptr->get_prev();
+        auto* from_next = from_ptr->get_next();
 
-        if (to_it != m_action.begin()) {
-            to_prev = &*std::prev(to_it);
-        }
-
-        if (from < to) {
-            std::advance(to_it, 1);
-        }
-
-        m_action.splice(to_it, m_action, from_it);
-
-        if (from_prev != nullptr) {
-            from_prev->set_next(to_action);
-        }
-
-        if (to_prev != nullptr) {
-            to_prev->set_next(from_action);
-        }
+        auto* to_prev = to_ptr->get_prev();
+        auto* to_next = to_ptr->get_next();
 
         if (from + 1 == to) {
-            to_action->set_next(from_action);
-            from_action->set_next(to_next);
-        } else if (to + 1 == from) {
-            from_action->set_next(to_action);
-            to_action->set_next(from_next);
-        } else {
-            to_action->set_next(from_next);
-            from_action->set_next(to_next);
+            // to <-> from
+            from_ptr->set_prev_connection(to_ptr);
+
+            // from <-> next
+            from_ptr->set_next_connection(to_next);
+
+            // prev <-> to
+            to_ptr->set_prev_connection(from_prev);
+
+            if (m_tail == to_ptr) {
+                m_tail = from_ptr;
+            }
+
+            if (m_head == from_ptr) {
+                m_head = to_ptr;
+            }
+
+        } else if (from == to + 1) {
+            // prev <-> from
+            from_ptr->set_prev_connection(to_prev);
+
+            // from <-> to
+            from_ptr->set_next_connection(to_ptr);
+
+            // to <-> next
+            to_ptr->set_next_connection(from_next);
+
+            if (m_tail == from_ptr) {
+                m_tail = to_ptr;
+            }
+
+            if (m_head == to_ptr) {
+                m_head = from_ptr;
+            }
+
+        } else if (to < from) {
+            // from <-> to
+            from_ptr->set_next_connection(to_ptr);
+
+            // prev <-> from
+            from_ptr->set_prev_connection(to_prev);
+
+            from_prev->set_next_connection(from_next);
+
+            if (m_tail == from_ptr) {
+                m_tail = from_prev;
+            }
+
+            if (m_head == to_ptr) {
+                m_head = from_ptr;
+            }
+
+        } else if (to > from) {
+            // to <-> from
+            from_ptr->set_prev_connection(to_ptr);
+
+            // from <-> next
+            from_ptr->set_next_connection(to_next);
+
+            from_next->set_prev_connection(from_prev);
+
+            if (m_tail == to_ptr) {
+                m_tail = from_ptr;
+            }
+
+            if (m_head == from_ptr) {
+                m_head = from_next;
+            }
         }
     }
 
     void clear() {
-        m_action.clear();
+        for (auto* ptr = m_head; ptr != nullptr;) {
+            auto* p = ptr;
+            ptr     = ptr->get_next();
+
+            delete p;
+        }
+
         m_msg.clear();
     }
 
-    [[nodiscard]] const std::list<Action>& get_actions() const { return m_action; }
+    [[nodiscard]] const Action* get_actions() const { return m_head; }
 
-    std::list<Action>& get_actions() { return m_action; }
+    Action* get_actions() { return m_head; }
+
+    iterator_t begin() { return { m_head }; }
+
+    iterator_t end() { return { nullptr }; }
+
+    [[nodiscard]] const_iterator_t begin() const { return { m_head }; }
+
+    [[nodiscard]] const_iterator_t end() const { return { nullptr }; }
+
+    [[nodiscard]] const_iterator_t cbegin() const { return { m_head }; }
+
+    [[nodiscard]] const_iterator_t cend() const { return { nullptr }; }
 
     static ActionsManager& get() {
         static ActionsManager manager;
@@ -108,17 +194,32 @@ public:
     }
 
 private:
-    std::list<Action> m_action;
+    Action* m_head = nullptr;
+    Action* m_tail = nullptr;
+
     std::vector<std::string> m_msg;
+
+    Action* get_action(std::uint32_t count) {
+        auto* act = m_head;
+
+        for (std::uint32_t i = 0; i < count && act != nullptr; ++i) {
+            act = act->get_next();
+        }
+
+        return act;
+    }
 };
 
 template <action_type Act> ActionsManager::ref_t ActionsManager::append(Act&& action) {
-    auto& ref = m_action.emplace_back(std::forward<Act>(action));
+    auto* ptr = new Action(std::forward<Act>(action));
 
-    if (m_action.size() > 1) {
-        auto prev = std::prev(m_action.end(), 2);
-        prev->set_next(&ref);
+    // tail <-> ptr
+    ptr->set_prev_connection(m_tail);
+
+    if (m_head == nullptr) {
+        m_head = ptr;
     }
+    m_tail = ptr;
 
-    return ref;
+    return *ptr;
 }

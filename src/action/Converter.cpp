@@ -2,12 +2,13 @@
 #include "action/Action.h"
 #include "action/ActionManager.h"
 #include "core/utils/todo.h"
+#include <cassert>
+#include <git2/commit.h>
+#include <git2/oid.h>
 #include <iomanip>
 #include <ostream>
 #include <sstream>
 #include <string>
-
-using iter_t = Converter::action_iter_t;
 
 class ActionInfo {
 private:
@@ -21,11 +22,11 @@ public:
         m_msg = git_commit_summary(act.get_commit());
     }
 
-    const char* msg() const { return m_msg; }
+    [[nodiscard]] const char* msg() const { return m_msg; }
 
-    const char* oid() const { return m_oid; }
+    [[nodiscard]] const char* oid() const { return m_oid; }
 
-    bool has_error() const { return m_msg == nullptr || m_oid == nullptr; }
+    [[nodiscard]] bool has_error() const { return m_msg == nullptr || m_oid == nullptr; }
 };
 
 void pick_to_todo(std::ostream& output, const Action& act, const ActionsManager& /*unused*/) {
@@ -119,9 +120,9 @@ void fixup_to_todo(std::ostream& output, const Action& act, const ActionsManager
     output << "fixup " << info.oid() << ' ' << info.msg() << '\n';
 }
 
-void Converter::actions_to_todo(std::ostream& output, iter_t begin, iter_t end, const ActionsManager& manager) {
-    for (auto it = begin; it != end; ++it) {
-        const Action& act = *it;
+void Converter::actions_to_todo(std::ostream& output, const Action* actions, const ActionsManager& manager) {
+    for (const auto* ptr = actions; ptr != nullptr; ptr = ptr->get_next()) {
+        const Action& act = *ptr;
 
         switch (act.get_type()) {
         case ActionType::PICK:

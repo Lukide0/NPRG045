@@ -268,7 +268,7 @@ std::optional<std::string> RebaseViewWidget::prepareActions() {
     m_last_new_commit = last;
 
     auto* list = m_list_actions->getList();
-    for (auto& action : m_actions.get_actions()) {
+    for (auto& action : m_actions) {
         auto* action_item = new ListItem(this, list, list->count(), action);
 
         auto result = prepareItem(action_item, action);

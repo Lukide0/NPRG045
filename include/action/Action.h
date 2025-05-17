@@ -36,7 +36,23 @@ public:
 
     [[nodiscard]] const Action* get_next() const { return m_next; }
 
-    void set_next(Action* next) { m_next = next; }
+    Action* get_prev() { return m_prev; }
+
+    [[nodiscard]] const Action* get_prev() const { return m_prev; }
+
+    void set_next_connection(Action* next) {
+        m_next = next;
+        if (m_next != nullptr) {
+            m_next->set_prev(this);
+        }
+    }
+
+    void set_prev_connection(Action* prev) {
+        m_prev = prev;
+        if (m_prev != nullptr) {
+            m_prev->set_next(this);
+        }
+    }
 
     [[nodiscard]] const git_oid& get_oid() const { return m_oid; }
 
@@ -101,10 +117,15 @@ public:
 
 private:
     Action* m_next = nullptr;
+    Action* m_prev = nullptr;
     git_commit_t m_commit;
     git_oid m_oid;
     optional_u31 m_msg_id;
     ActionType m_type;
+
+    void set_next(Action* next) { m_next = next; }
+
+    void set_prev(Action* prev) { m_prev = prev; }
 
     void init_commit(git_repository* repo) { assert(git_commit_lookup(&m_commit.commit, repo, &m_oid) == 0); }
 };
