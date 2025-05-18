@@ -13,6 +13,9 @@ include(cmake/create_executable.cmake)
 include(cmake/libgit2.cmake)
 include(cmake/qt.cmake)
 
+set(CMAKE_AUTOMOC ON)
+set(INCLUDE_PATH "${CMAKE_SOURCE_DIR}/include")
+
 # -----------------------------------------------------------------------------
 # Options
 option(BUILD_EXPERIMENTS "Build the experiments" ON)

@@ -130,10 +130,12 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
 
         QTextCursor cursor(m_curr_editor->document());
         cursor.setPosition(section.start);
-        cursor.setPosition(section.end, QTextCursor::KeepAnchor);
+        cursor.movePosition(QTextCursor::MoveOperation::EndOfBlock, QTextCursor::KeepAnchor);
+        cursor.clearSelection();
 
         QTextEdit::ExtraSelection text_section;
         text_section.cursor = cursor;
+        text_section.format.setProperty(QTextFormat::FullWidthSelection, true);
         text_section.format.setForeground(convert_to_color(section.type));
 
         if (section.type == section_t::Type::INFO) {
@@ -174,7 +176,6 @@ void DiffWidget::addHunkDiff(const diff_hunk_t& hunk, std::vector<section_t>& se
     section_t section;
     section.type  = section_t::Type::INFO;
     section.start = block.position();
-    section.end   = section.start + block.length() - 1;
 
     sections.push_back(section);
 
@@ -213,7 +214,6 @@ void DiffWidget::addLineDiff(const diff_hunk_t& hunk, const diff_line_t& line, s
     section_t section;
     section.type  = type;
     section.start = block.position();
-    section.end   = section.start + block.length() - 1;
 
     sections.push_back(section);
 }

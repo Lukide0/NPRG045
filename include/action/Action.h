@@ -5,6 +5,7 @@
 #include "core/utils/todo.h"
 #include <git2/commit.h>
 #include <git2/oid.h>
+#include <git2/types.h>
 #include <utility>
 
 enum class ActionType {
@@ -31,6 +32,12 @@ public:
         , m_type(type) {
         init_commit(repo);
     }
+
+    Action* get_split_parent() { return m_parent; }
+
+    [[nodiscard]] const Action* get_split_parent() const { return m_parent; }
+
+    void set_split_parent(Action* parent) { m_parent = parent; }
 
     Action* get_next() { return m_next; }
 
@@ -116,8 +123,9 @@ public:
     }
 
 private:
-    Action* m_next = nullptr;
-    Action* m_prev = nullptr;
+    Action* m_parent = nullptr;
+    Action* m_next   = nullptr;
+    Action* m_prev   = nullptr;
     git_commit_t m_commit;
     git_oid m_oid;
     optional_u31 m_msg_id;

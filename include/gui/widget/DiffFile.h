@@ -1,12 +1,16 @@
 #pragma once
 
+#include "core/git/diff.h"
 #include "gui/widget/DiffEditor.h"
 #include <QLabel>
 #include <QString>
+#include <qtmetamacros.h>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <vector>
 
 class DiffFile : public QWidget {
+    Q_OBJECT
 public:
     DiffFile(QWidget* parent = nullptr)
         : QWidget(parent) {

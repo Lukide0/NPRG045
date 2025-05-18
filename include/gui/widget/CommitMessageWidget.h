@@ -2,7 +2,6 @@
 
 #include "action/Action.h"
 #include "action/ActionManager.h"
-#include "gui/widget/graph/Node.h"
 #include <functional>
 #include <QHBoxLayout>
 #include <QPlainTextEdit>

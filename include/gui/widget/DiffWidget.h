@@ -6,6 +6,7 @@
 #include "gui/widget/DiffFile.h"
 #include "gui/widget/graph/Node.h"
 #include <QScrollArea>
+#include <QTextBlock>
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -39,7 +40,6 @@ private:
 
         Type type;
         int start;
-        int end;
     };
 
     void createFileDiff(const diff_files_t& diff);

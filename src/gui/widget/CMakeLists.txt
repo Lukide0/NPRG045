@@ -7,4 +7,7 @@ target_sources(${PROJECT_NAME} PRIVATE
         ListItem.cpp
         graph/Graph.cpp
         graph/Node.cpp
+
+        ${INCLUDE_PATH}/gui/widget/DiffEditor.h
+        ${INCLUDE_PATH}/gui/widget/DiffFile.h
 )
