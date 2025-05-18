@@ -45,4 +45,6 @@ private:
     void createFileDiff(const diff_files_t& diff);
     void addHunkDiff(const diff_hunk_t& hunk, std::vector<section_t>& sections);
     void addLineDiff(const diff_hunk_t& hunk, const diff_line_t& line, std::vector<section_t>& sections);
+
+    void splitCommitEvent();
 };

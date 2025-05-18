@@ -96,6 +96,8 @@ void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
     connect(select_lines, &QAction::triggered, this, [this]() { this->selectLines(LinesActionType::SELECT); });
     connect(deselect_lines, &QAction::triggered, this, [this]() { this->selectLines(LinesActionType::DESELECT); });
 
+    emit extendContextMenu(menu);
+
     menu->exec(event->globalPos());
 
     delete menu;

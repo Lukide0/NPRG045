@@ -7,6 +7,7 @@
 class DiffEditorLine;
 
 class DiffEditor : public QPlainTextEdit {
+    Q_OBJECT
 public:
     static constexpr int BLOCK_SELECTED = 0x1;
 
@@ -22,6 +23,9 @@ public:
         DESELECT,
     };
     void selectLines(LinesActionType type);
+
+signals:
+    void extendContextMenu(QMenu* menu);
 
 private:
     void resizeEvent(QResizeEvent* event) override;

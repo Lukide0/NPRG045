@@ -10,6 +10,7 @@
 #include <format>
 #include <git2/diff.h>
 #include <git2/types.h>
+#include <QMenu>
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QTextBlock>
@@ -151,6 +152,13 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
     m_scroll_layout->addWidget(file_diff);
 
     m_files.push_back(file_diff);
+
+    connect(m_curr_editor, &DiffEditor::extendContextMenu, this, [this](QMenu* menu) {
+        menu->addSeparator();
+        auto* split_act = menu->addAction("Split commit");
+
+        connect(split_act, &QAction::triggered, this, &DiffWidget::splitCommitEvent);
+    });
 }
 
 void DiffWidget::addHunkDiff(const diff_hunk_t& hunk, std::vector<section_t>& sections) {
@@ -216,4 +224,14 @@ void DiffWidget::addLineDiff(const diff_hunk_t& hunk, const diff_line_t& line, s
     section.start = block.position();
 
     sections.push_back(section);
+}
+
+void DiffWidget::splitCommitEvent() {
+    std::vector<diff_line_t> lines;
+
+    for (auto&& file : m_files) {
+        file->getEditor()->getSelectedLines(lines);
+    }
+
+    std::cout << "Split commit\n";
 }
