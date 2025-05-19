@@ -54,6 +54,11 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
         auto id = m_action->get_msg_id();
         if (id.is_value()) {
             msg = ActionsManager::get().get_msg(id.value());
+
+            std::size_t index = msg.find('\n');
+            if (index != std::string::npos) {
+                msg = msg.substr(0, index);
+            }
         }
     }
 
