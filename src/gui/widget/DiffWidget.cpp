@@ -7,16 +7,32 @@
 #include "gui/widget/DiffEditorLine.h"
 #include "gui/widget/DiffFile.h"
 
+#include <cstddef>
 #include <format>
 #include <git2/diff.h>
 #include <git2/types.h>
+#include <vector>
+
+#include <QFont>
+#include <QFrame>
+#include <QList>
 #include <QMenu>
 #include <QMessageBox>
+#include <QScrollArea>
 #include <QScrollBar>
+#include <QString>
 #include <QTextBlock>
 #include <QTextDocument>
 #include <QTextEdit>
-#include <vector>
+#include <QVBoxLayout>
+#include <QWidget>
+
+namespace gui::widget {
+
+using core::git::diff_files_t;
+using core::git::diff_hunk_t;
+using core::git::diff_line_t;
+using core::git::diff_result_t;
 
 DiffWidget::DiffWidget(QWidget* parent)
     : QWidget(parent) {
@@ -55,7 +71,7 @@ void DiffWidget::update(git_commit* child, git_commit* parent) {
         return;
     }
 
-    diff_result_t res = prepare_diff(parent_commit, commit);
+    diff_result_t res = core::git::prepare_diff(parent_commit, commit);
     switch (res.state) {
     case diff_result_t::FAILED_TO_RETRIEVE_TREE:
         QMessageBox::critical(this, "Commit diff error", "Failed to retrieve tree from commit");
@@ -68,7 +84,7 @@ void DiffWidget::update(git_commit* child, git_commit* parent) {
         break;
     }
 
-    m_diffs = create_diff(res.diff.diff);
+    m_diffs = core::git::create_diff(res.diff.diff);
     for (std::size_t i = 0; i < m_diffs.size(); ++i) {
         if (i != 0) {
             auto* line = new QFrame(this);
@@ -142,7 +158,6 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
         if (section.type == section_t::Type::INFO) {
             text_section.format.setFontWeight(QFont::Bold);
         }
-
         text_sections.append(text_section);
     }
 
@@ -227,11 +242,14 @@ void DiffWidget::addLineDiff(const diff_hunk_t& hunk, const diff_line_t& line, s
 }
 
 void DiffWidget::splitCommitEvent() {
-    std::vector<diff_line_t> lines;
 
     for (auto&& file : m_files) {
-        file->getEditor()->getSelectedLines(lines);
-    }
+        std::vector<diff_line_t> lines;
 
-    std::cout << "Split commit\n";
+        file->getEditor()->processLines([](const DiffEditorLineData&) {
+
+        });
+    }
+}
+
 }

@@ -4,8 +4,11 @@
 #include <algorithm>
 #include <cstdint>
 #include <QGraphicsSceneMouseEvent>
+#include <QGraphicsView>
 #include <QMouseEvent>
 #include <QScrollBar>
+
+namespace gui::widget {
 
 Node* GraphWidget::addNode(std::uint32_t y) {
     auto* node = new Node(this);
@@ -61,4 +64,6 @@ void GraphWidget::mousePressEvent(QMouseEvent* event) {
     auto* new_node = dynamic_cast<Node*>(new_item);
 
     m_handle(old_node, new_node);
+}
+
 }

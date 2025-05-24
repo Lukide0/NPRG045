@@ -11,6 +11,8 @@
 #include <string_view>
 #include <vector>
 
+namespace core::git {
+
 enum class CmdType {
     INVALID,
     NONE,
@@ -221,4 +223,6 @@ inline ParseResult parse_file(const std::string& filepath) {
     }
 
     return res;
+}
+
 }

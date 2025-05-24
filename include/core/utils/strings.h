@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <concepts>
 #include <cstddef>
 
 namespace core::utils {
@@ -36,6 +37,7 @@ namespace detail {
 
     template <std::size_t Size> class str_ref {
     public:
+        // NOLINTNEXTLINE(modernize-avoid-c-arrays)
         constexpr str_ref(const char (&str)[Size])
             : m_str(str) { }
 
@@ -50,6 +52,7 @@ namespace detail {
         [[nodiscard]] constexpr const char* c_str() const { return ptr(); }
 
     private:
+        // NOLINTNEXTLINE(modernize-avoid-c-arrays)
         const char (&m_str)[Size];
     };
 
@@ -80,18 +83,22 @@ namespace detail {
         return concat<S1, S2>(a, b);
     }
 
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays)
     template <std::size_t S1, std::size_t S2> consteval auto operator+(const str_ref<S1>& a, const char (&b)[S2]) {
         return concat<S1, S2>(a, str_ref<S2>(b));
     }
 
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays)
     template <std::size_t S1, std::size_t S2> consteval auto operator+(const char (&a)[S1], const str_ref<S2>& b) {
         return concat<S1, S2>(str_ref<S1>(a), b);
     }
 
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays)
     template <std::size_t S1, std::size_t S2> consteval auto operator+(const str_array<S1>& a, const char (&b)[S2]) {
         return concat<S1, S2>(a, str_ref<S2>(b));
     }
 
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays)
     template <std::size_t S1, std::size_t S2> consteval auto operator+(const char (&a)[S1], const str_array<S2>& b) {
         return concat<S1, S2>(str_ref<S1>(a), b);
     }

@@ -1,22 +1,24 @@
 #pragma once
 
 #include "core/git/diff.h"
+#include <functional>
 #include <QPlainTextEdit>
 #include <vector>
 
+namespace gui::widget {
+
 class DiffEditorLine;
+class DiffEditorLineData;
 
 class DiffEditor : public QPlainTextEdit {
     Q_OBJECT
 public:
-    static constexpr int BLOCK_SELECTED = 0x1;
-
     DiffEditor(QWidget* parent = nullptr);
 
     void diffLinePaintEvent(QPaintEvent* event);
     int diffLineWidth();
 
-    void getSelectedLines(std::vector<diff_line_t>& out_lines);
+    void processLines(std::function<void(const DiffEditorLineData&)> process_data);
 
     enum class LinesActionType {
         SELECT,
@@ -42,3 +44,5 @@ private:
 private:
     DiffEditorLine* m_line;
 };
+
+}

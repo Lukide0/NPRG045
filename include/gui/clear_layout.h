@@ -5,6 +5,8 @@
 #include <QLayoutItem>
 #include <QWidget>
 
+namespace gui {
+
 void clear_layout(QLayout* layout);
 
 inline void clear_layout_item(QLayoutItem* item) {
@@ -42,4 +44,6 @@ inline void clear_layout(QFormLayout* layout) {
         clear_layout_item(res.labelItem);
         clear_layout_item(res.fieldItem);
     }
+}
+
 }

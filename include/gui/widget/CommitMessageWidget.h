@@ -8,8 +8,12 @@
 #include <QWidget>
 #include <string>
 
+namespace gui::widget {
+
 class CommitMessageWidget : public QWidget {
 public:
+    using Action = action::Action;
+
     CommitMessageWidget(QWidget* parent = nullptr);
 
     void clear() {
@@ -37,6 +41,8 @@ private:
     QHBoxLayout* m_layout;
     QPlainTextEdit* m_editor;
     Action* m_action = nullptr;
-    ActionsManager& m_manager;
+    action::ActionsManager& m_manager;
     std::function<void(const std::string&)> m_handle = nullptr;
 };
+
+}

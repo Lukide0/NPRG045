@@ -5,6 +5,8 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+namespace gui::widget {
+
 class NamedListWidget : public QWidget {
 public:
     NamedListWidget(QWidget* parent = nullptr)
@@ -55,3 +57,5 @@ private:
     QListWidget* m_list;
     QVBoxLayout* m_layout;
 };
+
+}

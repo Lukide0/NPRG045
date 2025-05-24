@@ -9,6 +9,8 @@
 #include <QWidget>
 #include <vector>
 
+namespace gui::widget {
+
 class DiffFile : public QWidget {
     Q_OBJECT
 public:
@@ -54,3 +56,5 @@ private:
     QLabel* m_label;
     DiffEditor* m_editor;
 };
+
+}

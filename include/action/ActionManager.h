@@ -2,10 +2,14 @@
 
 #include "Action.h"
 #include <cstdint>
-#include <git2/oid.h>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
+
+#include <git2/oid.h>
+
+namespace action {
 
 template <typename T>
 concept action_type = std::is_same_v<std::decay_t<T>, Action>;
@@ -43,7 +47,6 @@ private:
 
 class ActionsManager {
 public:
-    using ref_t            = Action&;
     using type_t           = ActionType;
     using iterator_t       = ActionIterator<false>;
     using const_iterator_t = ActionIterator<true>;
@@ -57,7 +60,7 @@ public:
     ActionsManager& operator=(ActionsManager&&)      = delete;
     ActionsManager& operator=(const ActionsManager&) = delete;
 
-    template <action_type Act> ref_t append(Act&& action);
+    template <action_type Act> Action& append(Act&& action);
 
     [[nodiscard]] const std::string& get_msg(std::uint32_t index) const { return m_msg[index]; }
 
@@ -210,7 +213,7 @@ private:
     }
 };
 
-template <action_type Act> ActionsManager::ref_t ActionsManager::append(Act&& action) {
+template <action_type Act> Action& ActionsManager::append(Act&& action) {
     auto* ptr = new Action(std::forward<Act>(action));
 
     // tail <-> ptr
@@ -222,4 +225,6 @@ template <action_type Act> ActionsManager::ref_t ActionsManager::append(Act&& ac
     m_tail = ptr;
 
     return *ptr;
+}
+
 }

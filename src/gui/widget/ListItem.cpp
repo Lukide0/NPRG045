@@ -15,6 +15,11 @@
 #include <cassert>
 #include <memory>
 
+namespace gui::widget {
+
+using action::Action;
+using action::ActionType;
+
 ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action& action)
     : m_action(action)
     , m_rebase(rebase)
@@ -110,4 +115,6 @@ void ListItemChangedCommand::set_type(ActionType type) {
     auto* list_item = dynamic_cast<ListItem*>(m_parent->itemWidget(item));
 
     list_item->setActionTypeNoSignal(type);
+}
+
 }

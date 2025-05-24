@@ -1,9 +1,26 @@
 #include "gui/widget/CommitMessageWidget.h"
+#include "action/Action.h"
 #include "action/ActionManager.h"
+#include "core/utils/optional_uint.h"
+
+#include <cstddef>
+#include <format>
+#include <git2/commit.h>
+#include <string>
+
+#include <QAction>
+#include <QHBoxLayout>
+#include <QPlainTextEdit>
+#include <QString>
+
+namespace gui::widget {
+
+using action::Action;
+using action::ActionType;
 
 CommitMessageWidget::CommitMessageWidget(QWidget* parent)
     : QWidget(parent)
-    , m_manager(ActionsManager::get()) {
+    , m_manager(action::ActionsManager::get()) {
     m_layout = new QHBoxLayout();
     setLayout(m_layout);
 
@@ -99,4 +116,6 @@ void CommitMessageWidget::setAction(Action* action) {
     m_editor->blockSignals(true);
     m_editor->setPlainText(msg);
     m_editor->blockSignals(false);
+}
+
 }

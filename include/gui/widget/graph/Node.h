@@ -12,10 +12,14 @@
 
 #include <string>
 
+namespace gui::widget {
+
 class GraphWidget;
 
 class Node : public QGraphicsItem {
 public:
+    using Action = action::Action;
+
     Node(GraphWidget* graph)
         : m_graph(graph) {
         setFlags(QGraphicsItem::ItemIsSelectable | QGraphicsItem::ItemIsFocusable);
@@ -28,7 +32,7 @@ public:
     [[nodiscard]] int type() const override { return Type; }
 
     void setCommit(git_commit* commit) {
-        auto id       = format_oid(commit);
+        auto id       = core::git::format_oid(commit);
         m_commit      = commit;
         m_commit_hash = id.data();
         m_commit_msg  = git_commit_summary(commit);
@@ -77,9 +81,11 @@ private:
 
     Action* m_action = nullptr;
     git_tree* m_tree = nullptr;
-    git_tree_t m_tree_owner;
+    core::git::git_tree_t m_tree_owner;
 
     Node* m_parent = nullptr;
 
     bool m_has_conflict = false;
 };
+
+}

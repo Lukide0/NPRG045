@@ -4,13 +4,19 @@
 #include "gui/color.h"
 #include "gui/widget/DiffEditor.h"
 #include "gui/widget/DiffFile.h"
-#include "gui/widget/graph/Node.h"
+
+#include <cstddef>
+#include <vector>
+
+#include <git2/types.h>
+
 #include <QScrollArea>
 #include <QTextBlock>
 #include <QTextEdit>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <vector>
+
+namespace gui::widget {
 
 class DiffWidget : public QWidget {
 public:
@@ -19,14 +25,14 @@ public:
 
     void update(git_commit* child, git_commit* parent);
 
-    [[nodiscard]] const std::vector<diff_files_t>& getDiffs() const { return m_diffs; }
+    [[nodiscard]] const std::vector<core::git::diff_files_t>& getDiffs() const { return m_diffs; }
 
     DiffFile* getDiffFile(std::size_t i) { return m_files[i]; }
 
     void ensureEditorVisible(DiffFile* file);
 
 private:
-    std::vector<diff_files_t> m_diffs;
+    std::vector<core::git::diff_files_t> m_diffs;
     std::vector<DiffFile*> m_files;
     QVBoxLayout* m_scroll_layout;
     QVBoxLayout* m_layout;
@@ -42,9 +48,13 @@ private:
         int start;
     };
 
-    void createFileDiff(const diff_files_t& diff);
-    void addHunkDiff(const diff_hunk_t& hunk, std::vector<section_t>& sections);
-    void addLineDiff(const diff_hunk_t& hunk, const diff_line_t& line, std::vector<section_t>& sections);
+    void createFileDiff(const core::git::diff_files_t& diff);
+    void addHunkDiff(const core::git::diff_hunk_t& hunk, std::vector<section_t>& sections);
+    void addLineDiff(
+        const core::git::diff_hunk_t& hunk, const core::git::diff_line_t& line, std::vector<section_t>& sections
+    );
 
     void splitCommitEvent();
 };
+
+}

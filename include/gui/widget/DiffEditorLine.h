@@ -6,21 +6,28 @@
 #include <QTextBlockUserData>
 #include <QWidget>
 
+namespace gui::widget {
+
 class DiffEditorLineData : public QTextBlockUserData {
 public:
-    DiffEditorLineData(const diff_line_t& line, const diff_hunk_t& hunk)
+    DiffEditorLineData(const core::git::diff_line_t& line, const core::git::diff_hunk_t& hunk)
         : m_line(line)
         , m_hunk(hunk) { }
 
     ~DiffEditorLineData() override = default;
 
-    [[nodiscard]] const diff_line_t& get_line() const { return m_line; }
+    [[nodiscard]] const core::git::diff_line_t& get_line() const { return m_line; }
 
-    [[nodiscard]] const diff_hunk_t& get_hunk() const { return m_hunk; }
+    [[nodiscard]] const core::git::diff_hunk_t& get_hunk() const { return m_hunk; }
+
+    [[nodiscard]] bool is_selected() const { return m_selected; }
+
+    void set_select(bool enable) { m_selected = enable; }
 
 private:
-    const diff_line_t& m_line;
-    const diff_hunk_t& m_hunk;
+    const core::git::diff_line_t& m_line;
+    const core::git::diff_hunk_t& m_hunk;
+    bool m_selected = false;
 };
 
 class DiffEditorLine : public QWidget {
@@ -29,11 +36,12 @@ public:
         : QWidget(editor)
         , m_editor(editor) { }
 
-    [[nodiscard]] QSize sizeHint() const override { return QSize(m_editor->diffLineWidth(), 0); }
-
-private:
-    void paintEvent(QPaintEvent* event) override { m_editor->diffLinePaintEvent(event); }
+    [[nodiscard]] QSize sizeHint() const override { return { m_editor->diffLineWidth(), 0 }; }
 
 private:
     DiffEditor* m_editor;
+
+    void paintEvent(QPaintEvent* event) override { m_editor->diffLinePaintEvent(event); }
 };
+
+}

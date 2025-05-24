@@ -1,10 +1,10 @@
 #include "gui/widget/RebaseViewWidget.h"
 
 #include "action/Action.h"
+#include "action/ActionManager.h"
 #include "core/git/GitGraph.h"
 #include "core/git/parser.h"
 #include "core/git/types.h"
-#include "core/state/Command.h"
 #include "core/state/CommandHistory.h"
 #include "core/utils/todo.h"
 #include "gui/color.h"
@@ -19,31 +19,41 @@
 #include <cassert>
 #include <cstdint>
 #include <ctime>
-#include <git2/cherrypick.h>
-#include <git2/commit.h>
-#include <git2/index.h>
-#include <git2/merge.h>
-#include <git2/types.h>
 #include <memory>
 #include <optional>
-#include <qboxlayout.h>
-#include <qcolor.h>
-#include <qlabel.h>
-#include <QListWidgetItem>
-#include <qnamespace.h>
-#include <qobject.h>
-#include <QPalette>
-#include <QSplitter>
-#include <QWidget>
 #include <span>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include <git2/cherrypick.h>
+#include <git2/commit.h>
+#include <git2/index.h>
+#include <git2/merge.h>
+#include <git2/oid.h>
+#include <git2/types.h>
+
+#include <QAbstractItemModel>
+#include <QBoxLayout>
+#include <QColor>
+#include <QComboBox>
+#include <QLabel>
+#include <QListWidgetItem>
+#include <qnamespace.h>
+#include <QObject>
+#include <QPalette>
+#include <QSplitter>
+#include <QWidget>
+
+namespace gui::widget {
+
+using action::Action;
+using action::ActionType;
+
 RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     : QWidget(parent)
-    , m_graph(GitGraph<Node*>::empty())
-    , m_actions(ActionsManager::get()) {
+    , m_graph(core::git::GitGraph<Node*>::empty())
+    , m_actions(action::ActionsManager::get()) {
 
     m_actions.clear();
 
@@ -162,14 +172,19 @@ void RebaseViewWidget::showCommit(Node* prev, Node* next) {
 }
 
 std::optional<std::string> RebaseViewWidget::update(
-    git_repository* repo, const std::string& head, const std::string& onto, const std::vector<CommitAction>& actions
+    git_repository* repo,
+    const std::string& head,
+    const std::string& onto,
+    const std::vector<core::git::CommitAction>& actions
 ) {
+    using core::git::CmdType;
+
     m_old_commits_graph->clear();
     m_actions.clear();
 
     m_repo = repo;
 
-    auto graph_opt = GitGraph<Node*>::create(head.c_str(), onto.c_str(), repo);
+    auto graph_opt = core::git::GitGraph<Node*>::create(head.c_str(), onto.c_str(), repo);
     if (!graph_opt.has_value()) {
         return "Could not find commits";
     }
@@ -184,7 +199,7 @@ std::optional<std::string> RebaseViewWidget::update(
 
     Node* parent = nullptr;
     std::string err_msg;
-    m_graph.reverse_iterate([&](std::uint32_t depth, std::span<GitNode<Node*>> nodes) {
+    m_graph.reverse_iterate([&](std::uint32_t depth, std::span<core::git::GitNode<Node*>> nodes) {
         auto y = max_depth - depth;
 
         for (auto& node : nodes) {
@@ -212,7 +227,7 @@ std::optional<std::string> RebaseViewWidget::update(
     for (auto&& action : actions) {
 
         git_oid id;
-        if (!get_oid_from_hash(id, action.hash.c_str(), m_repo)) {
+        if (!core::git::get_oid_from_hash(id, action.hash.c_str(), m_repo)) {
             return "Could not find commit";
         }
 
@@ -300,13 +315,13 @@ void RebaseViewWidget::updateActions() {
 }
 
 Node* RebaseViewWidget::findOldCommit(const git_oid& oid) {
-    git_commit_t c;
+    core::git::git_commit_t c;
 
     if (git_commit_lookup(&c.commit, m_repo, &oid) != 0) {
         return nullptr;
     }
 
-    auto id = GitGraph<Node*>::get_commit_id(c.commit);
+    auto id = core::git::GitGraph<Node*>::get_commit_id(c.commit);
     if (!m_graph.contains(id)) {
         return nullptr;
     }
@@ -319,7 +334,7 @@ void RebaseViewWidget::updateNode(Node* node, Node* current, Node* changes) {
     auto* current_commit = current->getCommit();
     auto* changes_commit = changes->getCommit();
 
-    git_index_t index;
+    core::git::git_index_t index;
 
     if (git_cherrypick_commit(&index.index, m_repo, changes_commit, current_commit, 0, nullptr) != 0) {
         return;
@@ -333,7 +348,7 @@ void RebaseViewWidget::updateNode(Node* node, Node* current, Node* changes) {
 std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action& action) {
     QString item_text;
     item_text += " [";
-    item_text += QString::fromStdString(format_oid_to_str<7>(&action.get_oid()));
+    item_text += QString::fromStdString(core::git::format_oid_to_str<7>(&action.get_oid()));
     item_text += "]: ";
 
     switch (action.get_type()) {
@@ -400,4 +415,6 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
     });
 
     return std::nullopt;
+}
+
 }

@@ -1,10 +1,24 @@
 #include "gui/widget/graph/Node.h"
 #include "action/ActionManager.h"
 #include "gui/color.h"
+
+#include <algorithm>
+#include <cstddef>
+#include <string>
+
+#include <QColor>
+#include <QFont>
 #include <QFontDatabase>
 #include <QGraphicsItem>
+#include <qnamespace.h>
 #include <QPainter>
+#include <QPen>
+#include <QString>
 #include <QStyleOptionGraphicsItem>
+#include <QTextOption>
+#include <QWidget>
+
+namespace gui::widget {
 
 QRectF Node::boundingRect() const { return { 0, 0, 300, 20 }; }
 
@@ -53,7 +67,7 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
     if (m_action != nullptr && m_action->has_msg()) {
         auto id = m_action->get_msg_id();
         if (id.is_value()) {
-            msg = ActionsManager::get().get_msg(id.value());
+            msg = action::ActionsManager::get().get_msg(id.value());
 
             std::size_t index = msg.find('\n');
             if (index != std::string::npos) {
@@ -67,7 +81,7 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
     painter->drawText(QRectF { 12, 0, 56, 20 }, hash, text_opts);
 
     auto fm           = painter->fontMetrics();
-    int size          = fm.horizontalAdvance(msg.c_str(), msg.size());
+    int size          = fm.horizontalAdvance(msg.c_str(), static_cast<int>(msg.size()));
     int avg_char_size = fm.averageCharWidth();
 
     QString qmsg = QString::fromStdString(msg);
@@ -81,4 +95,6 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
 
     painter->setPen(pen);
     painter->drawText(QRectF { 75, 0, 220, 20 }, qmsg, text_opts);
+}
+
 }

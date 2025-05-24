@@ -8,6 +8,8 @@
 #include <qtmetamacros.h>
 #include <qwidget.h>
 
+namespace gui::widget {
+
 class GraphWidget : public QGraphicsView {
 public:
     GraphWidget(QWidget* parent = nullptr)
@@ -45,3 +47,5 @@ private:
 
     static void defaultHandle(Node* /*unused*/, Node* /*unused*/) { }
 };
+
+}

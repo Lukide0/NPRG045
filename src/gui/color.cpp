@@ -2,6 +2,12 @@
 #include "core/git/diff.h"
 #include "core/utils/unexpected.h"
 
+#include <QColor>
+
+namespace gui {
+
+using core::git::diff_line_t;
+
 QColor convert_to_color(ColorType type) {
     switch (type) {
     case ColorType::NORMAL:
@@ -47,4 +53,6 @@ char convert_to_symbol(diff_line_t::Type type) {
     }
 
     UNEXPECTED("Invalid diff line type");
+}
+
 }

@@ -1,30 +1,45 @@
 #include "gui/widget/CommitViewWidget.h"
+#include "action/Action.h"
 #include "action/ActionManager.h"
 #include "core/git/diff.h"
 #include "core/git/GitGraph.h"
-#include "core/git/types.h"
 #include "core/utils/unexpected.h"
 #include "gui/clear_layout.h"
+#include "gui/widget/CommitMessageWidget.h"
+#include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Node.h"
+#include "gui/widget/NamedListWidget.h"
 
-#include <cstdlib>
-#include <format>
 #include <git2/commit.h>
 #include <git2/diff.h>
 #include <git2/tree.h>
 #include <git2/types.h>
 
+#include <QFormLayout>
 #include <QHBoxLayout>
+#include <QListWidget>
+#include <QListWidgetItem>
 #include <QMessageBox>
+#include <QString>
+#include <QVariant>
 
-#include <chrono>
+#include <cstdlib>
 #include <ctime>
+#include <format>
 #include <iomanip>
+#include <qnamespace.h>
 #include <sstream>
 #include <string>
 
+namespace gui::widget {
+
+using action::Action;
+using core::git::diff_files_t;
+using core::git::diff_line_t;
+using core::git::GitGraph;
+
 CommitViewWidget::CommitViewWidget(DiffWidget* diff)
-    : m_manager(ActionsManager::get())
+    : m_manager(action::ActionsManager::get())
     , m_diff(diff) {
 
     m_layout = new QHBoxLayout();
@@ -158,7 +173,9 @@ void CommitViewWidget::prepareDiff() {
         }
 
         auto* item = new QListWidgetItem(item_text);
-        item->setData(Qt::UserRole, QVariant::fromValue<int>(i));
+        item->setData(Qt::UserRole, QVariant::fromValue<int>(static_cast<int>(i)));
         list->addItem(item);
     }
+}
+
 }

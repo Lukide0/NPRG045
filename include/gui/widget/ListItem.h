@@ -1,7 +1,6 @@
 #pragma once
 
 #include "action/Action.h"
-#include "action/ActionManager.h"
 #include "core/state/Command.h"
 #include "gui/widget/graph/Node.h"
 
@@ -11,15 +10,21 @@
 #include <QLabel>
 #include <QListWidgetItem>
 #include <QPalette>
+#include <QString>
 #include <QWidget>
 
 #include <array>
+#include <cassert>
 #include <vector>
+
+namespace gui::widget {
 
 class RebaseViewWidget;
 
 class ListItem : public QWidget {
 public:
+    using ActionType = action::ActionType;
+
     static constexpr auto items = std::to_array<ActionType>({
         ActionType::PICK,
         ActionType::REWORD,
@@ -39,11 +44,11 @@ public:
         return -1;
     }
 
-    ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action& action);
+    ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, action::Action& action);
 
     QComboBox* getComboBox() { return m_combo; }
 
-    [[nodiscard]] ActionsManager::ref_t getCommitAction() const { return m_action; }
+    [[nodiscard]] const action::Action& getCommitAction() const { return m_action; }
 
     void setNode(Node* node) { m_node = node; }
 
@@ -104,7 +109,7 @@ public:
 private:
     Node* m_node = nullptr;
     std::vector<Node*> m_connected;
-    Action& m_action;
+    action::Action& m_action;
     QColor m_color;
 
     RebaseViewWidget* m_rebase;
@@ -136,7 +141,9 @@ private:
 
 class ListItemChangedCommand : public core::state::Command {
 public:
-    ListItemChangedCommand(RebaseViewWidget* rebase, QListWidget* parent, int row, ActionType prev, ActionType curr);
+    ListItemChangedCommand(
+        RebaseViewWidget* rebase, QListWidget* parent, int row, action::ActionType prev, action::ActionType curr
+    );
     ~ListItemChangedCommand() override = default;
 
     void execute() override;
@@ -146,8 +153,10 @@ private:
     RebaseViewWidget* m_rebase;
     QListWidget* m_parent;
     int m_row;
-    ActionType m_prev;
-    ActionType m_curr;
+    action::ActionType m_prev;
+    action::ActionType m_curr;
 
-    void set_type(ActionType type);
+    void set_type(action::ActionType type);
 };
+
+}

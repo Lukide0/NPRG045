@@ -1,9 +1,12 @@
 #pragma once
 
+#include "action/Action.h"
+#include "action/ActionManager.h"
 #include "gui/widget/CommitMessageWidget.h"
 #include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Node.h"
 #include "gui/widget/NamedListWidget.h"
+
 #include <ctime>
 #include <git2/commit.h>
 #include <git2/types.h>
@@ -13,6 +16,8 @@
 #include <QLabel>
 #include <qobject.h>
 #include <QWidget>
+
+namespace gui::widget {
 
 class CommitViewWidget : public QWidget {
 
@@ -51,10 +56,10 @@ private:
     NamedListWidget* m_changes;
     CommitMessageWidget* m_msg;
 
-    ActionsManager& m_manager;
+    action::ActionsManager& m_manager;
     DiffWidget* m_diff;
     Node* m_node                = nullptr;
-    Action* m_action            = nullptr;
+    action::Action* m_action    = nullptr;
     git_commit* m_parent_commit = nullptr;
     git_commit* m_commit        = nullptr;
 
@@ -70,3 +75,5 @@ private:
         prepareDiff();
     }
 };
+
+}

@@ -1,13 +1,13 @@
 #pragma once
 
 #include "core/git/types.h"
-#include <cstddef>
-#include <cstdint>
 #include <git2/diff.h>
 #include <git2/oid.h>
 #include <git2/types.h>
 #include <string>
 #include <vector>
+
+namespace core::git {
 
 struct diff_result_t {
     enum State {
@@ -81,3 +81,5 @@ struct diff_files_t {
 diff_result_t prepare_diff(git_commit* old_commit, git_commit* new_commit, const git_diff_options* opts = nullptr);
 
 std::vector<diff_files_t> create_diff(git_diff* diff);
+
+}

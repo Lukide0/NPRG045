@@ -3,15 +3,23 @@
 #include "gui/color.h"
 #include "gui/widget/DiffEditorLine.h"
 
-#include <algorithm>
-#include <iostream>
+#include <functional>
+
+#include <QColor>
+#include <QFrame>
 #include <QMenu>
+#include <qnamespace.h>
 #include <QPainter>
 #include <QPlainTextEdit>
+#include <QSignalBlocker>
 #include <QTextBlock>
 #include <qtmetamacros.h>
+#include <QtNumeric>
 #include <QWidget>
-#include <vector>
+
+namespace gui::widget {
+
+using core::git::diff_line_t;
 
 DiffEditor::DiffEditor(QWidget* parent)
     : QPlainTextEdit(parent) {
@@ -105,19 +113,15 @@ void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
     event->accept();
 }
 
-void DiffEditor::getSelectedLines(std::vector<diff_line_t>& out_lines) {
-    auto selections = extraSelections();
+void DiffEditor::processLines(std::function<void(const DiffEditorLineData&)> process_data) {
+    auto* doc = document();
 
-    for (auto&& sel : selections) {
-        if (sel.format.property(QTextFormat::UserProperty) != BLOCK_SELECTED) {
-            continue;
+    for (auto block = doc->begin(); block.isValid() && block != doc->end(); block = block.next()) {
+        auto* user_data = block.userData();
+
+        if (auto* line_data = dynamic_cast<DiffEditorLineData*>(user_data)) {
+            process_data(*line_data);
         }
-
-        const auto& block = sel.cursor.block();
-        auto* line_data   = dynamic_cast<DiffEditorLineData*>(block.userData());
-        assert(line_data != nullptr);
-
-        out_lines.push_back(line_data->get_line());
     }
 }
 
@@ -174,12 +178,11 @@ void DiffEditor::setBlockHighlight(QTextBlock block, bool enable) {
     QColor highlight = convert_to_color(line.type);
     highlight.setAlpha(30);
 
+    line_data->set_select(enable);
     if (enable) {
         it->format.setBackground(highlight);
-        it->format.setProperty(QTextFormat::UserProperty, BLOCK_SELECTED);
     } else {
         it->format.clearBackground();
-        it->format.clearProperty(QTextFormat::UserProperty);
     }
 
     setExtraSelections(selections);
@@ -226,4 +229,6 @@ void DiffEditor::diffLinePaintEvent(QPaintEvent* event) {
         bottom    = bottom + qRound(blockBoundingRect(block).height());
         block_num = block_num + 1;
     }
+}
+
 }

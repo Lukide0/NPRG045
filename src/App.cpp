@@ -1,6 +1,7 @@
 #include "App.h"
 
 #include "action/Converter.h"
+#include "core/git/parser.h"
 #include "core/git/paths.h"
 #include "core/state/CommandHistory.h"
 #include "gui/widget/RebaseViewWidget.h"
@@ -8,28 +9,35 @@
 #include <cassert>
 #include <cctype>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <string>
+
 #include <git2.h>
 #include <git2/commit.h>
 #include <git2/errors.h>
 #include <git2/global.h>
 #include <git2/repository.h>
 #include <git2/types.h>
+
 #include <QAction>
 #include <QApplication>
 #include <QFileDialog>
 #include <QFont>
 #include <QHBoxLayout>
+#include <QKeySequence>
 #include <QLabel>
 #include <QLayout>
 #include <QListWidget>
 #include <QMainWindow>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <qnamespace.h>
+#include <QPalette>
 #include <QString>
-#include <string>
 
-MainWindow::MainWindow() {
+App::App() {
     using core::state::CommandHistory;
 
     git_libgit2_init();
@@ -83,7 +91,7 @@ MainWindow::MainWindow() {
         connect(edit_todo_save, &QAction::triggered, this, [this] {
             const auto& manager = this->m_rebase_view->getActionsManager();
 
-            Converter::actions_to_todo(std::cout, manager.get_actions(), manager);
+            action::Converter::actions_to_todo(std::cout, manager.get_actions(), manager);
         });
 
         edit->addAction(edit_undo);
@@ -102,13 +110,13 @@ MainWindow::MainWindow() {
 
         hide_old_commits->setCheckable(true);
         hide_old_commits->setChecked(false);
-        connect(hide_old_commits, &QAction::triggered, this, &MainWindow::hideOldCommits);
+        connect(hide_old_commits, &QAction::triggered, this, &App::hideOldCommits);
 
         auto* hide_result_commits = new QAction("Show result commits", this);
 
         hide_result_commits->setCheckable(true);
         hide_result_commits->setChecked(true);
-        connect(hide_result_commits, &QAction::triggered, this, &MainWindow::hideResultCommits);
+        connect(hide_result_commits, &QAction::triggered, this, &App::hideResultCommits);
 
         view->addAction(hide_old_commits);
         view->addAction(hide_result_commits);
@@ -121,7 +129,7 @@ MainWindow::MainWindow() {
 
     m_layout = new QHBoxLayout(main);
 
-    m_rebase_view = new RebaseViewWidget();
+    m_rebase_view = new gui::widget::RebaseViewWidget();
     m_layout->addWidget(m_rebase_view);
 
     m_rebase_view->hide();
@@ -137,7 +145,7 @@ MainWindow::MainWindow() {
     }
 }
 
-void MainWindow::hideOldCommits(bool state) {
+void App::hideOldCommits(bool state) {
     if (!state) {
         m_rebase_view->hideOldCommits();
     } else {
@@ -145,7 +153,7 @@ void MainWindow::hideOldCommits(bool state) {
     }
 }
 
-void MainWindow::hideResultCommits(bool state) {
+void App::hideResultCommits(bool state) {
     if (!state) {
         m_rebase_view->hideResultCommits();
     } else {
@@ -153,7 +161,7 @@ void MainWindow::hideResultCommits(bool state) {
     }
 }
 
-bool MainWindow::openRepoDialog() {
+bool App::openRepoDialog() {
     auto folder = QFileDialog::getExistingDirectory(
         this, "Select Repo folder", QString(), QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks
     );
@@ -166,7 +174,7 @@ bool MainWindow::openRepoDialog() {
     return openRepo(path);
 }
 
-void MainWindow::openRepoCLI(const std::string& path) {
+void App::openRepoCLI(const std::string& path) {
 
     std::string repo_path = path;
     if (!std::filesystem::is_directory(path)) {
@@ -182,7 +190,7 @@ void MainWindow::openRepoCLI(const std::string& path) {
     }
 }
 
-bool MainWindow::openRepo(const std::string& path) {
+bool App::openRepo(const std::string& path) {
     m_rebase_view->hide();
     core::state::CommandHistory::Clear();
 
@@ -200,7 +208,7 @@ bool MainWindow::openRepo(const std::string& path) {
     return showRebase();
 }
 
-bool MainWindow::showRebase() {
+bool App::showRebase() {
     std::string head;
     std::string onto;
 
@@ -219,7 +227,7 @@ bool MainWindow::showRebase() {
 
     auto filepath = m_repo_path + '/' + core::git::TODO_FILE.c_str();
 
-    auto res = parse_file(filepath);
+    auto res = core::git::parse_file(filepath);
     if (!res.err.empty()) {
         QMessageBox::critical(this, "Rebase Error", res.err.c_str());
         return false;

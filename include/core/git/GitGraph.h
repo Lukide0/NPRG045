@@ -16,6 +16,8 @@
 #include <utility>
 #include <vector>
 
+namespace core::git {
+
 template <typename Data> struct GitNode {
     git_commit_t commit;
     std::uint32_t depth;
@@ -141,13 +143,15 @@ private:
 
         m_commit_map.emplace(id, index);
 
-        m_nodes.push_back(node_t {
-            .commit   = std::move(commit),
-            .depth    = depth,
-            .index    = index, // NOTE: used for sorting
-            .children = children,
-            .data     = {},
-        });
+        m_nodes.push_back(
+            node_t {
+                .commit   = std::move(commit),
+                .depth    = depth,
+                .index    = index, // NOTE: used for sorting
+                .children = children,
+                .data     = {},
+            }
+        );
 
         return index;
     }
@@ -270,3 +274,5 @@ private:
         m_nodes = std::move(new_nodes);
     }
 };
+
+}

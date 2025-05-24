@@ -1,13 +1,14 @@
 #include "core/git/diff.h"
 #include "core/git/types.h"
 #include "core/utils/unexpected.h"
-#include <cstdint>
 #include <git2/commit.h>
 #include <git2/diff.h>
 #include <git2/tree.h>
 #include <git2/types.h>
 #include <string_view>
 #include <vector>
+
+namespace core::git {
 
 // NOTE: This callback is called once per file
 int diff_file_callback(const git_diff_delta* delta, float /*unused*/, void* state_raw);
@@ -48,12 +49,14 @@ private:
     }
 
     diff_files_t& create_file(const git_diff_file& old_file, const git_diff_file& new_file) {
-        files.push_back({
-            .new_file = create_file(new_file),
-            .old_file = create_file(old_file),
-            .state    = diff_files_t::State::UNMODIFIED,
-            .hunks    = {},
-        });
+        files.push_back(
+            {
+                .new_file = create_file(new_file),
+                .old_file = create_file(old_file),
+                .state    = diff_files_t::State::UNMODIFIED,
+                .hunks    = {},
+            }
+        );
 
         return files.back();
     }
@@ -234,4 +237,6 @@ int diff_line_callback(
     file_hunk.lines.push_back(diff);
 
     return 0;
+}
+
 }

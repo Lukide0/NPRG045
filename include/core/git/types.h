@@ -18,6 +18,8 @@
 #include <string_view>
 #include <utility>
 
+namespace core::git {
+
 struct git_commit_t {
     git_commit* commit = nullptr;
 
@@ -213,4 +215,6 @@ template <std::uint8_t HashSize = 7> std::string format_commit(git_commit* commi
     name += msg;
 
     return name;
+}
+
 }

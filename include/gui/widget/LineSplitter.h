@@ -6,6 +6,8 @@
 #include <QSplitter>
 #include <QSplitterHandle>
 
+namespace gui::widget {
+
 class LineSplitterHandle : public QSplitterHandle {
 public:
     static constexpr int size = 5;
@@ -71,3 +73,5 @@ public:
 protected:
     QSplitterHandle* createHandle() override { return new LineSplitterHandle(orientation(), this); }
 };
+
+}

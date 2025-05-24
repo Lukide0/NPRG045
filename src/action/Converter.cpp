@@ -2,13 +2,18 @@
 #include "action/Action.h"
 #include "action/ActionManager.h"
 #include "core/utils/todo.h"
-#include <cassert>
+
 #include <git2/commit.h>
 #include <git2/oid.h>
+
+#include <array>
+#include <cassert>
 #include <iomanip>
 #include <ostream>
 #include <sstream>
 #include <string>
+
+namespace action {
 
 class ActionInfo {
 private:
@@ -150,4 +155,6 @@ void Converter::actions_to_todo(std::ostream& output, const Action* actions, con
             break;
         }
     }
+}
+
 }

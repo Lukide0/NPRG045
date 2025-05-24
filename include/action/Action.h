@@ -3,10 +3,13 @@
 #include "core/git/types.h"
 #include "core/utils/optional_uint.h"
 #include "core/utils/todo.h"
+#include <cassert>
 #include <git2/commit.h>
 #include <git2/oid.h>
 #include <git2/types.h>
 #include <utility>
+
+namespace action {
 
 enum class ActionType {
     PICK,
@@ -126,7 +129,7 @@ private:
     Action* m_parent = nullptr;
     Action* m_next   = nullptr;
     Action* m_prev   = nullptr;
-    git_commit_t m_commit;
+    core::git::git_commit_t m_commit;
     git_oid m_oid;
     optional_u31 m_msg_id;
     ActionType m_type;
@@ -137,3 +140,5 @@ private:
 
     void init_commit(git_repository* repo) { assert(git_commit_lookup(&m_commit.commit, repo, &m_oid) == 0); }
 };
+
+}
