@@ -1,5 +1,6 @@
 #pragma once
 
+#include "action/Action.h"
 #include "core/git/diff.h"
 #include "gui/color.h"
 #include "gui/widget/DiffEditor.h"
@@ -23,7 +24,7 @@ public:
     DiffWidget(QWidget* parent = nullptr);
     ~DiffWidget() override = default;
 
-    void update(git_commit* child, git_commit* parent);
+    void update(git_commit* child, git_commit* parent, action::Action* act);
 
     [[nodiscard]] const std::vector<core::git::diff_files_t>& getDiffs() const { return m_diffs; }
 
@@ -32,6 +33,8 @@ public:
     void ensureEditorVisible(DiffFile* file);
 
 private:
+    action::Action* m_action = nullptr;
+
     std::vector<core::git::diff_files_t> m_diffs;
     std::vector<DiffFile*> m_files;
     QVBoxLayout* m_scroll_layout;

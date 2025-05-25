@@ -1,5 +1,11 @@
 #include "gui/widget/DiffWidget.h"
+#include "action/Action.h"
+#include "action/ActionManager.h"
+#include "App.h"
 #include "core/git/diff.h"
+#include "core/git/types.h"
+#include "core/patch/PatchSplitter.h"
+#include "core/patch/split.h"
 #include "core/utils/todo.h"
 #include "gui/clear_layout.h"
 #include "gui/color.h"
@@ -9,9 +15,12 @@
 
 #include <cstddef>
 #include <format>
-#include <git2/diff.h>
-#include <git2/types.h>
 #include <vector>
+
+#include <git2/diff.h>
+#include <git2/errors.h>
+#include <git2/patch.h>
+#include <git2/types.h>
 
 #include <QFont>
 #include <QFrame>
@@ -33,6 +42,8 @@ using core::git::diff_files_t;
 using core::git::diff_hunk_t;
 using core::git::diff_line_t;
 using core::git::diff_result_t;
+
+using action::Action;
 
 DiffWidget::DiffWidget(QWidget* parent)
     : QWidget(parent) {
@@ -60,9 +71,10 @@ void DiffWidget::ensureEditorVisible(DiffFile* file) {
     bar->setValue(file->y());
 }
 
-void DiffWidget::update(git_commit* child, git_commit* parent) {
+void DiffWidget::update(git_commit* child, git_commit* parent, Action* action) {
     clear_layout(m_scroll_layout);
     m_files.clear();
+    m_action = action;
 
     git_commit* commit        = child;
     git_commit* parent_commit = parent;
@@ -134,6 +146,7 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
         break;
     }
 
+    file_diff->setDiff(core::git::diff_header(diff));
     file_diff->setHeader(header);
 
     std::vector<section_t> sections;
@@ -167,6 +180,8 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
     m_scroll_layout->addWidget(file_diff);
 
     m_files.push_back(file_diff);
+
+    m_curr_editor->enableContextMenu(m_action != nullptr);
 
     connect(m_curr_editor, &DiffEditor::extendContextMenu, this, [this](QMenu* menu) {
         menu->addSeparator();
@@ -243,13 +258,67 @@ void DiffWidget::addLineDiff(const diff_hunk_t& hunk, const diff_line_t& line, s
 
 void DiffWidget::splitCommitEvent() {
 
-    for (auto&& file : m_files) {
-        std::vector<diff_line_t> lines;
+    std::string patch_text;
 
-        file->getEditor()->processLines([](const DiffEditorLineData&) {
+    {
+        core::patch::PatchSplitter splitter;
 
-        });
+        for (auto&& file : m_files) {
+            splitter.file_begin(file->getDiff());
+
+            std::vector<diff_line_t> lines;
+
+            auto* editor = file->getEditor();
+
+            editor->processLines([&](const DiffEditorLineData& line) {
+                splitter.process(line.get_line(), line.get_hunk(), line.is_selected());
+            });
+
+            splitter.file_end();
+        }
+
+        if (splitter.is_whole_patch()) {
+            QMessageBox::critical(
+                this, "Invalid Split", "The split must contain a non-empty subset of the patch, not entire patch"
+            );
+            return;
+        }
+
+        patch_text = splitter.get_patch();
     }
+
+    auto handler = [this]() {
+        const auto* err = git_error_last();
+        if (err != nullptr && err->message != nullptr) {
+            QMessageBox::critical(this, "Failed to create patch", err->message);
+        } else {
+            QMessageBox::critical(this, "Failed to create patch", "Unknown error");
+        }
+    };
+
+    core::git::git_diff_t diff;
+
+    int state = git_diff_from_buffer(&diff.diff, patch_text.c_str(), patch_text.size());
+    if (state != 0) {
+        handler();
+        return;
+    }
+
+    core::git::git_commit_t first_commit;
+    core::git::git_commit_t second_commit;
+
+    bool res = core::patch::split(first_commit, second_commit, m_action, diff);
+    if (!res) {
+        handler();
+        return;
+    }
+
+    auto& manager = action::ActionsManager::get();
+
+    // split actions
+    manager.split(m_action, std::move(first_commit), std::move(second_commit));
+
+    App::refresh();
 }
 
 }

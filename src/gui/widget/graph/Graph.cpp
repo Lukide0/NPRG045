@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
 #include <QMouseEvent>
@@ -37,12 +38,27 @@ Node* GraphWidget::addNode(std::uint32_t y) {
 
     setSceneRect(rect);
 
+    m_nodes.push_back(node);
+
     return node;
 }
 
 Node* GraphWidget::addNode() { return addNode(m_next_y); }
 
+Node* GraphWidget::find(std::function<bool(const Node*)> prec) {
+    for (auto* node : m_nodes) {
+        if (prec(node)) {
+            return node;
+        }
+    }
+
+    return nullptr;
+}
+
 void GraphWidget::clear() {
+
+    m_nodes.clear();
+
     for (auto* item : scene()->items()) {
         scene()->removeItem(item);
         delete item;

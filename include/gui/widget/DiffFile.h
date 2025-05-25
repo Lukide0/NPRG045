@@ -7,7 +7,8 @@
 #include <qtmetamacros.h>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <vector>
+#include <string>
+#include <utility>
 
 namespace gui::widget {
 
@@ -39,6 +40,10 @@ public:
 
     void setHeader(const QString& filepath) { m_label->setText(filepath); }
 
+    void setDiff(core::git::diff_files_header_t diff) { m_diff = std::move(diff); }
+
+    [[nodiscard]] const core::git::diff_files_header_t& getDiff() const { return m_diff; }
+
     DiffEditor* getEditor() { return m_editor; }
 
     void updateEditorHeight() {
@@ -55,6 +60,7 @@ private:
     QVBoxLayout* m_layout;
     QLabel* m_label;
     DiffEditor* m_editor;
+    core::git::diff_files_header_t m_diff;
 };
 
 }

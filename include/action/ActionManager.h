@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Action.h"
+#include "core/git/types.h"
 #include <cstdint>
 #include <string>
 #include <type_traits>
@@ -76,6 +77,17 @@ public:
         std::uint32_t index = m_msg.size();
         m_msg.emplace_back(std::move(msg));
         return index;
+    }
+
+    void split(Action* act, core::git::git_commit_t&& prev, core::git::git_commit_t&& next) {
+        act->m_commit = std::move(prev);
+
+        auto* tmp = new Action(act->get_type(), std::move(next));
+
+        auto* next_act = act->get_next();
+
+        tmp->set_next_connection(next_act);
+        tmp->set_prev_connection(act);
     }
 
     void move(std::uint32_t from, std::uint32_t to) {

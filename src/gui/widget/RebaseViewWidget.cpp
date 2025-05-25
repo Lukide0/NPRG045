@@ -206,14 +206,6 @@ std::optional<std::string> RebaseViewWidget::update(
             auto* commit_node = m_old_commits_graph->addNode(y);
             commit_node->setCommit(node.commit.commit);
 
-            git_tree* tree;
-            if (git_commit_tree(&tree, node.commit.commit) != 0) {
-                err_msg = "Could not find commit tree";
-                return;
-            }
-
-            commit_node->setGitTreeOwnership(tree);
-
             node.data = commit_node;
             node.data->setParentNode(parent);
             parent = commit_node;
@@ -278,7 +270,6 @@ std::optional<std::string> RebaseViewWidget::prepareActions() {
     m_root_node     = last_node.data;
 
     last->setCommit(last_node.commit.commit);
-    last->setGitTree(last_node.data->getGitTree());
 
     m_last_new_commit = last;
 
@@ -306,7 +297,6 @@ void RebaseViewWidget::updateActions() {
     m_root_node     = last_node.data;
 
     last->setCommit(last_node.commit.commit);
-    last->setGitTree(last_node.data->getGitTree());
 
     m_last_new_commit = last;
     m_commit_view->update();
@@ -321,13 +311,7 @@ Node* RebaseViewWidget::findOldCommit(const git_oid& oid) {
         return nullptr;
     }
 
-    auto id = core::git::GitGraph<Node*>::get_commit_id(c.commit);
-    if (!m_graph.contains(id)) {
-        return nullptr;
-    }
-
-    auto& node = m_graph.get(id);
-    return node.data;
+    return m_old_commits_graph->find([&](const Node* node) { return git_oid_equal(node->getCommitId(), &oid) != 0; });
 }
 
 void RebaseViewWidget::updateNode(Node* node, Node* current, Node* changes) {
@@ -356,11 +340,13 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
         item->setItemColor(convert_to_color(ColorType::DELETION));
 
         Node* old = findOldCommit(action.get_oid());
-        assert(old != nullptr);
-        item->addConnection(old);
-        item->setNode(old);
-        item_text += git_commit_summary(old->getCommit());
-
+        if (old != nullptr) {
+            item->addConnection(old);
+            item->setNode(old);
+            item_text += git_commit_summary(old->getCommit());
+        } else {
+            item_text += git_commit_summary(action.get_commit());
+        }
         break;
     }
 
@@ -369,13 +355,15 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
         item->setItemColor(convert_to_color(ColorType::INFO));
 
         Node* old = findOldCommit(action.get_oid());
-        assert(old != nullptr);
-        item->addConnection(old);
+        if (old != nullptr) {
+            item->addConnection(old);
+            updateNode(m_last_new_commit, m_last_new_commit, old);
+            item_text += git_commit_summary(old->getCommit());
+        } else {
+            item_text += git_commit_summary(action.get_commit());
+        }
         item->addConnection(m_last_new_commit);
         item->setNode(m_last_new_commit);
-
-        updateNode(m_last_new_commit, m_last_new_commit, old);
-        item_text += git_commit_summary(old->getCommit());
         break;
     }
 
@@ -383,15 +371,16 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
     case ActionType::REWORD:
     case ActionType::EDIT: {
         Node* old = findOldCommit(action.get_oid());
-        assert(old != nullptr);
-        item->addConnection(old);
-
+        if (old != nullptr) {
+            item->addConnection(old);
+            item_text += git_commit_summary(old->getCommit());
+        } else {
+            item_text += git_commit_summary(action.get_commit());
+        }
         item->setItemColor(convert_to_color(ColorType::ADDITION));
-        item_text += git_commit_summary(old->getCommit());
 
         Node* new_node = m_new_commits_graph->addNode();
-        new_node->setCommit(old->getCommit());
-        new_node->setGitTree(old->getGitTree());
+        new_node->setCommit(action.get_commit());
         new_node->setParentNode(m_last_new_commit);
         new_node->setAction(&action);
 

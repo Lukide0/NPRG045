@@ -26,6 +26,8 @@ public:
     };
     void selectLines(LinesActionType type);
 
+    void enableContextMenu(bool enable) { m_context_menu = enable; }
+
 signals:
     void extendContextMenu(QMenu* menu);
 
@@ -43,6 +45,7 @@ private:
 
 private:
     DiffEditorLine* m_line;
+    bool m_context_menu = false;
 };
 
 }

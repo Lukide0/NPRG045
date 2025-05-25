@@ -228,6 +228,7 @@ private:
 
         for (std::uint32_t i = 0; i < m_nodes.size(); ++i) {
             vec.push_back({ i, m_nodes[i].depth });
+            m_nodes[i].index = i;
         }
 
         std::stable_sort(vec.begin(), vec.end());

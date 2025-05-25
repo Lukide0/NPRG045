@@ -36,6 +36,8 @@ public:
     Node* addNode();
     void clear();
 
+    Node* find(std::function<bool(const Node*)> prec);
+
     void setHandle(const std::function<void(Node*, Node*)>& handle) { m_handle = handle; }
 
 protected:
@@ -44,6 +46,8 @@ protected:
 private:
     std::uint32_t m_next_y                     = 0;
     std::function<void(Node*, Node*)> m_handle = defaultHandle;
+
+    std::vector<Node*> m_nodes;
 
     static void defaultHandle(Node* /*unused*/, Node* /*unused*/) { }
 };

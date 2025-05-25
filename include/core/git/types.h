@@ -4,19 +4,21 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <string>
+#include <string_view>
+#include <utility>
+
 #include <git2/commit.h>
 #include <git2/diff.h>
 #include <git2/index.h>
 #include <git2/object.h>
 #include <git2/oid.h>
+#include <git2/patch.h>
 #include <git2/refs.h>
 #include <git2/revparse.h>
 #include <git2/signature.h>
 #include <git2/tree.h>
 #include <git2/types.h>
-#include <string>
-#include <string_view>
-#include <utility>
 
 namespace core::git {
 
@@ -28,6 +30,11 @@ struct git_commit_t {
     git_commit_t(git_commit_t&& other)
         : commit(other.commit) {
         other.commit = nullptr;
+    }
+
+    git_commit_t& operator=(git_commit_t&& other) {
+        std::swap(commit, other.commit);
+        return *this;
     }
 
     ~git_commit_t() { git_commit_free(commit); }
@@ -111,6 +118,12 @@ struct git_diff_t {
     git_diff* diff = nullptr;
 
     ~git_diff_t() { git_diff_free(diff); }
+};
+
+struct git_patch_t {
+    git_patch* patch = nullptr;
+
+    ~git_patch_t() { git_patch_free(patch); }
 };
 
 struct git_commit_parents_t {

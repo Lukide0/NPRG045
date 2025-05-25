@@ -70,7 +70,7 @@ private:
 
     void update_widget() {
         createRows();
-        m_diff->update(m_commit, m_parent_commit);
+        m_diff->update(m_commit, m_parent_commit, m_action);
 
         prepareDiff();
     }

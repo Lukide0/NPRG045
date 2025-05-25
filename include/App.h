@@ -35,6 +35,9 @@ public:
         git_libgit2_shutdown();
     }
 
+    static void refresh();
+    static gui::widget::RebaseViewWidget* getRebaseViewWidget();
+
 private:
     std::string m_repo_path;
     QHBoxLayout* m_layout;

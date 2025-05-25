@@ -46,24 +46,17 @@ public:
 
     git_commit* getCommit() { return m_commit; }
 
+    [[nodiscard]] const git_commit* getCommit() const { return m_commit; }
+
+    [[nodiscard]] const git_oid* getCommitId() const { return git_commit_id(m_commit); }
+
     Node* getParentNode() { return m_parent; }
 
     void setParentNode(Node* parent) { m_parent = parent; }
 
-    void setGitTree(git_tree* tree) { m_tree = tree; }
-
-    void setGitTreeOwnership(git_tree* tree) {
-        m_tree_owner = tree;
-        m_tree       = tree;
-    }
-
-    git_tree* clearGitTreeOwnership() { return m_tree_owner.release(); }
-
     void setConflict(bool conflict) { m_has_conflict = conflict; }
 
     [[nodiscard]] bool hasConflict() const { return m_has_conflict; }
-
-    [[nodiscard]] git_tree* getGitTree() const { return m_tree; }
 
     void setFill(const QColor& color);
 
@@ -80,8 +73,6 @@ private:
     std::string m_commit_msg;
 
     Action* m_action = nullptr;
-    git_tree* m_tree = nullptr;
-    core::git::git_tree_t m_tree_owner;
 
     Node* m_parent = nullptr;
 

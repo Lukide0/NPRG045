@@ -15,6 +15,7 @@
 #include <git2/oid.h>
 #include <git2/types.h>
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>

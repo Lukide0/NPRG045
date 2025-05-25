@@ -11,6 +11,8 @@
 
 namespace action {
 
+class ActionsManager;
+
 enum class ActionType {
     PICK,
     DROP,
@@ -22,25 +24,16 @@ enum class ActionType {
 
 class Action {
 public:
-    Action(ActionType type, git_oid&& oid, git_repository* repo, optional_u31 msg_id = optional_u31::none())
-        : m_oid(std::move(oid))
-        , m_msg_id(msg_id)
-        , m_type(type) {
-        init_commit(repo);
-    }
-
     Action(ActionType type, const git_oid& oid, git_repository* repo, optional_u31 msg_id = optional_u31::none())
-        : m_oid(oid)
-        , m_msg_id(msg_id)
+        : m_msg_id(msg_id)
         , m_type(type) {
-        init_commit(repo);
+        init_commit(repo, oid);
     }
 
-    Action* get_split_parent() { return m_parent; }
-
-    [[nodiscard]] const Action* get_split_parent() const { return m_parent; }
-
-    void set_split_parent(Action* parent) { m_parent = parent; }
+    Action(ActionType type, core::git::git_commit_t&& commit, optional_u31 msg_id = optional_u31::none())
+        : m_commit(std::move(commit))
+        , m_msg_id(msg_id)
+        , m_type(type) { }
 
     Action* get_next() { return m_next; }
 
@@ -64,7 +57,7 @@ public:
         }
     }
 
-    [[nodiscard]] const git_oid& get_oid() const { return m_oid; }
+    [[nodiscard]] const git_oid& get_oid() const { return *git_commit_id(m_commit.commit); }
 
     [[nodiscard]] git_commit* get_commit() const { return m_commit.commit; }
 
@@ -126,11 +119,9 @@ public:
     }
 
 private:
-    Action* m_parent = nullptr;
-    Action* m_next   = nullptr;
-    Action* m_prev   = nullptr;
+    Action* m_next = nullptr;
+    Action* m_prev = nullptr;
     core::git::git_commit_t m_commit;
-    git_oid m_oid;
     optional_u31 m_msg_id;
     ActionType m_type;
 
@@ -138,7 +129,11 @@ private:
 
     void set_prev(Action* prev) { m_prev = prev; }
 
-    void init_commit(git_repository* repo) { assert(git_commit_lookup(&m_commit.commit, repo, &m_oid) == 0); }
+    void init_commit(git_repository* repo, const git_oid& oid) {
+        assert(git_commit_lookup(&m_commit.commit, repo, &oid) == 0);
+    }
+
+    friend ActionsManager;
 };
 
 }

@@ -37,7 +37,16 @@
 #include <QPalette>
 #include <QString>
 
+static App* g_app = nullptr;
+
+void App::refresh() { g_app->m_rebase_view->updateActions(); }
+
+gui::widget::RebaseViewWidget* App::getRebaseViewWidget() { return g_app->m_rebase_view; }
+
 App::App() {
+
+    g_app = this;
+
     using core::state::CommandHistory;
 
     git_libgit2_init();

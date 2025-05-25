@@ -95,16 +95,18 @@ void DiffEditor::onSelectionChanged() {
 void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
     QMenu* menu = createStandardContextMenu();
 
-    menu->addSeparator();
+    if (m_context_menu) {
+        menu->addSeparator();
 
-    auto cursor             = textCursor();
-    QAction* select_lines   = menu->addAction("Select lines");
-    QAction* deselect_lines = menu->addAction("Deselect lines");
+        auto cursor             = textCursor();
+        QAction* select_lines   = menu->addAction("Select lines");
+        QAction* deselect_lines = menu->addAction("Deselect lines");
 
-    connect(select_lines, &QAction::triggered, this, [this]() { this->selectLines(LinesActionType::SELECT); });
-    connect(deselect_lines, &QAction::triggered, this, [this]() { this->selectLines(LinesActionType::DESELECT); });
+        connect(select_lines, &QAction::triggered, this, [this]() { this->selectLines(LinesActionType::SELECT); });
+        connect(deselect_lines, &QAction::triggered, this, [this]() { this->selectLines(LinesActionType::DESELECT); });
 
-    emit extendContextMenu(menu);
+        emit extendContextMenu(menu);
+    }
 
     menu->exec(event->globalPos());
 
