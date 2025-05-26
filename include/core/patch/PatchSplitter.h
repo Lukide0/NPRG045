@@ -22,6 +22,7 @@ public:
 
 private:
     std::stringstream m_patch;
+    std::stringstream m_file_patch;
     std::stringstream m_hunk_stream;
 
     int m_lines_removed = 0;
@@ -29,6 +30,8 @@ private:
     int m_lines_count   = 0;
     int m_hunk_offset   = 0;
 
+
+    bool m_not_used = true;
     bool m_all   = true;
     bool m_empty = true;
 
