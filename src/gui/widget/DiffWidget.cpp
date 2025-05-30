@@ -15,6 +15,7 @@
 
 #include <cstddef>
 #include <format>
+#include <utility>
 #include <vector>
 
 #include <git2/diff.h>
@@ -96,7 +97,7 @@ void DiffWidget::update(git_commit* child, git_commit* parent, Action* action) {
         break;
     }
 
-    m_diffs = core::git::create_diff(res.diff.diff);
+    m_diffs = core::git::create_diff(res.diff);
     for (std::size_t i = 0; i < m_diffs.size(); ++i) {
         if (i != 0) {
             auto* line = new QFrame(this);
@@ -296,16 +297,16 @@ void DiffWidget::splitCommitEvent() {
         }
     };
 
-    core::git::git_diff_t diff;
+    core::git::diff_t diff;
 
-    int state = git_diff_from_buffer(&diff.diff, patch_text.c_str(), patch_text.size());
+    int state = git_diff_from_buffer(&diff, patch_text.c_str(), patch_text.size());
     if (state != 0) {
         handler();
         return;
     }
 
-    core::git::git_commit_t first_commit;
-    core::git::git_commit_t second_commit;
+    core::git::commit_t first_commit;
+    core::git::commit_t second_commit;
 
     bool res = core::patch::split(first_commit, second_commit, m_action, diff);
     if (!res) {

@@ -63,31 +63,31 @@ private:
 };
 
 diff_result_t prepare_diff(git_commit* old_commit, git_commit* new_commit, const git_diff_options* opts) {
-    git_tree_t old_tree;
-    git_tree_t new_tree;
+    tree_t old_tree;
+    tree_t new_tree;
 
     diff_result_t res;
     git_repository* repo = nullptr;
 
     if (old_commit != nullptr) {
-        if (git_commit_tree(&old_tree.tree, old_commit) != 0) {
+        if (git_commit_tree(&old_tree, old_commit) != 0) {
             res.state = diff_result_t::FAILED_TO_RETRIEVE_TREE;
             return res;
         } else {
-            repo = git_tree_owner(old_tree.tree);
+            repo = git_tree_owner(old_tree);
         }
     }
 
     if (new_commit != nullptr) {
-        if (git_commit_tree(&new_tree.tree, new_commit) != 0) {
+        if (git_commit_tree(&new_tree, new_commit) != 0) {
             res.state = diff_result_t::FAILED_TO_RETRIEVE_TREE;
             return res;
         } else if (repo == nullptr) {
-            repo = git_tree_owner(new_tree.tree);
+            repo = git_tree_owner(new_tree);
         }
     }
 
-    if (git_diff_tree_to_tree(&res.diff.diff, repo, old_tree.tree, new_tree.tree, opts) != 0) {
+    if (git_diff_tree_to_tree(&res.diff, repo, old_tree, new_tree, opts) != 0) {
         res.state = diff_result_t::FAILED_TO_CREATE_DIFF;
     }
 

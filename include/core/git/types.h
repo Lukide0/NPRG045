@@ -22,117 +22,70 @@
 
 namespace core::git {
 
-struct git_commit_t {
-    git_commit* commit = nullptr;
+template <typename T> using destructor_t = void (*)(T*);
 
-    git_commit_t() = default;
+template <typename T, destructor_t<T> Destructor> class object_t {
+public:
+    object_t() = default;
 
-    git_commit_t(git_commit_t&& other)
-        : commit(other.commit) {
-        other.commit = nullptr;
+    object_t(object_t&& other)
+        : m_obj(other.m_obj) {
+        other.m_obj = nullptr;
     }
 
-    git_commit_t& operator=(git_commit_t&& other) {
-        std::swap(commit, other.commit);
+    object_t& operator=(object_t&& other) {
+        std::swap(m_obj, other.m_obj);
         return *this;
     }
 
-    ~git_commit_t() { git_commit_free(commit); }
-};
-
-struct git_index_t {
-    git_index* index = nullptr;
-
-    git_index_t() = default;
-
-    git_index_t(git_index_t&& other)
-        : index(other.index) {
-        other.index = nullptr;
-    }
-
-    git_index_t& operator=(git_index_t&& other) {
-        std::swap(index, other.index);
-        return *this;
-    }
-
-    git_index_t& operator=(git_index* other) {
-        if (index != nullptr) {
-            git_index_free(index);
+    object_t& operator=(T* object) {
+        if (m_obj != nullptr) {
+            Destructor(m_obj);
         }
 
-        index = other;
+        m_obj = object;
         return *this;
     }
 
-    ~git_index_t() { git_index_free(index); }
-};
+    ~object_t() { Destructor(m_obj); }
 
-struct git_tree_t {
-    git_tree* tree = nullptr;
+    operator T*() { return m_obj; }
 
-    git_tree_t() = default;
+    T* get() { return m_obj; }
 
-    git_tree_t(git_tree_t&& other)
-        : tree(other.tree) {
-        other.tree = nullptr;
-    }
+    const T* get() const { return m_obj; }
 
-    git_tree* release() {
-        auto* tmp = tree;
+    T* release() {
+        T* tmp = m_obj;
 
-        tree = nullptr;
+        m_obj = nullptr;
 
         return tmp;
     }
 
-    git_tree_t& operator=(git_tree_t&& other) {
-        std::swap(tree, other.tree);
-        return *this;
-    }
+    T** operator&() { return &m_obj; }
 
-    git_tree_t& operator=(git_tree* other) {
-        if (tree != nullptr) {
-            git_tree_free(tree);
-        }
+    const T** operator&() const { return &m_obj; }
 
-        tree = other;
-        return *this;
-    }
-
-    ~git_tree_t() { git_tree_free(tree); }
+private:
+    T* m_obj = nullptr;
 };
 
-struct git_signature_t {
-    git_signature* sig = nullptr;
+using commit_t    = object_t<git_commit, git_commit_free>;
+using index_t     = object_t<git_index, git_index_free>;
+using tree_t      = object_t<git_tree, git_tree_free>;
+using signature_t = object_t<git_signature, git_signature_free>;
+using reference_t = object_t<git_reference, git_reference_free>;
+using diff_t      = object_t<git_diff, git_diff_free>;
+using patch_t     = object_t<git_patch, git_patch_free>;
 
-    ~git_signature_t() { git_signature_free(sig); }
-};
-
-struct git_reference_obj {
-    git_reference* ref = nullptr;
-
-    ~git_reference_obj() { git_reference_free(ref); }
-};
-
-struct git_diff_t {
-    git_diff* diff = nullptr;
-
-    ~git_diff_t() { git_diff_free(diff); }
-};
-
-struct git_patch_t {
-    git_patch* patch = nullptr;
-
-    ~git_patch_t() { git_patch_free(patch); }
-};
-
-struct git_commit_parents_t {
+struct commit_parents_t {
     git_commit** parents = nullptr;
     unsigned int count   = 0;
 
     [[nodiscard]] const git_commit** get() const { return const_cast<const git_commit**>(parents); }
 
-    ~git_commit_parents_t() {
+    ~commit_parents_t() {
         if (count > 0) {
             for (std::size_t i = 0; i < count; ++i) {
                 git_commit_free(parents[i]);
@@ -143,12 +96,11 @@ struct git_commit_parents_t {
     }
 };
 
-inline bool get_commit_from_hash(git_commit_t& out_commit, const char* hash, git_repository* repo) {
+inline bool get_commit_from_hash(commit_t& out_commit, const char* hash, git_repository* repo) {
 
     git_object* obj = nullptr;
 
-    if (git_revparse_single(&obj, repo, hash) != 0
-        || git_commit_lookup(&out_commit.commit, repo, git_object_id(obj)) != 0) {
+    if (git_revparse_single(&obj, repo, hash) != 0 || git_commit_lookup(&out_commit, repo, git_object_id(obj)) != 0) {
         git_object_free(obj);
         return false;
     }
@@ -168,12 +120,12 @@ inline bool get_oid_from_hash(git_oid& out_oid, const char* hash, git_repository
     return true;
 }
 
-inline bool get_last_commit(git_commit_t& out_commit, git_repository* repo) {
+inline bool get_last_commit(commit_t& out_commit, git_repository* repo) {
     git_oid id;
-    return git_reference_name_to_id(&id, repo, "HEAD") == 0 && git_commit_lookup(&out_commit.commit, repo, &id) == 0;
+    return git_reference_name_to_id(&id, repo, "HEAD") == 0 && git_commit_lookup(&out_commit, repo, &id) == 0;
 }
 
-inline bool get_all_parents(git_commit_parents_t& parents, git_commit* commit) {
+inline bool get_all_parents(commit_parents_t& parents, git_commit* commit) {
     const auto parents_count = git_commit_parentcount(commit);
 
     auto** parent_commits = new git_commit*[parents_count];
@@ -229,5 +181,4 @@ template <std::uint8_t HashSize = 7> std::string format_commit(git_commit* commi
 
     return name;
 }
-
 }

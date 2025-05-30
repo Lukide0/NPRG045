@@ -17,7 +17,7 @@ struct diff_result_t {
     };
 
     State state = State::OK;
-    git_diff_t diff;
+    diff_t diff;
 };
 
 struct diff_file_t {

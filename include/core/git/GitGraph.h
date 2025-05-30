@@ -19,7 +19,7 @@
 namespace core::git {
 
 template <typename Data> struct GitNode {
-    git_commit_t commit;
+    commit_t commit;
     std::uint32_t depth;
     std::uint32_t index;
     std::set<std::uint32_t> children;
@@ -36,8 +36,8 @@ public:
 
     static std::optional<GitGraph> create(const char* start, const char* end, git_repository* repo) {
 
-        git_commit_t start_commit;
-        git_commit_t end_commit;
+        commit_t start_commit;
+        commit_t end_commit;
 
         if (!get_commit_from_hash(start_commit, start, repo) || !get_commit_from_hash(end_commit, end, repo)) {
             return std::nullopt;
@@ -117,7 +117,7 @@ public:
         }
     }
 
-    static std::string get_commit_id(git_commit* commit) {
+    static std::string get_commit_id(const git_commit* commit) {
         char buff[GIT_OID_MAX_HEXSIZE + 1] = { 0 };
 
         git_oid_tostr(buff, sizeof(buff) / sizeof(buff[0]), git_commit_id(commit));
@@ -132,9 +132,9 @@ private:
 
     GitGraph() = default;
 
-    std::uint32_t try_insert(git_commit_t&& commit, std::uint32_t depth, const std::set<std::uint32_t>& children) {
+    std::uint32_t try_insert(commit_t&& commit, std::uint32_t depth, const std::set<std::uint32_t>& children) {
 
-        auto id = get_commit_id(commit.commit);
+        auto id = get_commit_id(commit);
         if (contains(id)) {
             return get_index(id);
         }
@@ -157,14 +157,14 @@ private:
     }
 
     static bool try_create(GitGraph& graph, std::uint32_t start_node, std::uint32_t end_node, std::uint32_t depth) {
-        git_commit* start = graph.m_nodes[start_node].commit.commit;
-        git_commit* end   = graph.m_nodes[end_node].commit.commit;
+        git_commit* start = graph.m_nodes[start_node].commit;
+        git_commit* end   = graph.m_nodes[end_node].commit;
 
         if (check_commit(start, end)) {
             return true;
         }
 
-        git_commit_parents_t parents;
+        commit_parents_t parents;
 
         if (!get_all_parents(parents, start)) {
             return false;
@@ -183,13 +183,13 @@ private:
         }
 
         for (std::uint32_t i = 0; i < parents.count; ++i) {
-            git_commit_t parent;
+            commit_t parent;
 
             // move ownership
-            parent.commit      = parents.parents[i];
+            parent             = parents.parents[i];
             parents.parents[i] = nullptr;
 
-            auto id       = get_commit_id(parent.commit);
+            auto id       = get_commit_id(parent);
             bool contains = graph.contains(id);
 
             // prepare parent node
@@ -212,7 +212,7 @@ private:
     }
 
     void update_record(const node_t& node) {
-        auto id          = get_commit_id(node.commit.commit);
+        auto id          = get_commit_id(node.commit.get());
         m_commit_map[id] = node.index;
     }
 

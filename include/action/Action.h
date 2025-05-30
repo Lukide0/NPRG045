@@ -30,7 +30,7 @@ public:
         init_commit(repo, oid);
     }
 
-    Action(ActionType type, core::git::git_commit_t&& commit, optional_u31 msg_id = optional_u31::none())
+    Action(ActionType type, core::git::commit_t&& commit, optional_u31 msg_id = optional_u31::none())
         : m_commit(std::move(commit))
         , m_msg_id(msg_id)
         , m_type(type) { }
@@ -57,9 +57,11 @@ public:
         }
     }
 
-    [[nodiscard]] const git_oid& get_oid() const { return *git_commit_id(m_commit.commit); }
+    [[nodiscard]] const git_oid& get_oid() const { return *git_commit_id(m_commit.get()); }
 
-    [[nodiscard]] git_commit* get_commit() const { return m_commit.commit; }
+    [[nodiscard]] git_commit* get_commit() { return m_commit.get(); }
+
+    [[nodiscard]] const git_commit* get_commit() const { return m_commit.get(); }
 
     [[nodiscard]] optional_u31 get_msg_id() const { return m_msg_id; }
 
@@ -121,7 +123,7 @@ public:
 private:
     Action* m_next = nullptr;
     Action* m_prev = nullptr;
-    core::git::git_commit_t m_commit;
+    core::git::commit_t m_commit;
     optional_u31 m_msg_id;
     ActionType m_type;
 
@@ -130,7 +132,7 @@ private:
     void set_prev(Action* prev) { m_prev = prev; }
 
     void init_commit(git_repository* repo, const git_oid& oid) {
-        assert(git_commit_lookup(&m_commit.commit, repo, &oid) == 0);
+        assert(git_commit_lookup(&m_commit, repo, &oid) == 0);
     }
 
     friend ActionsManager;

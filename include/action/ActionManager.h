@@ -79,7 +79,7 @@ public:
         return index;
     }
 
-    void split(Action* act, core::git::git_commit_t&& prev, core::git::git_commit_t&& next) {
+    void split(Action* act, core::git::commit_t&& prev, core::git::commit_t&& next) {
         act->m_commit = std::move(prev);
 
         auto* tmp = new Action(act->get_type(), std::move(next));

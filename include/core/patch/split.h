@@ -6,10 +6,7 @@
 namespace core::patch {
 
 bool split(
-    core::git::git_commit_t& out_first,
-    core::git::git_commit_t& out_second,
-    action::Action* act,
-    core::git::git_diff_t& patch
+    core::git::commit_t& out_first, core::git::commit_t& out_second, action::Action* act, core::git::diff_t& patch
 );
 
 }

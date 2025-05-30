@@ -24,7 +24,7 @@ private:
 public:
     ActionInfo(const Action& act) {
         m_oid = git_oid_tostr(m_buff.data(), m_buff.size(), &act.get_oid());
-        m_msg = git_commit_summary(act.get_commit());
+        m_msg = git_commit_summary(const_cast<git_commit*>(act.get_commit()));
     }
 
     [[nodiscard]] const char* msg() const { return m_msg; }

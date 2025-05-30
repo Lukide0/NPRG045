@@ -151,7 +151,10 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
             );
 
             this->moveAction(source_row, destination_row);
+
+            // TODO: update only graphs not lists
             this->updateActions();
+
             this->m_commit_view->update(nullptr);
         }
     );
@@ -209,7 +212,7 @@ std::optional<std::string> RebaseViewWidget::update(
 
         for (auto& node : nodes) {
             auto* commit_node = m_old_commits_graph->addNode(y);
-            commit_node->setCommit(node.commit.commit);
+            commit_node->setCommit(node.commit);
 
             node.data = commit_node;
             node.data->setParentNode(parent);
@@ -274,7 +277,7 @@ std::optional<std::string> RebaseViewWidget::prepareActions() {
     auto& last_node = m_graph.first_node();
     m_root_node     = last_node.data;
 
-    last->setCommit(last_node.commit.commit);
+    last->setCommit(last_node.commit);
 
     m_last_new_commit = last;
 
@@ -303,7 +306,7 @@ void RebaseViewWidget::updateActions() {
     auto& last_node = m_graph.first_node();
     m_root_node     = last_node.data;
 
-    last->setCommit(last_node.commit.commit);
+    last->setCommit(last_node.commit);
 
     m_last_new_commit = last;
     m_commit_view->update();
@@ -312,9 +315,9 @@ void RebaseViewWidget::updateActions() {
 }
 
 Node* RebaseViewWidget::findOldCommit(const git_oid& oid) {
-    core::git::git_commit_t c;
+    core::git::commit_t commit;
 
-    if (git_commit_lookup(&c.commit, m_repo, &oid) != 0) {
+    if (git_commit_lookup(&commit, m_repo, &oid) != 0) {
         return nullptr;
     }
 
@@ -325,13 +328,13 @@ void RebaseViewWidget::updateNode(Node* node, Node* current, Node* changes) {
     auto* current_commit = current->getCommit();
     auto* changes_commit = changes->getCommit();
 
-    core::git::git_index_t index;
+    core::git::index_t index;
 
-    if (git_cherrypick_commit(&index.index, m_repo, changes_commit, current_commit, 0, nullptr) != 0) {
+    if (git_cherrypick_commit(&index, m_repo, changes_commit, current_commit, 0, nullptr) != 0) {
         return;
     }
 
-    if (git_index_has_conflicts(index.index) != 0) {
+    if (git_index_has_conflicts(index) != 0) {
         node->setConflict(true);
     }
 }
@@ -407,6 +410,7 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
 
     connect(combo, &QComboBox::currentIndexChanged, this, [&](int index) {
         assert(index != -1);
+        // TODO: update only new graph
         updateActions();
     });
 
