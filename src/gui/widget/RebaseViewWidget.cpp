@@ -97,16 +97,21 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_diff_commit_split->setStretchFactor(0, 2);
     m_diff_commit_split->setStretchFactor(1, 0);
 
-    connect(m_list_actions->getList(), &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
+    connect(m_list_actions->getList(), &QListWidget::itemSelectionChanged, this, [this]() {
         if (m_last_item != nullptr) {
             m_last_item->setColorToAll(Qt::white);
         }
 
-        if (item == nullptr) {
+        QListWidget* list = m_list_actions->getList();
+        auto selected     = list->selectedItems();
+        if (selected.size() != 1) {
+            m_last_item = nullptr;
+            m_commit_view->update();
             return;
         }
 
-        auto* list_item = dynamic_cast<ListItem*>(m_list_actions->getList()->itemWidget(item));
+        QListWidgetItem* item = selected.first();
+        auto* list_item       = dynamic_cast<ListItem*>(m_list_actions->getList()->itemWidget(item));
         if (list_item == nullptr) {
             return;
         }
@@ -292,6 +297,8 @@ std::optional<std::string> RebaseViewWidget::prepareActions() {
 }
 
 void RebaseViewWidget::updateActions() {
+    m_last_item = nullptr;
+
     auto* last      = m_new_commits_graph->addNode(0);
     auto& last_node = m_graph.first_node();
     m_root_node     = last_node.data;
