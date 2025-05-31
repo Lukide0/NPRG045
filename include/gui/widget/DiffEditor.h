@@ -20,18 +20,27 @@ public:
 
     void processLines(std::function<void(const DiffEditorLineData&)> process_data);
 
-    enum class LinesActionType {
-        SELECT,
-        DESELECT,
-    };
-    void selectLines(LinesActionType type);
-
     void enableContextMenu(bool enable) { m_context_menu = enable; }
 
 signals:
     void extendContextMenu(QMenu* menu);
 
 private:
+    static constexpr int HIGHLIGHT_SELECTION = 0x1;
+
+    enum class SelectionType {
+        SELECT,
+        DESELECT,
+    };
+
+    void selectLine(SelectionType type);
+
+    void selectLines(SelectionType type);
+
+    void selectHunk(SelectionType type);
+
+    void selectBlock(QTextBlock block, SelectionType type);
+
     void resizeEvent(QResizeEvent* event) override;
 
     void contextMenuEvent(QContextMenuEvent* event) override;
@@ -45,7 +54,8 @@ private:
 
 private:
     DiffEditorLine* m_line;
-    bool m_context_menu = false;
+    bool m_context_menu          = false;
+    std::size_t m_highlight_size = 0;
 };
 
 }

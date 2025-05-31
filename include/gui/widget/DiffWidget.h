@@ -48,7 +48,7 @@ private:
         using Type = ColorType;
 
         Type type;
-        int start;
+        QTextBlock block;
     };
 
     void createFileDiff(const core::git::diff_files_t& diff);

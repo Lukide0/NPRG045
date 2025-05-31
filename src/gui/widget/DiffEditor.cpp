@@ -37,6 +37,13 @@ DiffEditor::DiffEditor(QWidget* parent)
     setContentsMargins(0, 0, 0, 0);
 
     setReadOnly(true);
+
+    auto pal     = palette();
+    QColor color = { 84, 106, 123 };
+
+    pal.setColor(QPalette::Highlight, color);
+
+    setPalette(pal);
 }
 
 int DiffEditor::diffLineWidth() {
@@ -62,7 +69,12 @@ void DiffEditor::onSelectionChanged() {
 
     QTextCursor cursor = textCursor();
 
+    auto selections = extraSelections();
+    selections.resize(selections.size() - m_highlight_size);
+    m_highlight_size = 0;
+
     if (!cursor.hasSelection()) {
+        setExtraSelections(selections);
         return;
     }
 
@@ -81,7 +93,6 @@ void DiffEditor::onSelectionChanged() {
         new_anchor = anchor_block.position();
         new_pos    = block.position() + block.length() - 1;
     } else {
-
         new_anchor = anchor_block.position() + anchor_block.length() - 1;
         new_pos    = block.position();
     }
@@ -90,21 +101,58 @@ void DiffEditor::onSelectionChanged() {
     cursor.setPosition(new_pos, QTextCursor::KeepAnchor);
 
     setTextCursor(cursor);
+
+    auto start = cursor.selectionStart();
+    auto end   = cursor.selectionEnd();
+
+    auto selected_block = document()->findBlock(start);
+    while (selected_block.isValid() && selected_block.position() <= end) {
+        QTextEdit::ExtraSelection selection;
+
+        selection.cursor = QTextCursor(selected_block);
+        selection.format.setBackground(palette().highlight());
+        selection.format.setProperty(QTextFormat::FullWidthSelection, true);
+        selection.format.setProperty(QTextFormat::UserProperty, HIGHLIGHT_SELECTION);
+
+        selections.append(selection);
+        m_highlight_size += 1;
+
+        selected_block = selected_block.next();
+    }
+
+    setExtraSelections(selections);
 }
 
 void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
-    QMenu* menu = createStandardContextMenu();
+    auto* menu = new QMenu();
 
     if (m_context_menu) {
-        menu->addSeparator();
+        auto cursor = textCursor();
 
-        auto cursor             = textCursor();
-        QAction* select_lines   = menu->addAction("Select lines");
-        QAction* deselect_lines = menu->addAction("Deselect lines");
+        menu->addSection("Hunk");
+        QAction* select_hunk   = menu->addAction("Select hunk");
+        QAction* deselect_hunk = menu->addAction("Deselect hunk");
 
-        connect(select_lines, &QAction::triggered, this, [this]() { this->selectLines(LinesActionType::SELECT); });
-        connect(deselect_lines, &QAction::triggered, this, [this]() { this->selectLines(LinesActionType::DESELECT); });
+        connect(select_hunk, &QAction::triggered, this, [this]() { this->selectHunk(SelectionType::SELECT); });
+        connect(deselect_hunk, &QAction::triggered, this, [this]() { this->selectHunk(SelectionType::DESELECT); });
 
+        if (cursor.hasSelection()) {
+            menu->addSection("Lines");
+            QAction* select_lines   = menu->addAction("Select lines");
+            QAction* deselect_lines = menu->addAction("Deselect lines");
+
+            connect(select_lines, &QAction::triggered, this, [this]() { this->selectLines(SelectionType::SELECT); });
+            connect(deselect_lines, &QAction::triggered, this, [this]() {
+                this->selectLines(SelectionType::DESELECT);
+            });
+        } else {
+            menu->addSection("Line");
+            QAction* select_line   = menu->addAction("Select line");
+            QAction* deselect_line = menu->addAction("Deselect line");
+
+            connect(select_line, &QAction::triggered, this, [this]() { this->selectLine(SelectionType::SELECT); });
+            connect(deselect_line, &QAction::triggered, this, [this]() { this->selectLine(SelectionType::DESELECT); });
+        }
         emit extendContextMenu(menu);
     }
 
@@ -127,7 +175,41 @@ void DiffEditor::processLines(std::function<void(const DiffEditorLineData&)> pro
     }
 }
 
-void DiffEditor::selectLines(LinesActionType type) {
+void DiffEditor::selectLine(SelectionType type) {
+    QTextCursor cursor = textCursor();
+    cursor.clearSelection();
+
+    auto block = cursor.block();
+
+    if (!block.isValid()) {
+        return;
+    }
+
+    selectBlock(block, type);
+}
+
+void DiffEditor::selectBlock(QTextBlock block, SelectionType type) {
+    auto* line_data = dynamic_cast<DiffEditorLineData*>(block.userData());
+    if (line_data == nullptr) {
+        return;
+    }
+
+    auto line_type = line_data->get_line().type;
+
+    switch (line_type) {
+    case diff_line_t::Type::CONTEXT:
+    case diff_line_t::Type::CONTEXT_NO_NEWLINE:
+        break;
+    case diff_line_t::Type::ADDITION:
+    case diff_line_t::Type::ADDITION_NEWLINE:
+    case diff_line_t::Type::DELETION:
+    case diff_line_t::Type::DELETION_NEWLINE:
+        setBlockHighlight(block, type == SelectionType::SELECT);
+        break;
+    }
+}
+
+void DiffEditor::selectLines(SelectionType type) {
     QTextCursor cursor = textCursor();
     if (!cursor.hasSelection()) {
         return;
@@ -139,24 +221,53 @@ void DiffEditor::selectLines(LinesActionType type) {
     auto start_block = document()->findBlock(start);
     auto end_block   = document()->findBlock(end);
 
+    cursor.clearSelection();
+
     for (auto block = start_block; block.isValid() && block.blockNumber() <= end_block.blockNumber();
          block      = block.next()) {
 
-        if (auto* line_data = dynamic_cast<DiffEditorLineData*>(block.userData())) {
-            auto line_type = line_data->get_line().type;
+        selectBlock(block, type);
+    }
+}
 
-            switch (line_type) {
-            case diff_line_t::Type::CONTEXT:
-            case diff_line_t::Type::CONTEXT_NO_NEWLINE:
-                break;
-            case diff_line_t::Type::ADDITION:
-            case diff_line_t::Type::ADDITION_NEWLINE:
-            case diff_line_t::Type::DELETION:
-            case diff_line_t::Type::DELETION_NEWLINE:
-                setBlockHighlight(block, type == LinesActionType::SELECT);
-                break;
-            }
+void DiffEditor::selectHunk(SelectionType type) {
+    QTextCursor cursor = textCursor();
+    cursor.clearSelection();
+
+    auto curr_block = cursor.block();
+    auto* line_data = dynamic_cast<DiffEditorLineData*>(curr_block.userData());
+
+    if (!curr_block.isValid() || line_data == nullptr) {
+        return;
+    }
+
+    selectBlock(curr_block, type);
+    const auto& hunk = line_data->get_hunk();
+
+    auto block = curr_block.previous();
+    while (block.isValid()) {
+        auto* block_data = dynamic_cast<DiffEditorLineData*>(block.userData());
+
+        // compare hunk poiters
+        if (block_data == nullptr || &block_data->get_hunk() != &hunk) {
+            break;
         }
+
+        selectBlock(block, type);
+        block = block.previous();
+    }
+
+    block = curr_block.next();
+    while (block.isValid()) {
+        auto* block_data = dynamic_cast<DiffEditorLineData*>(block.userData());
+
+        // compare hunk poiters
+        if (block_data == nullptr || &block_data->get_hunk() != &hunk) {
+            break;
+        }
+
+        selectBlock(block, type);
+        block = block.next();
     }
 }
 
@@ -165,7 +276,7 @@ void DiffEditor::setBlockHighlight(QTextBlock block, bool enable) {
 
     auto it = selections.begin();
     for (; it != selections.end(); ++it) {
-        if (it->cursor.block() == block) {
+        if (it->cursor.block() == block && it->format.property(QTextFormat::UserProperty) != HIGHLIGHT_SELECTION) {
             break;
         }
     }
@@ -220,7 +331,14 @@ void DiffEditor::diffLinePaintEvent(QPaintEvent* event) {
 
                 QString str;
                 str += convert_to_symbol(line.type);
-                painter.setPen(convert_to_color(line.type));
+
+                if (line_data->is_selected()) {
+
+                    painter.setPen(convert_to_color(line.type));
+                } else {
+                    painter.setPen(Qt::black);
+                }
+
                 painter.drawText(0, top, m_line->width(), fontMetrics().height(), Qt::AlignCenter, str);
             }
         }

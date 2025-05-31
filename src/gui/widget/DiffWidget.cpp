@@ -159,25 +159,25 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
     QList<QTextEdit::ExtraSelection> text_sections;
     for (auto&& section : sections) {
 
-        QTextCursor cursor(m_curr_editor->document());
-        cursor.setPosition(section.start);
-        cursor.movePosition(QTextCursor::MoveOperation::EndOfBlock, QTextCursor::KeepAnchor);
-        cursor.clearSelection();
-
         QTextEdit::ExtraSelection text_section;
-        text_section.cursor = cursor;
-        text_section.format.setProperty(QTextFormat::FullWidthSelection, true);
+        text_section.cursor = QTextCursor(section.block);
+        text_section.cursor.clearSelection();
+
         text_section.format.setForeground(convert_to_color(section.type));
 
         if (section.type == section_t::Type::INFO) {
             text_section.format.setFontWeight(QFont::Bold);
         }
+
+        text_section.format.setProperty(QTextFormat::FullWidthSelection, true);
+
         text_sections.append(text_section);
     }
 
+    m_curr_editor->setExtraSelections(text_sections);
+
     file_diff->updateEditorHeight();
 
-    m_curr_editor->setExtraSelections(text_sections);
     m_scroll_layout->addWidget(file_diff);
 
     m_files.push_back(file_diff);
@@ -212,11 +212,13 @@ void DiffWidget::addHunkDiff(const diff_hunk_t& hunk, std::vector<section_t>& se
     cursor.movePosition(QTextCursor::MoveOperation::End);
 
     QTextBlock block = cursor.block();
-    section_t section;
-    section.type  = section_t::Type::INFO;
-    section.start = block.position();
 
-    sections.push_back(section);
+    sections.push_back(
+        {
+            .type  = section_t::Type::INFO,
+            .block = block,
+        }
+    );
 
     for (const auto& line : hunk.lines) {
         addLineDiff(hunk, line, sections);
@@ -250,11 +252,12 @@ void DiffWidget::addLineDiff(const diff_hunk_t& hunk, const diff_line_t& line, s
         break;
     }
 
-    section_t section;
-    section.type  = type;
-    section.start = block.position();
-
-    sections.push_back(section);
+    sections.push_back(
+        {
+            .type  = type,
+            .block = block,
+        }
+    );
 }
 
 void DiffWidget::splitCommitEvent() {
@@ -265,6 +268,8 @@ void DiffWidget::splitCommitEvent() {
         core::patch::PatchSplitter splitter;
 
         for (auto&& file : m_files) {
+            // TODO: Handle empty file
+
             splitter.file_begin(file->getDiff());
 
             std::vector<diff_line_t> lines;
