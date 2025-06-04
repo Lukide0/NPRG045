@@ -2,6 +2,7 @@
 
 #include "Action.h"
 #include "core/git/types.h"
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <type_traits>
@@ -80,7 +81,11 @@ public:
         return index;
     }
 
-    void split(Action* act, core::git::commit_t&& prev, core::git::commit_t&& next) {
+    // TODO: Fix messages
+    core::git::commit_t split(Action* act, core::git::commit_t&& prev, core::git::commit_t&& next) {
+
+        core::git::commit_t commit = std::move(act->m_commit);
+
         act->m_commit = std::move(prev);
 
         auto* tmp = new Action(act->get_type(), std::move(next));
@@ -89,6 +94,27 @@ public:
 
         tmp->set_next_connection(next_act);
         tmp->set_prev_connection(act);
+
+        return commit;
+    }
+
+    // TODO: Fix messages
+    std::pair<core::git::commit_t, core::git::commit_t> merge_next(Action* act, core::git::commit_t&& commit) {
+        assert(act->get_next() != nullptr);
+
+        auto* next = act->get_next();
+
+        auto commits = std::make_pair<core::git::commit_t, core::git::commit_t>(
+            std::move(act->m_commit), std::move(next->m_commit)
+        );
+
+        act->m_commit = std::move(commit);
+
+        act->set_next_connection(next->get_next());
+
+        delete next;
+
+        return commits;
     }
 
     void move(std::uint32_t from, std::uint32_t to) {
@@ -204,6 +230,16 @@ public:
 
     [[nodiscard]] const_iterator_t cend() const { return { nullptr }; }
 
+    [[nodiscard]] std::size_t get_index(const_iterator_t iter) const {
+        std::size_t i = 0;
+
+        for (auto it = cbegin(); it != iter; ++it) {
+            i += 1;
+        }
+
+        return i;
+    }
+
     git_commit* get_root_commit() { return m_root_commit; }
 
     void set_root_commit(git_commit* commit) { m_root_commit = commit; }
@@ -226,6 +262,16 @@ public:
         }
     }
 
+    Action* get_action(std::uint32_t index) {
+        auto* act = m_head;
+
+        for (std::uint32_t i = 0; i < index && act != nullptr; ++i) {
+            act = act->get_next();
+        }
+
+        return act;
+    }
+
 private:
     Action* m_head = nullptr;
     Action* m_tail = nullptr;
@@ -233,16 +279,6 @@ private:
     std::vector<std::string> m_msg;
 
     git_commit* m_root_commit = nullptr;
-
-    Action* get_action(std::uint32_t count) {
-        auto* act = m_head;
-
-        for (std::uint32_t i = 0; i < count && act != nullptr; ++i) {
-            act = act->get_next();
-        }
-
-        return act;
-    }
 };
 
 template <action_type Act> Action& ActionsManager::append(Act&& action) {

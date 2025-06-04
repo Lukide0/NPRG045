@@ -2,11 +2,14 @@
 
 #include "action/Action.h"
 #include "core/git/diff.h"
+#include "core/git/types.h"
+#include "core/state/Command.h"
 #include "gui/color.h"
 #include "gui/widget/DiffEditor.h"
 #include "gui/widget/DiffFile.h"
 
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 #include <git2/types.h>
@@ -58,6 +61,23 @@ private:
     );
 
     void splitCommitEvent();
+};
+
+class CommitSplitCommand : public core::state::Command {
+public:
+    CommitSplitCommand(std::size_t index, core::git::commit_t&& first, core::git::commit_t&& second)
+        : m_index(index)
+        , m_split(std::move(first), std::move(second)) { }
+
+    ~CommitSplitCommand() override = default;
+
+    void execute() override;
+    void undo() override;
+
+private:
+    std::size_t m_index;
+    std::pair<core::git::commit_t, core::git::commit_t> m_split;
+    core::git::commit_t m_commit;
 };
 
 }

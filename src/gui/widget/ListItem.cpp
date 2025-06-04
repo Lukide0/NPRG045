@@ -1,5 +1,6 @@
 #include "gui/widget/ListItem.h"
 #include "action/Action.h"
+#include "App.h"
 #include "core/git/parser.h"
 #include "core/state/CommandHistory.h"
 #include "gui/widget/RebaseViewWidget.h"
@@ -61,7 +62,7 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
         m_action.set_type(curr_type);
 
         core::state::CommandHistory::Add(
-            std::make_unique<ListItemChangedCommand>(m_rebase, m_parent, m_row, prev_type, curr_type)
+            std::make_unique<ListItemChangedCommand>(m_parent, m_row, prev_type, curr_type)
         );
     });
 }
@@ -77,37 +78,37 @@ void ListItemMoveCommand::execute() { move(m_prev, m_curr); }
 void ListItemMoveCommand::undo() { move(m_curr, m_prev); }
 
 void ListItemMoveCommand::move(int from, int to) {
-    auto* tmp_item = m_parent->item(from);
-    auto* widget   = m_parent->itemWidget(tmp_item);
 
-    auto* item = m_parent->takeItem(from);
+    auto* model = m_parent->model();
 
-    assert(widget != nullptr);
+    if (from <= to) {
+        to += 1;
+    }
 
-    m_parent->insertItem(to, item);
-    m_parent->setItemWidget(item, widget);
+    m_rebase->ignoreMoveSignal(true);
+
+    model->moveRow(QModelIndex(), from, QModelIndex(), to);
+
+    m_rebase->ignoreMoveSignal(false);
 
     m_rebase->moveAction(from, to);
     m_rebase->updateGraph();
 }
 
-ListItemChangedCommand::ListItemChangedCommand(
-    RebaseViewWidget* rebase, QListWidget* parent, int row, ActionType prev, ActionType curr
-)
-    : m_rebase(rebase)
-    , m_parent(parent)
+ListItemChangedCommand::ListItemChangedCommand(QListWidget* parent, int row, ActionType prev, ActionType curr)
+    : m_parent(parent)
     , m_row(row)
     , m_prev(prev)
     , m_curr(curr) { }
 
 void ListItemChangedCommand::execute() {
     set_type(m_curr);
-    m_rebase->updateGraph();
+    App::updateGraph();
 }
 
 void ListItemChangedCommand::undo() {
     set_type(m_prev);
-    m_rebase->updateGraph();
+    App::updateGraph();
 }
 
 void ListItemChangedCommand::set_type(ActionType type) {

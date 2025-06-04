@@ -145,16 +145,13 @@ private:
 
 class ListItemChangedCommand : public core::state::Command {
 public:
-    ListItemChangedCommand(
-        RebaseViewWidget* rebase, QListWidget* parent, int row, action::ActionType prev, action::ActionType curr
-    );
+    ListItemChangedCommand(QListWidget* parent, int row, action::ActionType prev, action::ActionType curr);
     ~ListItemChangedCommand() override = default;
 
     void execute() override;
     void undo() override;
 
 private:
-    RebaseViewWidget* m_rebase;
     QListWidget* m_parent;
     int m_row;
     action::ActionType m_prev;

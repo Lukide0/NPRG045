@@ -139,7 +139,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
             assert(source_row == _end);
             assert(source == _destination);
 
-            if (source_row == destination_row) {
+            if (source_row == destination_row || m_ignore_move) {
                 return;
             }
 

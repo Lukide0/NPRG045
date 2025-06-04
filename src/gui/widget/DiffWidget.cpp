@@ -6,6 +6,7 @@
 #include "core/git/types.h"
 #include "core/patch/PatchSplitter.h"
 #include "core/patch/split.h"
+#include "core/state/CommandHistory.h"
 #include "core/utils/todo.h"
 #include "gui/clear_layout.h"
 #include "gui/color.h"
@@ -15,6 +16,7 @@
 
 #include <cstddef>
 #include <format>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -319,10 +321,29 @@ void DiffWidget::splitCommitEvent() {
         return;
     }
 
-    auto& manager = action::ActionsManager::get();
+    std::size_t index = action::ActionsManager::get().get_index(m_action);
 
-    // split actions
-    manager.split(m_action, std::move(first_commit), std::move(second_commit));
+    auto cmd = std::make_unique<CommitSplitCommand>(index, std::move(first_commit), std::move(second_commit));
+    cmd->execute();
+
+    core::state::CommandHistory::Add(std::move(cmd));
+}
+
+void CommitSplitCommand::execute() {
+
+    auto& manager = action::ActionsManager::get();
+    auto* act     = manager.get_action(m_index);
+
+    m_commit = manager.split(act, std::move(m_split.first), std::move(m_split.second));
+
+    App::updateActions();
+}
+
+void CommitSplitCommand::undo() {
+    auto& manager = action::ActionsManager::get();
+    auto* act     = manager.get_action(m_index);
+
+    m_split = manager.merge_next(act, std::move(m_commit));
 
     App::updateActions();
 }

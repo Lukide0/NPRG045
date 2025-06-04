@@ -55,6 +55,8 @@ public:
 
     const auto& getActionsManager() const { return m_actions; }
 
+    void ignoreMoveSignal(bool enable) { m_ignore_move = enable; }
+
 private:
     QHBoxLayout* m_layout;
     // Contains: actions and graphs
@@ -83,6 +85,8 @@ private:
 
     ListItem* m_last_item = nullptr;
     Node* m_root_node;
+
+    bool m_ignore_move = false;
 
     std::optional<std::string> prepareItem(ListItem* item, action::Action& action);
 
