@@ -39,6 +39,7 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QListWidgetItem>
+#include <QMessageBox>
 #include <qnamespace.h>
 #include <QObject>
 #include <QPalette>
@@ -152,8 +153,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
             this->moveAction(source_row, destination_row);
 
-            // TODO: update only graphs not lists
-            this->updateActions();
+            this->updateGraph();
 
             this->m_commit_view->update(nullptr);
         }
@@ -269,17 +269,10 @@ std::optional<std::string> RebaseViewWidget::update(
 }
 
 std::optional<std::string> RebaseViewWidget::prepareActions() {
-    m_new_commits_graph->clear();
+
+    prepareGraph();
+
     m_list_actions->clear();
-    m_last_item = nullptr;
-
-    auto* last      = m_new_commits_graph->addNode(0);
-    auto& last_node = m_graph.first_node();
-    m_root_node     = last_node.data;
-
-    last->setCommit(last_node.commit);
-
-    m_last_new_commit = last;
 
     auto* list = m_list_actions->getList();
     for (auto& action : m_actions) {
@@ -299,8 +292,10 @@ std::optional<std::string> RebaseViewWidget::prepareActions() {
     return std::nullopt;
 }
 
-void RebaseViewWidget::updateActions() {
+void RebaseViewWidget::prepareGraph() {
     m_last_item = nullptr;
+
+    m_new_commits_graph->clear();
 
     auto* last      = m_new_commits_graph->addNode(0);
     auto& last_node = m_graph.first_node();
@@ -310,8 +305,84 @@ void RebaseViewWidget::updateActions() {
 
     m_last_new_commit = last;
     m_commit_view->update();
+}
 
-    prepareActions();
+void RebaseViewWidget::updateActions() {
+    auto opt = prepareActions();
+
+    if (opt.has_value()) {
+        QMessageBox::critical(this, "Operation Error", opt.value().c_str());
+
+        // TODO: Rollback
+        return;
+    }
+}
+
+void RebaseViewWidget::updateGraph() {
+    prepareGraph();
+
+    m_commit_view->update();
+
+    auto* list = m_list_actions->getList();
+
+    for (std::int32_t i = 0; i < list->count(); ++i) {
+        auto* raw_item = list->itemWidget(list->item(i));
+        auto* item     = dynamic_cast<ListItem*>(raw_item);
+        assert(item != nullptr);
+
+        item->clearConnections();
+
+        Action& act = item->getCommitAction();
+
+        switch (act.get_type()) {
+        case ActionType::DROP: {
+            item->setItemColor(convert_to_color(ColorType::DELETION));
+            Node* old = findOldCommit(act.get_oid());
+            if (old != nullptr) {
+                item->addConnection(old);
+                item->setNode(old);
+            }
+            break;
+        }
+        case ActionType::FIXUP:
+        case ActionType::SQUASH: {
+            item->setItemColor(convert_to_color(ColorType::INFO));
+
+            Node* old = findOldCommit(act.get_oid());
+            if (old != nullptr) {
+                item->addConnection(old);
+                updateNode(m_last_new_commit, m_last_new_commit, old);
+            }
+
+            item->addConnection(m_last_new_commit);
+            item->setNode(m_last_new_commit);
+            break;
+        }
+
+        case ActionType::PICK:
+        case ActionType::REWORD:
+        case ActionType::EDIT: {
+            Node* old = findOldCommit(act.get_oid());
+            if (old != nullptr) {
+                item->addConnection(old);
+            }
+            item->setItemColor(convert_to_color(ColorType::ADDITION));
+
+            Node* new_node = m_new_commits_graph->addNode();
+            new_node->setCommit(act.get_commit());
+            new_node->setParentNode(m_last_new_commit);
+            new_node->setAction(&act);
+
+            item->addConnection(new_node);
+            item->setNode(new_node);
+
+            updateNode(new_node, m_last_new_commit, new_node);
+
+            m_last_new_commit = new_node;
+            break;
+        }
+        }
+    }
 }
 
 Node* RebaseViewWidget::findOldCommit(const git_oid& oid) {
@@ -410,8 +481,7 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
 
     connect(combo, &QComboBox::currentIndexChanged, this, [&](int index) {
         assert(index != -1);
-        // TODO: update only new graph
-        updateActions();
+        updateGraph();
     });
 
     return std::nullopt;

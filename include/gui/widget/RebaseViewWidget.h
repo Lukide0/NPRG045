@@ -39,6 +39,8 @@ public:
         const std::string& onto,
         const std::vector<core::git::CommitAction>& actions
     );
+    void updateGraph();
+
     void updateActions();
 
     void hideOldCommits() { m_old_commits_graph->hide(); }
@@ -91,6 +93,8 @@ private:
     void updateNode(Node* node, Node* current, Node* changes);
 
     void showCommit(Node* prev, Node* next);
+
+    void prepareGraph();
 };
 
 }

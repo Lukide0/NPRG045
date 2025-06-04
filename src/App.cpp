@@ -39,7 +39,9 @@
 
 static App* g_app = nullptr;
 
-void App::refresh() { g_app->m_rebase_view->updateActions(); }
+void App::updateGraph() { g_app->m_rebase_view->updateGraph(); }
+
+void App::updateActions() { g_app->m_rebase_view->updateActions(); }
 
 gui::widget::RebaseViewWidget* App::getRebaseViewWidget() { return g_app->m_rebase_view; }
 

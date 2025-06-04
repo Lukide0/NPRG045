@@ -35,7 +35,8 @@ public:
         git_libgit2_shutdown();
     }
 
-    static void refresh();
+    static void updateGraph();
+    static void updateActions();
     static gui::widget::RebaseViewWidget* getRebaseViewWidget();
 
 private:

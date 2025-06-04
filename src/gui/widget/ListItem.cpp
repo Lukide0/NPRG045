@@ -88,7 +88,7 @@ void ListItemMoveCommand::move(int from, int to) {
     m_parent->setItemWidget(item, widget);
 
     m_rebase->moveAction(from, to);
-    m_rebase->updateActions();
+    m_rebase->updateGraph();
 }
 
 ListItemChangedCommand::ListItemChangedCommand(
@@ -102,12 +102,12 @@ ListItemChangedCommand::ListItemChangedCommand(
 
 void ListItemChangedCommand::execute() {
     set_type(m_curr);
-    m_rebase->updateActions();
+    m_rebase->updateGraph();
 }
 
 void ListItemChangedCommand::undo() {
     set_type(m_prev);
-    m_rebase->updateActions();
+    m_rebase->updateGraph();
 }
 
 void ListItemChangedCommand::set_type(ActionType type) {

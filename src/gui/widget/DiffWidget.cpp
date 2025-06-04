@@ -324,7 +324,7 @@ void DiffWidget::splitCommitEvent() {
     // split actions
     manager.split(m_action, std::move(first_commit), std::move(second_commit));
 
-    App::refresh();
+    App::updateActions();
 }
 
 }

@@ -50,6 +50,8 @@ public:
 
     [[nodiscard]] const action::Action& getCommitAction() const { return m_action; }
 
+    [[nodiscard]] action::Action& getCommitAction() { return m_action; }
+
     void setNode(Node* node) { m_node = node; }
 
     void setText(const QString& text) { m_text->setText(text); }
@@ -57,6 +59,8 @@ public:
     Node* getNode() { return m_node; }
 
     void addConnection(Node* item) { m_connected.push_back(item); }
+
+    void clearConnections() { m_connected.clear(); }
 
     void setItemColor(QColor color) {
         auto p = palette();
