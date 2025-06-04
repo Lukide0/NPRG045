@@ -129,13 +129,6 @@ void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
     if (m_context_menu) {
         auto cursor = textCursor();
 
-        menu->addSection("Hunk");
-        QAction* select_hunk   = menu->addAction("Select hunk");
-        QAction* deselect_hunk = menu->addAction("Deselect hunk");
-
-        connect(select_hunk, &QAction::triggered, this, [this]() { this->selectHunk(SelectionType::SELECT); });
-        connect(deselect_hunk, &QAction::triggered, this, [this]() { this->selectHunk(SelectionType::DESELECT); });
-
         if (cursor.hasSelection()) {
             menu->addSection("Lines");
             QAction* select_lines   = menu->addAction("Select lines");
@@ -153,6 +146,14 @@ void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
             connect(select_line, &QAction::triggered, this, [this]() { this->selectLine(SelectionType::SELECT); });
             connect(deselect_line, &QAction::triggered, this, [this]() { this->selectLine(SelectionType::DESELECT); });
         }
+
+        menu->addSection("Hunk");
+        QAction* select_hunk   = menu->addAction("Select hunk");
+        QAction* deselect_hunk = menu->addAction("Deselect hunk");
+
+        connect(select_hunk, &QAction::triggered, this, [this]() { this->selectHunk(SelectionType::SELECT); });
+        connect(deselect_hunk, &QAction::triggered, this, [this]() { this->selectHunk(SelectionType::DESELECT); });
+
         emit extendContextMenu(menu);
     }
 
