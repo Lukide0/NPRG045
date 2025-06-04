@@ -1,5 +1,6 @@
 #include "core/patch/split.h"
 #include "action/Action.h"
+#include "action/ActionManager.h"
 #include "core/git/types.h"
 
 #include <git2/apply.h>
@@ -59,10 +60,8 @@ bool split(git::commit_t& out_first, git::commit_t& out_second, Action* act, git
     auto* commit = act->get_commit();
     auto* repo   = git_commit_owner(commit);
 
-    Action* parent_act = act->get_prev();
-    assert(parent_act != nullptr);
-
-    auto* parent_commit = parent_act->get_commit();
+    git_commit* parent_commit = action::ActionsManager::get_parent_commit(act);
+    assert(parent_commit != nullptr);
 
     git::tree_t patch_tree;
     git_oid patch_commit_oid;

@@ -302,6 +302,7 @@ void RebaseViewWidget::prepareGraph() {
     m_root_node     = last_node.data;
 
     last->setCommit(last_node.commit);
+    m_actions.set_root_commit(last_node.commit);
 
     m_last_new_commit = last;
     m_commit_view->update();

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <git2/oid.h>
+#include <git2/types.h>
 
 namespace action {
 
@@ -203,9 +204,26 @@ public:
 
     [[nodiscard]] const_iterator_t cend() const { return { nullptr }; }
 
+    git_commit* get_root_commit() { return m_root_commit; }
+
+    void set_root_commit(git_commit* commit) { m_root_commit = commit; }
+
     static ActionsManager& get() {
         static ActionsManager manager;
         return manager;
+    }
+
+    static git_commit* get_parent_commit(Action* act) {
+        if (act == nullptr) {
+            return nullptr;
+        }
+
+        auto* parent = act->get_prev();
+        if (parent == nullptr) {
+            return get().get_root_commit();
+        } else {
+            return parent->get_commit();
+        }
     }
 
 private:
@@ -213,6 +231,8 @@ private:
     Action* m_tail = nullptr;
 
     std::vector<std::string> m_msg;
+
+    git_commit* m_root_commit = nullptr;
 
     Action* get_action(std::uint32_t count) {
         auto* act = m_head;
