@@ -2,10 +2,13 @@
 
 #include "action/Action.h"
 #include "action/ActionManager.h"
+#include "core/conflict/conflict.h"
+#include "core/conflict/conflict_iterator.h"
 #include "core/git/GitGraph.h"
 #include "core/git/parser.h"
 #include "core/git/types.h"
 #include "core/state/CommandHistory.h"
+#include "core/utils/debug.h"
 #include "core/utils/todo.h"
 #include "gui/color.h"
 #include "gui/widget/CommitViewWidget.h"
@@ -19,6 +22,8 @@
 #include <cassert>
 #include <cstdint>
 #include <ctime>
+#include <format>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <span>
@@ -28,6 +33,7 @@
 
 #include <git2/cherrypick.h>
 #include <git2/commit.h>
+#include <git2/errors.h>
 #include <git2/index.h>
 #include <git2/merge.h>
 #include <git2/oid.h>
@@ -338,10 +344,11 @@ void RebaseViewWidget::updateGraph() {
         switch (act.get_type()) {
         case ActionType::DROP: {
             item->setItemColor(convert_to_color(ColorType::DELETION));
+            item->setNode(m_last_new_commit);
+
             Node* old = findOldCommit(act.get_oid());
             if (old != nullptr) {
                 item->addConnection(old);
-                item->setNode(old);
             }
             break;
         }
@@ -396,18 +403,48 @@ Node* RebaseViewWidget::findOldCommit(const git_oid& oid) {
     return m_old_commits_graph->find([&](const Node* node) { return git_oid_equal(node->getCommitId(), &oid) != 0; });
 }
 
-void RebaseViewWidget::updateNode(Node* node, Node* current, Node* changes) {
-    auto* current_commit = current->getCommit();
-    auto* changes_commit = changes->getCommit();
+void RebaseViewWidget::updateNode(Node* node, Node* parent, Node* current) {
+    using core::conflict::ConflictStatus;
+    using core::git::index_t;
 
-    core::git::index_t index;
+    auto* parent_commit = parent->getCommit();
+    auto* commit        = current->getCommit();
 
-    if (git_cherrypick_commit(&index, m_repo, changes_commit, current_commit, 0, nullptr) != 0) {
+    auto&& [status, conflict] = core::conflict::cherrypick_check(commit, parent_commit);
+
+    switch (status) {
+    case ConflictStatus::ERR:
+        core::utils::print_last_error();
         return;
+    case ConflictStatus::NO_CONFLICT:
+        return;
+    case ConflictStatus::HAS_CONFLICT:
+        node->setConflict(true);
+        break;
     }
 
-    if (git_index_has_conflicts(index) != 0) {
-        node->setConflict(true);
+    std::cout << std::format(
+        "Conflict: '{}' <-> '{}'\n", core::git::format_commit(parent_commit), core::git::format_commit(commit)
+    );
+
+    bool res = core::conflict::iterate(conflict, [&](core::conflict::entry_data_t entry) -> bool {
+        core::git::merge_file_result_t result;
+        if (git_merge_file_from_index(&result, m_repo, entry.ancestor, entry.our, entry.their, nullptr) != 0) {
+            core::utils::print_last_error();
+            return true;
+        }
+
+        const auto& merge = result.get();
+
+        std::cout << std::format(
+            "Auto merge: {}\nPath: {}\nContent:\n{}\n", merge.automergeable != 0, merge.path, merge.ptr
+        );
+
+        return true;
+    });
+
+    if (!res) {
+        core::utils::print_last_error();
     }
 }
 
@@ -422,9 +459,10 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
         item->setItemColor(convert_to_color(ColorType::DELETION));
 
         Node* old = findOldCommit(action.get_oid());
+        item->setNode(m_last_new_commit);
+
         if (old != nullptr) {
             item->addConnection(old);
-            item->setNode(old);
             item_text += git_commit_summary(old->getCommit());
         } else {
             item_text += git_commit_summary(action.get_commit());
@@ -487,5 +525,4 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
 
     return std::nullopt;
 }
-
 }

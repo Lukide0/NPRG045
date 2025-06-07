@@ -4,6 +4,8 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <git2/buffer.h>
+#include <git2/merge.h>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -24,21 +26,21 @@ namespace core::git {
 
 template <typename T> using destructor_t = void (*)(T*);
 
-template <typename T, destructor_t<T> Destructor> class object_t {
+template <typename T, destructor_t<T> Destructor> class ptr_object_t {
 public:
-    object_t() = default;
+    ptr_object_t() = default;
 
-    object_t(object_t&& other)
+    ptr_object_t(ptr_object_t&& other)
         : m_obj(other.m_obj) {
         other.m_obj = nullptr;
     }
 
-    object_t& operator=(object_t&& other) {
+    ptr_object_t& operator=(ptr_object_t&& other) {
         std::swap(m_obj, other.m_obj);
         return *this;
     }
 
-    object_t& operator=(T* object) {
+    ptr_object_t& operator=(T* object) {
         if (m_obj != nullptr) {
             Destructor(m_obj);
         }
@@ -47,7 +49,7 @@ public:
         return *this;
     }
 
-    ~object_t() { Destructor(m_obj); }
+    ~ptr_object_t() { Destructor(m_obj); }
 
     operator T*() { return m_obj; }
 
@@ -71,13 +73,40 @@ private:
     T* m_obj = nullptr;
 };
 
-using commit_t    = object_t<git_commit, git_commit_free>;
-using index_t     = object_t<git_index, git_index_free>;
-using tree_t      = object_t<git_tree, git_tree_free>;
-using signature_t = object_t<git_signature, git_signature_free>;
-using reference_t = object_t<git_reference, git_reference_free>;
-using diff_t      = object_t<git_diff, git_diff_free>;
-using patch_t     = object_t<git_patch, git_patch_free>;
+template <typename T, destructor_t<T> Destructor> class object_t {
+public:
+    object_t() = default;
+
+    object_t(object_t&& other) { std::swap(other.m_obj); }
+
+    object_t& operator=(object_t&& other) {
+        std::swap(m_obj, other.m_obj);
+        return *this;
+    }
+
+    ~object_t() { Destructor(&m_obj); }
+
+    T* operator&() { return &m_obj; }
+
+    T& get() { return m_obj; }
+
+    const T& get() const { return m_obj; }
+
+private:
+    T m_obj;
+};
+
+using commit_t            = ptr_object_t<git_commit, git_commit_free>;
+using index_t             = ptr_object_t<git_index, git_index_free>;
+using tree_t              = ptr_object_t<git_tree, git_tree_free>;
+using signature_t         = ptr_object_t<git_signature, git_signature_free>;
+using reference_t         = ptr_object_t<git_reference, git_reference_free>;
+using diff_t              = ptr_object_t<git_diff, git_diff_free>;
+using patch_t             = ptr_object_t<git_patch, git_patch_free>;
+using conflict_iterator_t = ptr_object_t<git_index_conflict_iterator, git_index_conflict_iterator_free>;
+
+using buffer_t            = object_t<git_buf, git_buf_dispose>;
+using merge_file_result_t = object_t<git_merge_file_result, git_merge_file_result_free>;
 
 struct commit_parents_t {
     git_commit** parents = nullptr;

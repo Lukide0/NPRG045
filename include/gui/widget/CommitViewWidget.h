@@ -34,10 +34,10 @@ public:
 
         } else {
             m_action = node->getAction();
-            m_commit = node->getCommit();
-            if (auto* parent = node->getParentNode()) {
-                m_parent_commit = parent->getCommit();
-            }
+            assert(m_action != nullptr);
+
+            m_commit        = m_action->get_commit();
+            m_parent_commit = action::ActionsManager::get_parent_commit(m_action);
         }
 
         update_widget();
