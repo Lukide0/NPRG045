@@ -2,6 +2,7 @@
 #include "action/Action.h"
 #include "action/ActionManager.h"
 #include "core/git/types.h"
+#include "logging/Log.h"
 
 #include <git2/apply.h>
 #include <git2/commit.h>
@@ -31,25 +32,26 @@ bool create_copy_commit(
 ) {
     git::tree_t tree;
     if (git_commit_tree(&tree, parent) != 0) {
-        assert(false);
+        LOG_ERROR("Failed to find commit tree");
         return false;
     }
 
     git::index_t index;
     if (git_apply_to_tree(&index, repo, tree, diff, nullptr) != 0) {
-        assert(false);
+        LOG_ERROR("Failed to apply diff");
         return false;
     }
+
     assert(git_index_has_conflicts(index) == 0);
 
     git_oid tree_oid;
     if (git_index_write_tree_to(&tree_oid, index, repo) != 0) {
-        assert(false);
+        LOG_ERROR("Failed to write tree");
         return false;
     }
 
     if (git_tree_lookup(&out_tree, repo, &tree_oid) != 0) {
-        assert(false);
+        LOG_ERROR("Created tree object not found in repository");
         return false;
     }
 
@@ -68,30 +70,30 @@ bool split(git::commit_t& out_first, git::commit_t& out_second, Action* act, git
 
     git::tree_t commit_tree;
     if (git_commit_tree(&commit_tree, commit) != 0) {
-        assert(false);
+        LOG_ERROR("Failed to find commit tree");
         return false;
     }
 
     // 1. Create commit only from patch
     if (!create_copy_commit(&patch_commit_oid, patch_tree, commit, parent_commit, patch, repo)) {
-        assert(false);
+        LOG_ERROR("Failed to create commit");
         return false;
     }
 
     if (git_commit_lookup(&out_first, repo, &patch_commit_oid) != 0) {
-        assert(false);
+        LOG_ERROR("Failed to find commit");
         return false;
     }
 
     git_oid delta_commit_oid;
     // 3. Create commit
     if (!create_copy_commit(&delta_commit_oid, commit, out_first, commit_tree, repo)) {
-        assert(false);
+        LOG_ERROR("Failed to create copy commit");
         return false;
     }
 
     if (git_commit_lookup(&out_second, repo, &delta_commit_oid) != 0) {
-        assert(false);
+        LOG_ERROR("Failed to find commit");
         return false;
     }
 

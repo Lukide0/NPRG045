@@ -35,6 +35,8 @@ public:
         git_libgit2_shutdown();
     }
 
+    void openRepoCLI(const std::string& todo_file);
+
     static void updateGraph();
     static void updateActions();
     static gui::widget::RebaseViewWidget* getRebaseViewWidget();
@@ -54,7 +56,6 @@ private:
     bool showRebase();
     void hideOldCommits(bool state);
     void hideResultCommits(bool state);
-    void openRepoCLI(const std::string& todo_file);
 
     void loadSaveFile();
     void saveSaveFile();

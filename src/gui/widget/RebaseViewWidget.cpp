@@ -18,12 +18,10 @@
 #include "gui/widget/LineSplitter.h"
 #include "gui/widget/ListItem.h"
 #include "gui/widget/NamedListWidget.h"
+#include "logging/Log.h"
 
 #include <cassert>
 #include <cstdint>
-#include <ctime>
-#include <format>
-#include <iostream>
 #include <memory>
 #include <optional>
 #include <span>
@@ -173,6 +171,8 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
 void RebaseViewWidget::moveAction(int from, int to) {
     assert(from >= 0 && to >= 0 && from != to);
+
+    LOG_INFO("Moving action: from {} to {}", from, to);
 
     m_actions.move(from, to);
 }
@@ -362,6 +362,7 @@ void RebaseViewWidget::prepareGraph() {
 }
 
 void RebaseViewWidget::updateActions() {
+    LOG_INFO("Updating actions");
     auto opt = prepareActions();
 
     if (opt.has_value()) {
@@ -373,6 +374,7 @@ void RebaseViewWidget::updateActions() {
 }
 
 void RebaseViewWidget::updateGraph() {
+    LOG_INFO("Updating old graph");
     prepareGraph();
 
     m_commit_view->update();
@@ -470,9 +472,9 @@ void RebaseViewWidget::updateNode(Node* node, Node* parent, Node* current) {
         break;
     }
 
-    std::cout << std::format(
-        "Conflict: '{}' <-> '{}'\n", core::git::format_commit(parent_commit), core::git::format_commit(commit)
-    );
+    // std::cout << std::format(
+    //     "Conflict: '{}' <-> '{}'\n", core::git::format_commit(parent_commit), core::git::format_commit(commit)
+    // );
 
     bool res = core::conflict::iterate(conflict, [&](core::conflict::entry_data_t entry) -> bool {
         core::git::merge_file_result_t result;
@@ -481,11 +483,11 @@ void RebaseViewWidget::updateNode(Node* node, Node* parent, Node* current) {
             return true;
         }
 
-        const auto& merge = result.get();
-
-        std::cout << std::format(
-            "Auto merge: {}\nPath: {}\nContent:\n{}\n", merge.automergeable != 0, merge.path, merge.ptr
-        );
+        // const auto& merge = result.get();
+        //
+        // std::cout << std::format(
+        //     "Auto merge: {}\nPath: {}\nContent:\n{}\n", merge.automergeable != 0, merge.path, merge.ptr
+        // );
 
         return true;
     });

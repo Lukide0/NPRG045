@@ -13,6 +13,7 @@
 #include "gui/widget/DiffEditor.h"
 #include "gui/widget/DiffEditorLine.h"
 #include "gui/widget/DiffFile.h"
+#include "logging/Log.h"
 
 #include <cstddef>
 #include <format>
@@ -333,6 +334,8 @@ void DiffWidget::splitCommitEvent() {
 
 void CommitSplitCommand::execute() {
 
+    LOG_INFO("Splitting commit");
+
     auto& manager = action::ActionsManager::get();
     auto* act     = manager.get_action(m_index);
 
@@ -342,6 +345,8 @@ void CommitSplitCommand::execute() {
 }
 
 void CommitSplitCommand::undo() {
+
+    LOG_INFO("Reverting the commit split operation");
     auto& manager = action::ActionsManager::get();
     auto* act     = manager.get_action(m_index);
 

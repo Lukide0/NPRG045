@@ -7,13 +7,12 @@
 #include "core/state/State.h"
 #include "core/utils/optional_uint.h"
 #include "gui/widget/RebaseViewWidget.h"
+#include "logging/Log.h"
 
 #include <cassert>
-#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <string>
 
 #include <git2.h>
@@ -148,15 +147,6 @@ App::App() {
 
     m_rebase_view->hide();
     m_rebase_view->hideOldCommits();
-
-    auto args = QApplication::arguments();
-    args.removeFirst(); // program path
-
-    if (!args.empty()) {
-        // NOTE: Disable open repo action when opening from command line
-        repo_open->setEnabled(false);
-        openRepoCLI(args.front().toStdString());
-    }
 }
 
 void App::hideOldCommits(bool state) {
@@ -205,6 +195,8 @@ void App::openRepoCLI(const std::string& path) {
 }
 
 bool App::openRepo(const std::string& path) {
+    LOG_INFO("Openning repo '{}'", path);
+
     m_rebase_view->hide();
     core::state::CommandHistory::Clear();
 
@@ -214,6 +206,8 @@ bool App::openRepo(const std::string& path) {
 
         const auto* err = git_error_last();
         QMessageBox::critical(this, "Repo Error", err->message);
+        LOG_ERROR("Failed to open repo: {}", err->message);
+
         return false;
     }
 
@@ -230,6 +224,8 @@ bool App::showRebase() {
 
         if (!head_file.good() || !onto_file.good()) {
             QMessageBox::critical(this, "Rebase Error", "Could not find rebase files");
+            LOG_ERROR("Could not find rebase files");
+
             return false;
         }
 
@@ -242,6 +238,7 @@ bool App::showRebase() {
     auto res = core::git::parse_file(filepath);
     if (!res.err.empty()) {
         QMessageBox::critical(this, "Rebase Error", res.err.c_str());
+        LOG_ERROR("Failed to parse todo file: {}", res.err);
         return false;
     }
 
@@ -284,6 +281,8 @@ void App::saveSaveFile() {
         m_save_file = filepath;
     }
 
+    LOG_INFO("Saving: {}", m_save_file->toStdString());
+
     if (!core::state::State::save(m_save_file.value().toStdU32String(), m_repo_path, m_rebase_head, m_rebase_onto)) {
         QMessageBox::critical(this, "Save error", "Failed to save");
         return;
@@ -299,6 +298,8 @@ void App::loadSaveFile() {
     if (filepath.isEmpty()) {
         return;
     }
+
+    LOG_INFO("Loading: {}", filepath.toStdString());
 
     git_repository* repo;
     auto save_data = core::state::State::load(filepath.toStdU32String(), &repo);
@@ -327,6 +328,8 @@ void App::loadSaveFile() {
 
         manager.append(std::move(act));
     }
+
+    m_rebase_view->show();
 
     auto rebase_res = m_rebase_view->update(m_repo, save_data->head, save_data->onto);
     if (rebase_res.has_value()) {

@@ -4,6 +4,7 @@
 #include "core/git/parser.h"
 #include "core/state/CommandHistory.h"
 #include "gui/widget/RebaseViewWidget.h"
+#include "logging/Log.h"
 
 #include <QBoxLayout>
 #include <QColor>
@@ -58,6 +59,8 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
         if (curr_type == prev_type) {
             return;
         }
+
+        LOG_INFO("Changing action type: from {} to {}", Action::type_to_str(prev_type), Action::type_to_str(curr_type));
 
         m_action.set_type(curr_type);
 

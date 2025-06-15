@@ -3,6 +3,7 @@
 #include "action/Action.h"
 #include "core/state/Command.h"
 #include "gui/widget/graph/Node.h"
+#include "logging/Log.h"
 
 #include <QBoxLayout>
 #include <QColor>
@@ -96,6 +97,12 @@ public:
     }
 
     void setActionType(ActionType type) {
+        LOG_INFO(
+            "Changing action type: from {} to {}",
+            action::Action::type_to_str(m_action.get_type()),
+            action::Action::type_to_str(type)
+        );
+
         m_action.set_type(type);
 
         auto index = indexOf(type);
