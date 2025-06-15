@@ -38,10 +38,8 @@ DiffEditor::DiffEditor(QWidget* parent)
 
     setReadOnly(true);
 
-    auto pal     = palette();
-    QColor color = { 84, 106, 123 };
-
-    pal.setColor(QPalette::Highlight, color);
+    auto pal = palette();
+    pal.setColor(QPalette::Highlight, get_highlight_color());
 
     setPalette(pal);
 }

@@ -55,4 +55,6 @@ char convert_to_symbol(diff_line_t::Type type) {
     UNEXPECTED("Invalid diff line type");
 }
 
+QColor get_highlight_color() { return { 84, 106, 123 }; }
+
 }

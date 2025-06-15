@@ -104,6 +104,11 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_diff_commit_split->setStretchFactor(0, 2);
     m_diff_commit_split->setStretchFactor(1, 0);
 
+    auto palette = m_list_actions->palette();
+    palette.setColor(QPalette::Highlight, get_highlight_color());
+
+    m_list_actions->setPalette(palette);
+
     connect(m_list_actions->getList(), &QListWidget::itemSelectionChanged, this, [this]() {
         if (m_last_item != nullptr) {
             m_last_item->setColorToAll(Qt::white);
