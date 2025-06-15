@@ -4,6 +4,8 @@
 #include "core/git/parser.h"
 #include "core/git/paths.h"
 #include "core/state/CommandHistory.h"
+#include "core/state/State.h"
+#include "core/utils/optional_uint.h"
 #include "gui/widget/RebaseViewWidget.h"
 
 #include <cassert>
@@ -36,6 +38,7 @@
 #include <qnamespace.h>
 #include <QPalette>
 #include <QString>
+#include <utility>
 
 static App* g_app = nullptr;
 
@@ -67,7 +70,7 @@ App::App() {
         repo_open->setStatusTip("Open a repo");
 
         connect(repo_open, &QAction::triggered, this, [this] {
-            if (CommandHistory::CanUndo() || CommandHistory::CanRedo()) {
+            if (CommandHistory::CanUndo()) {
                 auto ans = QMessageBox::question(
                     this,
                     "Unsaved changes",
@@ -99,15 +102,15 @@ App::App() {
         connect(edit_redo, &QAction::triggered, this, [] { CommandHistory::Redo(); });
 
         auto* edit_todo_save = new QAction(QIcon::fromTheme("edit-save"), "Save", this);
-        connect(edit_todo_save, &QAction::triggered, this, [this] {
-            const auto& manager = this->m_rebase_view->getActionsManager();
+        connect(edit_todo_save, &QAction::triggered, this, [this] { saveSaveFile(); });
 
-            action::Converter::actions_to_todo(std::cout, manager.get_actions(), manager);
-        });
+        auto* edit_todo_load = new QAction(QIcon::fromTheme("edit-load"), "Load", this);
+        connect(edit_todo_load, &QAction::triggered, this, [this] { loadSaveFile(); });
 
         edit->addAction(edit_undo);
         edit->addAction(edit_redo);
         edit->addAction(edit_todo_save);
+        edit->addAction(edit_todo_load);
 
         edit_undo->setShortcut(QKeySequence::Undo);
         edit_redo->setShortcut(QKeySequence::Redo);
@@ -220,8 +223,6 @@ bool App::openRepo(const std::string& path) {
 }
 
 bool App::showRebase() {
-    std::string head;
-    std::string onto;
 
     {
         auto head_file = std::ifstream(m_repo_path + '/' + core::git::HEAD_FILE.c_str());
@@ -232,8 +233,8 @@ bool App::showRebase() {
             return false;
         }
 
-        std::getline(head_file, head);
-        std::getline(onto_file, onto);
+        std::getline(head_file, m_rebase_head);
+        std::getline(onto_file, m_rebase_onto);
     }
 
     auto filepath = m_repo_path + '/' + core::git::TODO_FILE.c_str();
@@ -244,7 +245,7 @@ bool App::showRebase() {
         return false;
     }
 
-    auto rebase_res = m_rebase_view->update(m_repo, head, onto, res.actions);
+    auto rebase_res = m_rebase_view->update(m_repo, m_rebase_head, m_rebase_onto, res.actions);
 
     if (rebase_res.has_value()) {
         QMessageBox::critical(this, "Rebase Error", rebase_res.value().c_str());
@@ -254,4 +255,81 @@ bool App::showRebase() {
     m_rebase_view->show();
 
     return true;
+}
+
+void App::saveSaveFile() {
+    if (!m_save_file.has_value()) {
+        QString default_path = QString::fromStdString(m_repo_path);
+
+        QString filter = tr("XML Files (*.xml)");
+
+        QFileDialog dialog(this);
+        dialog.setWindowTitle("Save");
+        dialog.setAcceptMode(QFileDialog::AcceptSave);
+        dialog.setNameFilter("XML Files (*.xml)");
+        dialog.setDirectory(QString::fromStdString(m_repo_path));
+
+        dialog.setDefaultSuffix("xml");
+
+        if (dialog.exec() != QDialog::Accepted) {
+            return;
+        }
+
+        QString filepath = dialog.selectedFiles().first();
+
+        if (filepath.isEmpty()) {
+            return;
+        }
+
+        m_save_file = filepath;
+    }
+
+    if (!core::state::State::save(m_save_file.value().toStdU32String(), m_repo_path, m_rebase_head, m_rebase_onto)) {
+        QMessageBox::critical(this, "Save error", "Failed to save");
+        return;
+    }
+}
+
+void App::loadSaveFile() {
+    QString filter = "XML Files (*.xml)";
+    QString dir    = m_save_file.value_or(QString::fromStdString(m_repo_path));
+
+    QString filepath = QFileDialog::getOpenFileName(this, "Load", dir, filter, nullptr);
+
+    if (filepath.isEmpty()) {
+        return;
+    }
+
+    git_repository* repo;
+    auto save_data = core::state::State::load(filepath.toStdU32String(), &repo);
+    if (!save_data.has_value()) {
+        QMessageBox::critical(this, "Load error", "Failed to load save file");
+        return;
+    }
+
+    if (m_repo != repo) {
+        git_repository_free(m_repo);
+    }
+
+    m_save_file = filepath;
+    m_repo      = repo;
+
+    m_rebase_head = save_data->head;
+    m_rebase_onto = save_data->onto;
+
+    auto& manager = action::ActionsManager::get();
+    manager.clear();
+
+    for (auto&& [act, msg] : save_data->actions) {
+        if (!msg.empty()) {
+            act.set_msg_id(optional_u31::some(manager.add_msg(msg)));
+        }
+
+        manager.append(std::move(act));
+    }
+
+    auto rebase_res = m_rebase_view->update(m_repo, save_data->head, save_data->onto);
+    if (rebase_res.has_value()) {
+        QMessageBox::critical(this, "Rebase Error", rebase_res.value().c_str());
+    }
 }

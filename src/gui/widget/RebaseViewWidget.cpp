@@ -279,6 +279,48 @@ std::optional<std::string> RebaseViewWidget::update(
     return prepareActions();
 }
 
+std::optional<std::string>
+RebaseViewWidget::update(git_repository* repo, const std::string& head, const std::string& onto) {
+
+    m_old_commits_graph->clear();
+
+    m_repo = repo;
+
+    auto graph_opt = core::git::GitGraph<Node*>::create(head.c_str(), onto.c_str(), repo);
+    if (!graph_opt.has_value()) {
+        return "Could not find commits";
+    }
+
+    m_graph = std::move(graph_opt.value());
+
+    std::uint32_t max_depth = m_graph.max_depth();
+    std::uint32_t max_width = m_graph.max_width();
+
+    // TODO: Implement merge commits
+    assert(max_width == 1);
+
+    Node* parent = nullptr;
+    std::string err_msg;
+    m_graph.reverse_iterate([&](std::uint32_t depth, std::span<core::git::GitNode<Node*>> nodes) {
+        auto y = max_depth - depth;
+
+        for (auto& node : nodes) {
+            auto* commit_node = m_old_commits_graph->addNode(y);
+            commit_node->setCommit(node.commit);
+
+            node.data = commit_node;
+            node.data->setParentNode(parent);
+            parent = commit_node;
+        }
+    });
+
+    if (!err_msg.empty()) {
+        return err_msg;
+    }
+
+    return prepareActions();
+}
+
 std::optional<std::string> RebaseViewWidget::prepareActions() {
 
     prepareGraph();

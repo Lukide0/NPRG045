@@ -41,12 +41,21 @@ public:
 
 private:
     std::string m_repo_path;
+    std::string m_rebase_head;
+    std::string m_rebase_onto;
+
     QHBoxLayout* m_layout;
     gui::widget::RebaseViewWidget* m_rebase_view;
+
     git_repository* m_repo = nullptr;
+
+    std::optional<QString> m_save_file;
 
     bool showRebase();
     void hideOldCommits(bool state);
     void hideResultCommits(bool state);
     void openRepoCLI(const std::string& todo_file);
+
+    void loadSaveFile();
+    void saveSaveFile();
 };

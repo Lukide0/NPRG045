@@ -31,6 +31,8 @@ create_executable(${PROJECT_NAME}
     LIBS
         git2
         ${QT_WIDGETS}
+        ${QT_CORE}
+        ${QT_XML}
 )
 
 # target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address)

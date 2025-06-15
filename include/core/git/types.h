@@ -193,7 +193,7 @@ template <std::uint8_t HashSize = 7> std::array<char, HashSize + 1> format_oid(c
 
 template <std::uint8_t HashSize = 7> std::string format_oid_to_str(const git_oid* oid) {
     auto arr = format_oid<HashSize>(oid);
-    return std::string(arr.begin(), arr.end() - 1);
+    return std::string(arr.begin());
 }
 
 template <std::uint8_t HashSize = 7> std::string format_commit(git_commit* commit) {

@@ -1,1 +1,4 @@
-target_sources(${PROJECT_NAME} PRIVATE CommandHistory.cpp)
+target_sources(${PROJECT_NAME} PRIVATE
+    CommandHistory.cpp
+    State.cpp
+)

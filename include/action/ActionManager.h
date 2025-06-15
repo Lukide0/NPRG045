@@ -212,6 +212,8 @@ public:
         }
 
         m_msg.clear();
+        m_head = nullptr;
+        m_tail = nullptr;
     }
 
     [[nodiscard]] const Action* get_actions() const { return m_head; }

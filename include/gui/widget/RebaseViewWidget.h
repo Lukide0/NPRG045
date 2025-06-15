@@ -39,6 +39,9 @@ public:
         const std::string& onto,
         const std::vector<core::git::CommitAction>& actions
     );
+
+    std::optional<std::string> update(git_repository* repo, const std::string& head, const std::string& onto);
+
     void updateGraph();
 
     void updateActions();
@@ -100,5 +103,4 @@ private:
 
     void prepareGraph();
 };
-
 }
