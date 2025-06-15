@@ -371,6 +371,8 @@ void RebaseViewWidget::updateActions() {
         // TODO: Rollback
         return;
     }
+
+    m_commit_view->update(nullptr);
 }
 
 void RebaseViewWidget::updateGraph() {
