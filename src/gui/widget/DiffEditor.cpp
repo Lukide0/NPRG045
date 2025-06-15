@@ -126,6 +126,8 @@ void DiffEditor::onSelectionChanged() {
 void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
     auto* menu = new QMenu();
 
+    m_context_menu_point = event->globalPos();
+
     if (m_context_menu) {
         auto cursor = textCursor();
 
@@ -157,7 +159,7 @@ void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
         emit extendContextMenu(menu);
     }
 
-    menu->exec(event->globalPos());
+    menu->exec(m_context_menu_point);
 
     delete menu;
 
@@ -177,8 +179,9 @@ void DiffEditor::processLines(std::function<void(const DiffEditorLineData&)> pro
 }
 
 void DiffEditor::selectLine(SelectionType type) {
-    QTextCursor cursor = textCursor();
-    cursor.clearSelection();
+
+    auto viewport_pos  = viewport()->mapFromGlobal(m_context_menu_point);
+    QTextCursor cursor = cursorForPosition(viewport_pos);
 
     auto block = cursor.block();
 

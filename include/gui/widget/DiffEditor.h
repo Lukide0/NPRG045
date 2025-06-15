@@ -56,6 +56,8 @@ private:
     DiffEditorLine* m_line;
     bool m_context_menu          = false;
     std::size_t m_highlight_size = 0;
+
+    QPoint m_context_menu_point;
 };
 
 }

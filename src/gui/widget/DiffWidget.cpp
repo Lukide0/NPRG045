@@ -228,8 +228,10 @@ void DiffWidget::addHunkDiff(const diff_hunk_t& hunk, std::vector<section_t>& se
 }
 
 void DiffWidget::addLineDiff(const diff_hunk_t& hunk, const diff_line_t& line, std::vector<section_t>& sections) {
+    std::string new_content = line.content;
+    new_content             = ' ' + new_content;
 
-    m_curr_editor->appendPlainText(line.content.c_str());
+    m_curr_editor->appendPlainText(QString::fromStdString(new_content));
 
     auto* document = m_curr_editor->document();
 
