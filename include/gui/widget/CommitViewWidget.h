@@ -34,10 +34,19 @@ public:
 
         } else {
             m_action = node->getAction();
-            assert(m_action != nullptr);
 
-            m_commit        = m_action->get_commit();
-            m_parent_commit = action::ActionsManager::get_parent_commit(m_action);
+            if (m_action == nullptr) {
+                m_commit = node->getCommit();
+
+                auto* parent_node = node->getParentNode();
+                if (parent_node != nullptr) {
+                    m_parent_commit = parent_node->getCommit();
+                }
+            } else {
+
+                m_commit        = m_action->get_commit();
+                m_parent_commit = action::ActionsManager::get_parent_commit(m_action);
+            }
         }
 
         update_widget();
