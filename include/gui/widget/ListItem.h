@@ -117,6 +117,9 @@ public:
         m_combo->blockSignals(false);
     }
 
+protected:
+    void keyPressEvent(QKeyEvent* event) override;
+
 private:
     Node* m_node = nullptr;
     std::vector<Node*> m_connected;

@@ -28,6 +28,8 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
     , m_parent(list)
     , m_row(row) {
 
+    setFocusPolicy(Qt::FocusPolicy::StrongFocus);
+
     m_combo = new QComboBox();
 
     for (auto&& item : items) {
@@ -68,6 +70,18 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
             std::make_unique<ListItemChangedCommand>(m_parent, m_row, prev_type, curr_type)
         );
     });
+}
+
+void ListItem::keyPressEvent(QKeyEvent* event) {
+    auto key = event->key();
+
+    if (key == Qt::Key_Enter || key == Qt::Key_Return) {
+        m_combo->showPopup();
+        event->accept();
+        return;
+    }
+
+    QWidget::keyPressEvent(event);
 }
 
 ListItemMoveCommand::ListItemMoveCommand(RebaseViewWidget* rebase, QListWidget* parent, int prev_row, int curr_row)
