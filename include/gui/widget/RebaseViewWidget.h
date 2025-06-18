@@ -75,7 +75,7 @@ private:
     GraphWidget* m_old_commits_graph;
     GraphWidget* m_new_commits_graph;
 
-    NamedListWidget* m_list_actions;
+    QListWidget* m_list_actions;
 
     CommitViewWidget* m_commit_view;
     DiffWidget* m_diff_widget;

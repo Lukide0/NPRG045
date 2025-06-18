@@ -76,7 +76,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
     m_layout->addWidget(m_horizontal_split);
 
-    m_list_actions = new NamedListWidget("Actions");
+    m_list_actions = new QListWidget();
     m_graphs_split = new LineSplitter(Qt::Orientation::Horizontal);
 
     //-- LEFT LAYOUT --------------------------------------------------------//
@@ -107,12 +107,12 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
     m_list_actions->setPalette(palette);
 
-    connect(m_list_actions->getList(), &QListWidget::itemSelectionChanged, this, [this]() {
+    connect(m_list_actions, &QListWidget::itemSelectionChanged, this, [this]() {
         if (m_last_item != nullptr) {
             m_last_item->setColorToAll(Qt::white);
         }
 
-        QListWidget* list = m_list_actions->getList();
+        QListWidget* list = m_list_actions;
         auto selected     = list->selectedItems();
         if (selected.size() != 1) {
             m_last_item = nullptr;
@@ -121,7 +121,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
         }
 
         QListWidgetItem* item = selected.first();
-        auto* list_item       = dynamic_cast<ListItem*>(m_list_actions->getList()->itemWidget(item));
+        auto* list_item       = dynamic_cast<ListItem*>(list->itemWidget(item));
         if (list_item == nullptr) {
             return;
         }
@@ -136,10 +136,11 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_old_commits_graph->setHandle(handle);
     m_new_commits_graph->setHandle(handle);
 
-    m_list_actions->enableDrag();
+    m_list_actions->setDragEnabled(true);
+    m_list_actions->setDragDropMode(QAbstractItemView::DragDropMode::InternalMove);
 
     connect(
-        m_list_actions->getList()->model(),
+        m_list_actions->model(),
         &QAbstractItemModel::rowsMoved,
         this,
         [this](
@@ -157,7 +158,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
             }
 
             core::state::CommandHistory::Add(
-                std::make_unique<ListItemMoveCommand>(this, m_list_actions->getList(), source_row, destination_row)
+                std::make_unique<ListItemMoveCommand>(this, m_list_actions, source_row, destination_row)
             );
 
             this->moveAction(source_row, destination_row);
@@ -327,7 +328,7 @@ std::optional<std::string> RebaseViewWidget::prepareActions() {
 
     m_list_actions->clear();
 
-    auto* list = m_list_actions->getList();
+    auto* list = m_list_actions;
     for (auto& action : m_actions) {
         auto* action_item = new ListItem(this, list, list->count(), action);
 
@@ -381,7 +382,7 @@ void RebaseViewWidget::updateGraph() {
 
     m_commit_view->update();
 
-    auto* list = m_list_actions->getList();
+    auto* list = m_list_actions;
 
     for (std::int32_t i = 0; i < list->count(); ++i) {
         auto* raw_item = list->itemWidget(list->item(i));
