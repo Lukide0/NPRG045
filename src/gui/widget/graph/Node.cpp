@@ -20,11 +20,11 @@
 
 namespace gui::widget {
 
-QRectF Node::boundingRect() const { return { 0, 0, 300, 20 }; }
+QRectF Node::boundingRect() const { return { 0, 0, m_width, HEIGHT }; }
 
 QPainterPath Node::shape() const {
     QPainterPath path;
-    path.addRect(0, 0, 300, 20);
+    path.addRect(0, 0, m_width, HEIGHT);
     return path;
 }
 
@@ -35,11 +35,16 @@ void Node::setFill(const QColor& color) {
 
 void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, QWidget* /*widget*/) {
 
+    constexpr auto CONFLICT_SIZE  = static_cast<int>((HEIGHT / 2.0) * 0.75);
+    constexpr int CONFLICT_OFFSET = static_cast<int>((HEIGHT - CONFLICT_SIZE) / 2.0);
+    constexpr int PADDING         = 2;
+    constexpr int HASH_BOX_SIZE   = 58;
+
     if (hasConflict()) {
         auto brush = QBrush(convert_to_color(ColorType::DELETION));
         painter->setBrush(brush);
         painter->setPen(Qt::PenStyle::NoPen);
-        painter->drawRect(0, 5, 8, 8);
+        painter->drawRect(0, CONFLICT_OFFSET, CONFLICT_SIZE, CONFLICT_SIZE);
     }
 
     QFont font = QFontDatabase::systemFont(QFontDatabase::FixedFont);
@@ -57,10 +62,9 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
     }
 
     painter->setFont(font);
-
     painter->setPen(pen_rect);
 
-    painter->drawRect(10, 0, 58, 20);
+    painter->drawRect(CONFLICT_SIZE + PADDING, 0, HASH_BOX_SIZE, HEIGHT);
 
     std::string msg = m_commit_msg;
 
@@ -78,7 +82,16 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
 
     const char* hash = m_commit_hash.c_str();
 
-    painter->drawText(QRectF { 12, 0, 56, 20 }, hash, text_opts);
+    painter->drawText(
+        QRectF {
+            CONFLICT_SIZE + PADDING + PADDING,
+            0,
+            HASH_BOX_SIZE - PADDING,
+            HEIGHT,
+        },
+        hash,
+        text_opts
+    );
 
     auto fm           = painter->fontMetrics();
     int size          = fm.horizontalAdvance(msg.c_str(), static_cast<int>(msg.size()));
@@ -86,15 +99,19 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
 
     QString qmsg = QString::fromStdString(msg);
 
-    if (size > 220) {
-        int new_size = 220 / avg_char_size;
-        new_size     = std::max(new_size - 3, 0);
+    constexpr int TEXT_OFFSET = CONFLICT_SIZE + HASH_BOX_SIZE + (2 * PADDING) + PADDING;
+
+    const qreal text_size = m_width - TEXT_OFFSET;
+
+    if (size > text_size) {
+        int new_size = static_cast<int>(text_size / avg_char_size);
+        new_size     = std::max(new_size - 6, 0);
         qmsg.resize(new_size);
         qmsg += "...";
     }
 
     painter->setPen(pen);
-    painter->drawText(QRectF { 75, 0, 220, 20 }, qmsg, text_opts);
+    painter->drawText(QRectF { TEXT_OFFSET, 0, text_size, HEIGHT }, qmsg, text_opts);
 }
 
 }

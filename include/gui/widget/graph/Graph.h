@@ -43,6 +43,8 @@ public:
 protected:
     void mousePressEvent(QMouseEvent* event) override;
 
+    void resizeEvent(QResizeEvent* event) override;
+
 private:
     std::uint32_t m_next_y                     = 0;
     std::function<void(Node*, Node*)> m_handle = defaultHandle;

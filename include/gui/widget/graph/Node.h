@@ -18,6 +18,9 @@ class GraphWidget;
 
 class Node : public QGraphicsItem {
 public:
+    static constexpr qreal MIN_WIDTH = 300;
+    static constexpr qreal HEIGHT    = 20;
+
     using Action = action::Action;
 
     Node(GraphWidget* graph)
@@ -30,6 +33,8 @@ public:
     static constexpr int Type = UserType + 1;
 
     [[nodiscard]] int type() const override { return Type; }
+
+    void setWidth(qreal width) { m_width = std::max(MIN_WIDTH, width); }
 
     void setCommit(git_commit* commit) {
         auto id       = core::git::format_oid(commit);
@@ -67,6 +72,8 @@ public:
 private:
     GraphWidget* m_graph;
     QColor m_fill = Qt::white;
+
+    qreal m_width = MIN_WIDTH;
 
     git_commit* m_commit;
     std::string m_commit_hash;

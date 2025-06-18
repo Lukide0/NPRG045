@@ -82,4 +82,23 @@ void GraphWidget::mousePressEvent(QMouseEvent* event) {
     m_handle(old_node, new_node);
 }
 
+void GraphWidget::resizeEvent(QResizeEvent* event) {
+    QGraphicsView::resizeEvent(event);
+
+    auto* s = scene();
+
+    if (s == nullptr) {
+        return;
+    }
+
+    auto view_left  = mapToScene(QPoint { 0, 0 }).x();
+    auto view_right = mapToScene(QPoint(viewport()->width(), 0)).x();
+
+    qreal scene_width = view_right - view_left;
+
+    for (auto* node : m_nodes) {
+        node->setWidth(scene_width);
+    }
+}
+
 }
