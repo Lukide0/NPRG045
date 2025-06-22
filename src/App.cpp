@@ -7,12 +7,14 @@
 #include "core/state/State.h"
 #include "core/utils/optional_uint.h"
 #include "gui/widget/RebaseViewWidget.h"
+#include "gui/window/PreferencesWindow.h"
 #include "logging/Log.h"
 
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <string>
 
 #include <git2.h>
@@ -46,6 +48,8 @@ void App::updateGraph() { g_app->m_rebase_view->updateGraph(); }
 void App::updateActions() { g_app->m_rebase_view->updateActions(); }
 
 gui::widget::RebaseViewWidget* App::getRebaseViewWidget() { return g_app->m_rebase_view; }
+
+const std::string& App::getRepoPath() { return g_app->m_repo_path; }
 
 App::App() {
 
@@ -106,10 +110,20 @@ App::App() {
         auto* edit_todo_load = new QAction(QIcon::fromTheme("edit-load"), "Load", this);
         connect(edit_todo_load, &QAction::triggered, this, [this] { loadSaveFile(); });
 
+        auto* edit_apply = new QAction(QIcon::fromTheme("document-save-as"), "Save TODO");
+        connect(edit_apply, &QAction::triggered, this, [this] { tryApplyTodo(); });
+
+        auto* edit_preferences = new QAction("Preferences", this);
+        connect(edit_preferences, &QAction::triggered, this, [this] { showPreferences(); });
+
         edit->addAction(edit_undo);
         edit->addAction(edit_redo);
+        edit->addSeparator();
         edit->addAction(edit_todo_save);
         edit->addAction(edit_todo_load);
+        edit->addAction(edit_apply);
+        edit->addSeparator();
+        edit->addAction(edit_preferences);
 
         edit_undo->setShortcut(QKeySequence::Undo);
         edit_redo->setShortcut(QKeySequence::Redo);
@@ -147,6 +161,8 @@ App::App() {
 
     m_rebase_view->hide();
     m_rebase_view->hideOldCommits();
+
+    m_preferences = new gui::window::PreferencesWindow();
 }
 
 void App::hideOldCommits(bool state) {
@@ -218,19 +234,11 @@ bool App::openRepo(const std::string& path) {
 
 bool App::showRebase() {
 
-    {
-        auto head_file = std::ifstream(m_repo_path + '/' + core::git::HEAD_FILE.c_str());
-        auto onto_file = std::ifstream(m_repo_path + '/' + core::git::ONTO_FILE.c_str());
-
-        if (!head_file.good() || !onto_file.good()) {
-            QMessageBox::critical(this, "Rebase Error", "Could not find rebase files");
-            LOG_ERROR("Could not find rebase files");
-
-            return false;
-        }
-
-        std::getline(head_file, m_rebase_head);
-        std::getline(onto_file, m_rebase_onto);
+    auto err = core::git::get_rebase_info(m_repo_path, m_rebase_head, m_rebase_onto);
+    if (err.has_value()) {
+        QMessageBox::critical(this, "Rebase Error", err.value());
+        LOG_ERROR("{}", err.value());
+        return false;
     }
 
     auto filepath = m_repo_path + '/' + core::git::TODO_FILE.c_str();
@@ -336,3 +344,34 @@ void App::loadSaveFile() {
         QMessageBox::critical(this, "Rebase Error", rebase_res.value().c_str());
     }
 }
+
+void App::tryApplyTodo() {
+    std::string head;
+    std::string onto;
+
+    auto err = core::git::get_rebase_info(m_repo_path, head, onto);
+    if (err.has_value()) {
+        QMessageBox::critical(this, "Save Error", "Could not find rebase files");
+        return;
+    }
+
+    if (head != m_rebase_head || onto != m_rebase_onto) {
+        QMessageBox::critical(this, "Save Error", "Rebase files have changed");
+        return;
+    }
+
+    auto filepath = m_repo_path + '/' + core::git::TODO_FILE.c_str();
+
+    std::ofstream todo_file(filepath);
+    if (!todo_file.good()) {
+        QMessageBox::critical(this, "Save Error", "Could not open todo file");
+        return;
+    }
+
+    auto& manager = action::ActionsManager::get();
+    action::Converter::actions_to_todo(todo_file, manager.get_actions(), manager);
+
+    LOG_INFO("Saving todo file: {}", filepath);
+}
+
+void App::showPreferences() { m_preferences->show(); }

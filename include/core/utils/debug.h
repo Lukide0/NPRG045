@@ -11,6 +11,10 @@ namespace core::utils {
 inline void print_last_error(std::source_location loc = std::source_location::current()) {
     const auto* err = git_error_last();
 
+    if (err == nullptr) {
+        return;
+    }
+
     std::cerr << std::format("ERROR[{}:{}]: {}", loc.file_name(), loc.line(), err->message) << std::endl;
 }
 

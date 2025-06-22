@@ -79,6 +79,10 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_list_actions = new QListWidget();
     m_graphs_split = new LineSplitter(Qt::Orientation::Horizontal);
 
+    m_list_actions->setSelectionMode(QAbstractItemView::SelectionMode::SingleSelection);
+    m_list_actions->setDragDropMode(QAbstractItemView::DragDropMode::InternalMove);
+    m_list_actions->setDragEnabled(true);
+
     //-- LEFT LAYOUT --------------------------------------------------------//
 
     m_left_split->addWidget(m_list_actions);
@@ -135,9 +139,6 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
     m_old_commits_graph->setHandle(handle);
     m_new_commits_graph->setHandle(handle);
-
-    m_list_actions->setDragEnabled(true);
-    m_list_actions->setDragDropMode(QAbstractItemView::DragDropMode::InternalMove);
 
     connect(
         m_list_actions->model(),
@@ -475,9 +476,9 @@ void RebaseViewWidget::updateNode(Node* node, Node* parent, Node* current) {
         break;
     }
 
-    // std::cout << std::format(
-    //     "Conflict: '{}' <-> '{}'\n", core::git::format_commit(parent_commit), core::git::format_commit(commit)
-    // );
+    std::cout << std::format(
+        "Conflict: '{}' <-> '{}'\n", core::git::format_commit(parent_commit), core::git::format_commit(commit)
+    );
 
     bool res = core::conflict::iterate(conflict, [&](core::conflict::entry_data_t entry) -> bool {
         core::git::merge_file_result_t result;
@@ -486,11 +487,13 @@ void RebaseViewWidget::updateNode(Node* node, Node* parent, Node* current) {
             return true;
         }
 
-        // const auto& merge = result.get();
-        //
-        // std::cout << std::format(
-        //     "Auto merge: {}\nPath: {}\nContent:\n{}\n", merge.automergeable != 0, merge.path, merge.ptr
-        // );
+        const git_merge_file_result& merge = result.get();
+
+        std::string_view content(merge.ptr, merge.len);
+
+        std::cout << std::format(
+            "Auto merge: {}\nPath: {}\nContent:\n{}\n", merge.automergeable != 0, merge.path, content
+        );
 
         return true;
     });

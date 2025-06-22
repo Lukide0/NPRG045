@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gui/widget/RebaseViewWidget.h"
+#include "gui/window/PreferencesWindow.h"
 
 #include <cassert>
 #include <cctype>
@@ -40,6 +41,7 @@ public:
     static void updateGraph();
     static void updateActions();
     static gui::widget::RebaseViewWidget* getRebaseViewWidget();
+    static const std::string& getRepoPath();
 
 private:
     std::string m_repo_path;
@@ -48,6 +50,7 @@ private:
 
     QHBoxLayout* m_layout;
     gui::widget::RebaseViewWidget* m_rebase_view;
+    gui::window::PreferencesWindow* m_preferences;
 
     git_repository* m_repo = nullptr;
 
@@ -59,4 +62,8 @@ private:
 
     void loadSaveFile();
     void saveSaveFile();
+
+    void tryApplyTodo();
+
+    void showPreferences();
 };
