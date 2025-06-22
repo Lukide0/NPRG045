@@ -28,8 +28,6 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
     , m_parent(list)
     , m_row(row) {
 
-    setFocusPolicy(Qt::FocusPolicy::StrongFocus);
-
     m_combo = new QComboBox();
 
     for (auto&& item : items) {
