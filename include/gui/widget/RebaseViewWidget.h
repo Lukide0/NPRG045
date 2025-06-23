@@ -5,6 +5,7 @@
 #include "core/git/GitGraph.h"
 #include "core/git/parser.h"
 #include "gui/widget/CommitViewWidget.h"
+#include "gui/widget/ConflictWidget.h"
 #include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Graph.h"
 #include "gui/widget/graph/Node.h"
@@ -64,9 +65,10 @@ private:
     QHBoxLayout* m_layout;
     // Contains: actions and graphs
     LineSplitter* m_left_split;
-    // Contains: diff, commit and commit message
+    // Contains: diff/conflict, commit and commit message
     LineSplitter* m_right_split;
     LineSplitter* m_diff_commit_split;
+    LineSplitter* m_diff_conflict_split;
 
     LineSplitter* m_horizontal_split;
 
@@ -79,6 +81,7 @@ private:
 
     CommitViewWidget* m_commit_view;
     DiffWidget* m_diff_widget;
+    ConflictWidget* m_conflict_widget;
 
     Node* m_last_new_commit = nullptr;
 

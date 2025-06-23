@@ -14,7 +14,6 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <iomanip>
 #include <string>
 
 #include <git2.h>

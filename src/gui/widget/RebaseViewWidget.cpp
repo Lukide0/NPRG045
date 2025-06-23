@@ -66,10 +66,11 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_layout->setContentsMargins(0, 0, 0, 0);
     setLayout(m_layout);
 
-    m_horizontal_split  = new LineSplitter(Qt::Orientation::Horizontal);
-    m_left_split        = new LineSplitter(Qt::Orientation::Vertical);
-    m_right_split       = new LineSplitter(Qt::Orientation::Horizontal);
-    m_diff_commit_split = new LineSplitter(Qt::Orientation::Vertical);
+    m_horizontal_split    = new LineSplitter(Qt::Orientation::Horizontal);
+    m_left_split          = new LineSplitter(Qt::Orientation::Vertical);
+    m_right_split         = new LineSplitter(Qt::Orientation::Horizontal);
+    m_diff_commit_split   = new LineSplitter(Qt::Orientation::Vertical);
+    m_diff_conflict_split = new LineSplitter(Qt::Orientation::Horizontal);
 
     m_horizontal_split->addWidget(m_left_split);
     m_horizontal_split->addWidget(m_right_split);
@@ -95,12 +96,16 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_graphs_split->addWidget(m_new_commits_graph);
 
     //-- RIGHT LAYOUT -------------------------------------------------------//
-    m_diff_widget = new DiffWidget();
-    m_commit_view = new CommitViewWidget(m_diff_widget);
+    m_diff_widget     = new DiffWidget();
+    m_commit_view     = new CommitViewWidget(m_diff_widget);
+    m_conflict_widget = new ConflictWidget();
 
     m_right_split->addWidget(m_diff_commit_split);
 
-    m_diff_commit_split->addWidget(m_diff_widget);
+    m_diff_conflict_split->addWidget(m_diff_widget);
+    m_diff_conflict_split->addWidget(m_conflict_widget);
+
+    m_diff_commit_split->addWidget(m_diff_conflict_split);
     m_diff_commit_split->addWidget(m_commit_view);
 
     m_diff_commit_split->setStretchFactor(0, 2);
@@ -476,10 +481,6 @@ void RebaseViewWidget::updateNode(Node* node, Node* parent, Node* current) {
         break;
     }
 
-    std::cout << std::format(
-        "Conflict: '{}' <-> '{}'\n", core::git::format_commit(parent_commit), core::git::format_commit(commit)
-    );
-
     bool res = core::conflict::iterate(conflict, [&](core::conflict::entry_data_t entry) -> bool {
         core::git::merge_file_result_t result;
         if (git_merge_file_from_index(&result, m_repo, entry.ancestor, entry.our, entry.their, nullptr) != 0) {
@@ -489,11 +490,9 @@ void RebaseViewWidget::updateNode(Node* node, Node* parent, Node* current) {
 
         const git_merge_file_result& merge = result.get();
 
-        std::string_view content(merge.ptr, merge.len);
+        std::string content(merge.ptr, merge.len);
 
-        std::cout << std::format(
-            "Auto merge: {}\nPath: {}\nContent:\n{}\n", merge.automergeable != 0, merge.path, content
-        );
+        m_conflict_widget->AddConflictFile(entry.our->path, content);
 
         return true;
     });
