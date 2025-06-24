@@ -75,9 +75,10 @@ private:
 
 template <typename T, destructor_t<T> Destructor> class object_t {
 public:
-    object_t() = default;
+    object_t(T&& obj)
+        : m_obj(std::move(obj)) { }
 
-    object_t(object_t&& other) { std::swap(other.m_obj); }
+    object_t(object_t&& other) { std::swap(m_obj, other.m_obj); }
 
     object_t& operator=(object_t&& other) {
         std::swap(m_obj, other.m_obj);
@@ -96,6 +97,29 @@ private:
     T m_obj;
 };
 
+template <typename T, destructor_t<T> Destructor> class weak_object_t {
+public:
+    weak_object_t() = default;
+
+    weak_object_t(weak_object_t&& other) { std::swap(m_obj, other.m_obj); }
+
+    weak_object_t& operator=(weak_object_t&& other) {
+        std::swap(m_obj, other.m_obj);
+        return *this;
+    }
+
+    T* operator&() { return &m_obj; }
+
+    T& get() { return m_obj; }
+
+    const T& get() const { return m_obj; }
+
+    object_t<T, Destructor> to_object() { return object_t<T, Destructor>(std::move(m_obj)); }
+
+private:
+    T m_obj;
+};
+
 using commit_t            = ptr_object_t<git_commit, git_commit_free>;
 using index_t             = ptr_object_t<git_index, git_index_free>;
 using tree_t              = ptr_object_t<git_tree, git_tree_free>;
@@ -106,7 +130,7 @@ using patch_t             = ptr_object_t<git_patch, git_patch_free>;
 using conflict_iterator_t = ptr_object_t<git_index_conflict_iterator, git_index_conflict_iterator_free>;
 
 using buffer_t            = object_t<git_buf, git_buf_dispose>;
-using merge_file_result_t = object_t<git_merge_file_result, git_merge_file_result_free>;
+using merge_file_result_t = weak_object_t<git_merge_file_result, git_merge_file_result_free>;
 
 struct commit_parents_t {
     git_commit** parents = nullptr;

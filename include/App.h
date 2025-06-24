@@ -61,7 +61,7 @@ private:
     void hideResultCommits(bool state);
 
     void loadSaveFile();
-    void saveSaveFile();
+    void saveSaveFile(bool choose_file);
 
     void tryApplyTodo();
 

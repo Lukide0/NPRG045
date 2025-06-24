@@ -365,7 +365,7 @@ void RebaseViewWidget::prepareGraph() {
     m_actions.set_root_commit(last_node.commit);
 
     m_last_new_commit = last;
-    m_commit_view->update();
+    m_commit_view->update(nullptr);
 }
 
 void RebaseViewWidget::updateActions() {
@@ -488,7 +488,9 @@ void RebaseViewWidget::updateNode(Node* node, Node* parent, Node* current) {
             return true;
         }
 
-        const git_merge_file_result& merge = result.get();
+        const auto merge_object = result.to_object();
+
+        const git_merge_file_result& merge = merge_object.get();
 
         std::string content(merge.ptr, merge.len);
 

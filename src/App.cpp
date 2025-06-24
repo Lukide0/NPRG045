@@ -103,14 +103,17 @@ App::App() {
         edit_redo->setEnabled(false);
         connect(edit_redo, &QAction::triggered, this, [] { CommandHistory::Redo(); });
 
-        auto* edit_todo_save = new QAction(QIcon::fromTheme("edit-save"), "Save", this);
-        connect(edit_todo_save, &QAction::triggered, this, [this] { saveSaveFile(); });
+        auto* edit_save = new QAction(QIcon::fromTheme("edit-save"), "Save", this);
+        connect(edit_save, &QAction::triggered, this, [this] { saveSaveFile(false); });
 
-        auto* edit_todo_load = new QAction(QIcon::fromTheme("edit-load"), "Load", this);
-        connect(edit_todo_load, &QAction::triggered, this, [this] { loadSaveFile(); });
+        auto* edit_save_as = new QAction(QIcon::fromTheme("edit-save"), "Save as", this);
+        connect(edit_save_as, &QAction::triggered, this, [this] { saveSaveFile(true); });
 
-        auto* edit_apply = new QAction(QIcon::fromTheme("document-save-as"), "Save TODO");
-        connect(edit_apply, &QAction::triggered, this, [this] { tryApplyTodo(); });
+        auto* edit_load = new QAction(QIcon::fromTheme("edit-load"), "Load", this);
+        connect(edit_load, &QAction::triggered, this, [this] { loadSaveFile(); });
+
+        auto* edit_todo_save = new QAction(QIcon::fromTheme("document-save-as"), "Save Todo");
+        connect(edit_todo_save, &QAction::triggered, this, [this] { tryApplyTodo(); });
 
         auto* edit_preferences = new QAction("Preferences", this);
         connect(edit_preferences, &QAction::triggered, this, [this] { showPreferences(); });
@@ -118,9 +121,10 @@ App::App() {
         edit->addAction(edit_undo);
         edit->addAction(edit_redo);
         edit->addSeparator();
+        edit->addAction(edit_save);
+        edit->addAction(edit_save_as);
+        edit->addAction(edit_load);
         edit->addAction(edit_todo_save);
-        edit->addAction(edit_todo_load);
-        edit->addAction(edit_apply);
         edit->addSeparator();
         edit->addAction(edit_preferences);
 
@@ -261,8 +265,8 @@ bool App::showRebase() {
     return true;
 }
 
-void App::saveSaveFile() {
-    if (!m_save_file.has_value()) {
+void App::saveSaveFile(bool choose_file) {
+    if (!m_save_file.has_value() || choose_file) {
         QString default_path = QString::fromStdString(m_repo_path);
 
         QString filter = tr("XML Files (*.xml)");
@@ -319,6 +323,8 @@ void App::loadSaveFile() {
         git_repository_free(m_repo);
     }
 
+    m_rebase_view->hide();
+
     m_save_file = filepath;
     m_repo      = repo;
 
@@ -335,6 +341,8 @@ void App::loadSaveFile() {
 
         manager.append(std::move(act));
     }
+
+    core::state::CommandHistory::Clear();
 
     m_rebase_view->show();
 
