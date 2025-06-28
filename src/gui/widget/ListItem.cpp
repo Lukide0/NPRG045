@@ -67,6 +67,8 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
         core::state::CommandHistory::Add(
             std::make_unique<ListItemChangedCommand>(m_parent, m_row, prev_type, curr_type)
         );
+
+        App::updateGraph();
     });
 }
 
@@ -116,21 +118,17 @@ ListItemChangedCommand::ListItemChangedCommand(QListWidget* parent, int row, Act
     , m_prev(prev)
     , m_curr(curr) { }
 
-void ListItemChangedCommand::execute() {
-    set_type(m_curr);
-    App::updateGraph();
-}
+void ListItemChangedCommand::execute() { set_type(m_curr); }
 
-void ListItemChangedCommand::undo() {
-    set_type(m_prev);
-    App::updateGraph();
-}
+void ListItemChangedCommand::undo() { set_type(m_prev); }
 
 void ListItemChangedCommand::set_type(ActionType type) {
     auto* item      = m_parent->item(m_row);
     auto* list_item = dynamic_cast<ListItem*>(m_parent->itemWidget(item));
 
     list_item->setActionTypeNoSignal(type);
+
+    App::updateGraph();
 }
 
 }

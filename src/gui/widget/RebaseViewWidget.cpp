@@ -42,6 +42,7 @@
 #include <QColor>
 #include <QComboBox>
 #include <QLabel>
+#include <QList>
 #include <QListWidgetItem>
 #include <QMessageBox>
 #include <qnamespace.h>
@@ -66,11 +67,12 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_layout->setContentsMargins(0, 0, 0, 0);
     setLayout(m_layout);
 
-    m_horizontal_split    = new LineSplitter(Qt::Orientation::Horizontal);
-    m_left_split          = new LineSplitter(Qt::Orientation::Vertical);
-    m_right_split         = new LineSplitter(Qt::Orientation::Horizontal);
-    m_diff_commit_split   = new LineSplitter(Qt::Orientation::Vertical);
-    m_diff_conflict_split = new LineSplitter(Qt::Orientation::Horizontal);
+    m_horizontal_split  = new LineSplitter(Qt::Orientation::Horizontal);
+    m_left_split        = new LineSplitter(Qt::Orientation::Vertical);
+    m_right_split       = new LineSplitter(Qt::Orientation::Horizontal);
+    m_diff_commit_split = new LineSplitter(Qt::Orientation::Vertical);
+
+    m_diff_conflict_layout = new QStackedLayout();
 
     m_horizontal_split->addWidget(m_left_split);
     m_horizontal_split->addWidget(m_right_split);
@@ -102,10 +104,15 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
     m_right_split->addWidget(m_diff_commit_split);
 
-    m_diff_conflict_split->addWidget(m_diff_widget);
-    m_diff_conflict_split->addWidget(m_conflict_widget);
+    m_diff_widget_index     = m_diff_conflict_layout->addWidget(m_diff_widget);
+    m_conflict_widget_index = m_diff_conflict_layout->addWidget(m_conflict_widget);
 
-    m_diff_commit_split->addWidget(m_diff_conflict_split);
+    showDiffWidget();
+
+    auto* diff_conflict_widget = new QWidget();
+    diff_conflict_widget->setLayout(m_diff_conflict_layout);
+
+    m_diff_commit_split->addWidget(diff_conflict_widget);
     m_diff_commit_split->addWidget(m_commit_view);
 
     m_diff_commit_split->setStretchFactor(0, 2);
@@ -117,15 +124,16 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_list_actions->setPalette(palette);
 
     connect(m_list_actions, &QListWidget::itemSelectionChanged, this, [this]() {
-        if (m_last_item != nullptr) {
-            m_last_item->setColorToAll(Qt::white);
+        if (m_last_selected_index != -1) {
+            auto* last_item = getListItem(m_last_selected_index);
+            last_item->setColorToAll(Qt::white);
         }
 
         QListWidget* list = m_list_actions;
         auto selected     = list->selectedItems();
         if (selected.size() != 1) {
-            m_last_item = nullptr;
-            m_commit_view->update();
+            m_last_selected_index = -1;
+            m_commit_view->update(nullptr);
             return;
         }
 
@@ -134,10 +142,11 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
         if (list_item == nullptr) {
             return;
         }
-        m_last_item = list_item;
+
+        m_last_selected_index = list_item->getRow();
 
         list_item->setColorToAll(list_item->getItemColor());
-        m_commit_view->update(m_last_item->getNode());
+        m_commit_view->update(list_item->getNode());
     });
 
     auto handle = [&](Node* prev, Node* next) { this->showCommit(prev, next); };
@@ -169,9 +178,9 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
             this->moveAction(source_row, destination_row);
 
-            this->updateGraph();
+            m_last_selected_index = destination_row;
 
-            this->m_commit_view->update(nullptr);
+            this->updateGraph();
         }
     );
 }
@@ -332,6 +341,7 @@ std::optional<std::string> RebaseViewWidget::prepareActions() {
 
     prepareGraph();
 
+    m_last_selected_index = -1;
     m_list_actions->clear();
 
     auto* list = m_list_actions;
@@ -353,9 +363,9 @@ std::optional<std::string> RebaseViewWidget::prepareActions() {
 }
 
 void RebaseViewWidget::prepareGraph() {
-    m_last_item = nullptr;
-
     m_new_commits_graph->clear();
+
+    m_last_selected_index = -1;
 
     auto* last      = m_new_commits_graph->addNode(0);
     auto& last_node = m_graph.first_node();
@@ -365,6 +375,7 @@ void RebaseViewWidget::prepareGraph() {
     m_actions.set_root_commit(last_node.commit);
 
     m_last_new_commit = last;
+
     m_commit_view->update(nullptr);
 }
 
@@ -384,9 +395,10 @@ void RebaseViewWidget::updateActions() {
 
 void RebaseViewWidget::updateGraph() {
     LOG_INFO("Updating old graph");
-    prepareGraph();
 
-    m_commit_view->update();
+    const int last_selected_index = m_last_selected_index;
+
+    prepareGraph();
 
     auto* list = m_list_actions;
 
@@ -449,6 +461,23 @@ void RebaseViewWidget::updateGraph() {
         }
         }
     }
+
+    if (last_selected_index == -1 || last_selected_index > m_list_actions->count()) {
+        return;
+    }
+
+    auto* item = getListItem(last_selected_index);
+
+    Node* node = nullptr;
+    if (item != nullptr) {
+        node = item->getNode();
+
+        if (node != nullptr) {
+            m_last_selected_index = last_selected_index;
+        }
+    }
+
+    m_commit_view->update(node);
 }
 
 Node* RebaseViewWidget::findOldCommit(const git_oid& oid) {
@@ -479,28 +508,6 @@ void RebaseViewWidget::updateNode(Node* node, Node* parent, Node* current) {
     case ConflictStatus::HAS_CONFLICT:
         node->setConflict(true);
         break;
-    }
-
-    bool res = core::conflict::iterate(conflict, [&](core::conflict::entry_data_t entry) -> bool {
-        core::git::merge_file_result_t result;
-        if (git_merge_file_from_index(&result, m_repo, entry.ancestor, entry.our, entry.their, nullptr) != 0) {
-            core::utils::print_last_error();
-            return true;
-        }
-
-        const auto merge_object = result.to_object();
-
-        const git_merge_file_result& merge = merge_object.get();
-
-        std::string content(merge.ptr, merge.len);
-
-        m_conflict_widget->AddConflictFile(entry.our->path, content);
-
-        return true;
-    });
-
-    if (!res) {
-        core::utils::print_last_error();
     }
 }
 
@@ -571,13 +578,6 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
     }
 
     item->setText(item_text);
-
-    auto* combo = item->getComboBox();
-
-    connect(combo, &QComboBox::currentIndexChanged, this, [&](int index) {
-        assert(index != -1);
-        updateGraph();
-    });
 
     return std::nullopt;
 }

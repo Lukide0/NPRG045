@@ -27,6 +27,7 @@
 #include <QListWidgetItem>
 #include <QObject>
 #include <QSplitter>
+#include <QStackedLayout>
 #include <QWidget>
 
 namespace gui::widget {
@@ -68,7 +69,7 @@ private:
     // Contains: diff/conflict, commit and commit message
     LineSplitter* m_right_split;
     LineSplitter* m_diff_commit_split;
-    LineSplitter* m_diff_conflict_split;
+    QStackedLayout* m_diff_conflict_layout;
 
     LineSplitter* m_horizontal_split;
 
@@ -83,13 +84,17 @@ private:
     DiffWidget* m_diff_widget;
     ConflictWidget* m_conflict_widget;
 
+    int m_diff_widget_index;
+    int m_conflict_widget_index;
+
     Node* m_last_new_commit = nullptr;
 
     core::git::GitGraph<Node*> m_graph;
     action::ActionsManager& m_actions;
     git_repository* m_repo;
 
-    ListItem* m_last_item = nullptr;
+    int m_last_selected_index = -1;
+
     Node* m_root_node;
 
     bool m_ignore_move = false;
@@ -105,5 +110,18 @@ private:
     void showCommit(Node* prev, Node* next);
 
     void prepareGraph();
+
+    void showDiffWidget() { m_diff_conflict_layout->setCurrentIndex(m_diff_widget_index); }
+
+    void showConflictWidget() { m_diff_conflict_layout->setCurrentIndex(m_conflict_widget_index); }
+
+    ListItem* getListItem(int index) {
+        auto* item = m_list_actions->item(index);
+        if (item == nullptr) {
+            return nullptr;
+        }
+
+        return dynamic_cast<ListItem*>(m_list_actions->itemWidget(item));
+    }
 };
 }

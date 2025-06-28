@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Node.h"
+#include <cassert>
 #include <cstdint>
 #include <functional>
 #include <QGraphicsView>
@@ -35,6 +36,11 @@ public:
     Node* addNode(std::uint32_t y);
     Node* addNode();
     void clear();
+
+    Node* nodeAt(int i) {
+        assert(i >= 0 && i < static_cast<int>(m_nodes.size()));
+        return m_nodes[i];
+    }
 
     Node* find(std::function<bool(const Node*)> prec);
 

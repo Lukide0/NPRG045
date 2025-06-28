@@ -28,11 +28,11 @@ public:
 
     static constexpr auto items = std::to_array<ActionType>({
         ActionType::PICK,
+        ActionType::DROP,
+        ActionType::SQUASH,
+        ActionType::FIXUP,
         ActionType::REWORD,
         ActionType::EDIT,
-        ActionType::DROP,
-        ActionType::FIXUP,
-        ActionType::SQUASH,
     });
 
     static constexpr int indexOf(ActionType type) {
@@ -83,6 +83,8 @@ public:
             item->setColorToAll(item->m_color);
         }
     }
+
+    [[nodiscard]] int getRow() const { return m_row; }
 
     [[nodiscard]] const auto& getConnected() const { return m_connected; }
 
@@ -169,5 +171,4 @@ private:
 
     void set_type(action::ActionType type);
 };
-
 }
