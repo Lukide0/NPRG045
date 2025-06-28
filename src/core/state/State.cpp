@@ -2,21 +2,23 @@
 #include "action/Action.h"
 #include "action/ActionManager.h"
 #include "core/git/types.h"
+#include "logging/Log.h"
 
 #include <filesystem>
-#include <git2/repository.h>
-#include <git2/types.h>
 #include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <git2/commit.h>
+#include <git2/repository.h>
+#include <git2/types.h>
 
 #include <QDomDocument>
 #include <QFile>
+#include <QRegularExpression>
 #include <QString>
 #include <QTextStream>
-#include <utility>
-#include <vector>
 
 namespace core::state {
 
@@ -24,6 +26,30 @@ constexpr const char* ROOT_NODE    = "save_data";
 constexpr const char* ROOT_COMMIT  = "root";
 constexpr const char* ACTIONS_NODE = "actions";
 constexpr const char* ACTION_NODE  = "action";
+
+std::string load_message(const QDomElement& action) {
+    QDomNodeList nodes = action.elementsByTagName("line");
+
+    QStringList lines;
+    for (auto&& line : nodes) {
+        lines << line.toElement().text();
+    }
+
+    return lines.join('\n').toStdString();
+}
+
+void save_message(const QString& msg, QDomDocument& doc, QDomElement& action) {
+
+    // TODO: replace invalid characters ('<', '>', ...)
+
+    auto lines = msg.split(QRegularExpression("\n|\r\n"), Qt::KeepEmptyParts);
+    for (auto&& line : lines) {
+        auto line_el = doc.createElement("line");
+        line_el.appendChild(doc.createTextNode(line));
+
+        action.appendChild(line_el);
+    }
+}
 
 bool State::save(
     const std::filesystem::path& path,
@@ -33,6 +59,10 @@ bool State::save(
 ) {
 
     QDomDocument doc;
+
+    QDomProcessingInstruction header = doc.createProcessingInstruction("xml", R"(version="1.0" encoding="UTF-8")");
+    doc.appendChild(header);
+
     QDomElement root = doc.createElement(ROOT_NODE);
     root.setAttribute("repo", QString::fromStdU32String(repo.u32string()));
     root.setAttribute("head", QString::fromStdString(head));
@@ -80,8 +110,8 @@ bool State::save(
         auto msg_id = act.get_msg_id();
 
         if (msg_id.is_value() && act.has_msg()) {
-            const std::string& msg = manager.get_msg(msg_id.value());
-            action.setAttribute("message", QString::fromStdString(msg));
+            const auto msg = QString::fromStdString(manager.get_msg(msg_id.value()));
+            save_message(msg, doc, action);
         }
 
         actions.appendChild(action);
@@ -185,7 +215,7 @@ std::optional<SaveData> State::load(const std::filesystem::path& path, git_repos
             return std::nullopt;
         }
 
-        auto msg = el.attribute("message").toStdString();
+        auto msg = load_message(el);
 
         save_data.actions.emplace_back(action::Action(type, std::move(action_commit)), msg);
     }
