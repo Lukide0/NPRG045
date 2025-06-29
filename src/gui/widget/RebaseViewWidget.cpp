@@ -35,6 +35,7 @@
 #include <git2/index.h>
 #include <git2/merge.h>
 #include <git2/oid.h>
+#include <git2/status.h>
 #include <git2/types.h>
 
 #include <QAbstractItemModel>
@@ -68,11 +69,10 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     widget_layout->setContentsMargins(0, 0, 0, 0);
     setLayout(widget_layout);
 
-    auto* horizontal_split  = new LineSplitter(Qt::Orientation::Horizontal);
-    auto* left_split        = new LineSplitter(Qt::Orientation::Vertical);
-    auto* diff_commit_split = new LineSplitter(Qt::Orientation::Vertical);
-
-    m_diff_conflict_layout = new QStackedLayout();
+    auto* horizontal_split    = new LineSplitter(Qt::Orientation::Horizontal);
+    auto* left_split          = new LineSplitter(Qt::Orientation::Vertical);
+    auto* diff_commit_split   = new LineSplitter(Qt::Orientation::Vertical);
+    auto* diff_conflict_split = new LineSplitter(Qt::Orientation::Horizontal);
 
     auto* right_layout        = new QVBoxLayout();
     auto* right_layout_widget = new QWidget();
@@ -105,9 +105,14 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_commit_view     = new CommitViewWidget(m_diff_widget);
     m_conflict_widget = new ConflictWidget();
 
+    m_conflict_widget->hide();
+
     // Buttons
-    m_resolve_conflicts_btn = new QPushButton("Resolve conflicts");
+    m_resolve_conflicts_btn = new QPushButton("Checkout and resolve conflicts");
     m_mark_resolved_btn     = new QPushButton("Mark as resolved");
+
+    connect(m_resolve_conflicts_btn, &QPushButton::pressed, this, [this]() { checkoutAndResolve(); });
+    connect(m_mark_resolved_btn, &QPushButton::pressed, this, [this]() { markResolved(); });
 
     auto* toolbar_layout = new QHBoxLayout();
     toolbar_layout->addWidget(m_resolve_conflicts_btn);
@@ -119,15 +124,10 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     right_layout->addLayout(toolbar_layout);
     right_layout->addWidget(diff_commit_split);
 
-    m_diff_widget_index     = m_diff_conflict_layout->addWidget(m_diff_widget);
-    m_conflict_widget_index = m_diff_conflict_layout->addWidget(m_conflict_widget);
+    diff_conflict_split->addWidget(m_diff_widget);
+    diff_conflict_split->addWidget(m_conflict_widget);
 
-    showDiffWidget();
-
-    auto* diff_conflict_widget = new QWidget();
-    diff_conflict_widget->setLayout(m_diff_conflict_layout);
-
-    diff_commit_split->addWidget(diff_conflict_widget);
+    diff_commit_split->addWidget(diff_conflict_split);
     diff_commit_split->addWidget(m_commit_view);
 
     diff_commit_split->setStretchFactor(0, 2);
@@ -210,6 +210,7 @@ void RebaseViewWidget::updateConflict(Node* node) {
     if (node == nullptr) {
         m_resolve_conflicts_btn->setEnabled(false);
         m_mark_resolved_btn->setEnabled(false);
+        m_conflict_widget->hide();
         return;
     }
 
@@ -218,9 +219,16 @@ void RebaseViewWidget::updateConflict(Node* node) {
 
     m_resolve_conflicts_btn->setEnabled(has_conflict);
     m_mark_resolved_btn->setEnabled(has_conflict);
+    if (has_conflict) {
+        m_conflict_widget->show();
+    } else {
+        m_conflict_widget->hide();
+    }
 }
 
 bool RebaseViewWidget::updateConflictAction(Action* act) {
+    using namespace core;
+
     if (act == nullptr) {
         return false;
     }
@@ -228,18 +236,48 @@ bool RebaseViewWidget::updateConflictAction(Action* act) {
     auto* commit        = act->get_commit();
     auto* parent_commit = action::ActionsManager::get_parent_commit(act);
 
-    auto&& [status, conflict] = core::conflict::cherrypick_check(commit, parent_commit);
+    auto&& [status, conflict] = conflict::cherrypick_check(commit, parent_commit);
     switch (status) {
-    case core::conflict::ConflictStatus::ERR:
-        core::utils::log_libgit_error();
+    case conflict::ConflictStatus::ERR:
+        utils::log_libgit_error();
         return false;
-    case core::conflict::ConflictStatus::NO_CONFLICT:
+    case conflict::ConflictStatus::NO_CONFLICT:
         return false;
-    case core::conflict::ConflictStatus::HAS_CONFLICT:
+    case conflict::ConflictStatus::HAS_CONFLICT:
         break;
     }
 
     m_conflict_index = std::move(conflict);
+
+    m_conflict_widget->clearConflicts();
+
+    bool iterator_status = conflict::iterate(m_conflict_index.get(), [this](conflict::entry_data_t entry) -> bool {
+        git::merge_file_result_t res;
+        if (git_merge_file_from_index(&res, m_repo, entry.ancestor, entry.our, entry.their, nullptr) != 0) {
+            utils::log_libgit_error();
+            return true;
+        }
+
+        const git_merge_file_result& merge = res.get();
+
+        const char* path = entry.our->path;
+        if (path == nullptr) {
+            path = entry.their->path;
+        }
+
+        assert(path != nullptr);
+
+        std::string content(merge.ptr, merge.len);
+
+        m_conflict_widget->addConflictFile(path, content);
+
+        return true;
+    });
+
+    if (!iterator_status) {
+        utils::log_libgit_error();
+    }
+
     return true;
 }
 
@@ -620,4 +658,30 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
 
     return std::nullopt;
 }
+
+void RebaseViewWidget::checkoutAndResolve() {
+    // 1. Check if working index is clean
+    git_status_options opts = GIT_STATUS_OPTIONS_INIT;
+
+    git_status_list* list;
+
+    if (git_status_list_new(&list, m_repo, &opts) != 0) {
+        core::utils::log_libgit_error();
+
+        // TODO: ERROR
+        return;
+    }
+
+    bool has_changes = (git_status_list_entrycount(list) != 0);
+    if (has_changes) {
+        // TODO: ERROR
+        LOG_ERROR("Working dir is not clean");
+        return;
+    }
+
+    LOG_INFO("Working dir is clean");
+}
+
+void RebaseViewWidget::markResolved() { }
+
 }

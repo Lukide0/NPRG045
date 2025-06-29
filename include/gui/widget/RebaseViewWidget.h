@@ -66,8 +66,6 @@ public:
 
 private:
     /* UI */
-    QStackedLayout* m_diff_conflict_layout;
-
     GraphWidget* m_old_commits_graph;
     GraphWidget* m_new_commits_graph;
 
@@ -80,8 +78,6 @@ private:
     QPushButton* m_resolve_conflicts_btn;
     QPushButton* m_mark_resolved_btn;
 
-    int m_diff_widget_index;
-    int m_conflict_widget_index;
     int m_last_selected_index = -1;
     bool m_ignore_move        = false;
 
@@ -107,10 +103,6 @@ private:
 
     void prepareGraph();
 
-    void showDiffWidget() { m_diff_conflict_layout->setCurrentIndex(m_diff_widget_index); }
-
-    void showConflictWidget() { m_diff_conflict_layout->setCurrentIndex(m_conflict_widget_index); }
-
     ListItem* getListItem(int index) {
         auto* item = m_list_actions->item(index);
         if (item == nullptr) {
@@ -125,5 +117,9 @@ private:
     void updateConflict(Node* node);
 
     bool updateConflictAction(action::Action* act);
+
+    void checkoutAndResolve();
+
+    void markResolved();
 };
 }

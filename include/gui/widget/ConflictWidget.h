@@ -10,9 +10,9 @@ class ConflictWidget : public QWidget {
 public:
     ConflictWidget(QWidget* parent = nullptr);
 
-    void AddConflictFile(const std::string& path, const std::string& content);
+    void addConflictFile(const std::string& path, const std::string& content);
 
-    void ClearConflicts() { clear_layout(m_layout); }
+    void clearConflicts() { clear_layout(m_layout); }
 
 private:
     QVBoxLayout* m_layout;

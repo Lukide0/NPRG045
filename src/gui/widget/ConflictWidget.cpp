@@ -14,13 +14,14 @@ ConflictWidget::ConflictWidget(QWidget* parent)
     setLayout(m_layout);
 }
 
-void ConflictWidget::AddConflictFile(const std::string& path, const std::string& content) {
+void ConflictWidget::addConflictFile(const std::string& path, const std::string& content) {
     auto* file   = new ConflictFile();
     auto* editor = file->getEditor();
 
     file->setHeader(QString::fromStdString(path));
 
     editor->setPlainText(QString::fromStdString(content));
+    editor->setReadOnly(true);
 
     m_layout->addWidget(file);
 }
