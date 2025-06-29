@@ -59,10 +59,6 @@ public:
 
     Node* getNode() { return m_node; }
 
-    void addConnection(Node* item) { m_connected.push_back(item); }
-
-    void clearConnections() { m_connected.clear(); }
-
     void setItemColor(QColor color) {
         auto p = palette();
         p.setColor(QPalette::Text, color);
@@ -80,22 +76,16 @@ public:
                 return;
             }
 
-            item->setColorToAll(item->m_color);
+            item->setColor(item->m_color);
         }
     }
 
     [[nodiscard]] int getRow() const { return m_row; }
 
-    [[nodiscard]] const auto& getConnected() const { return m_connected; }
-
-    void setColorToAll(const QColor& color) {
+    void setColor(const QColor& color) {
         auto pal = palette();
         pal.setColor(backgroundRole(), color);
         setPalette(pal);
-
-        for (auto* item : m_connected) {
-            item->setFill(color);
-        }
     }
 
     void setActionType(ActionType type) {
@@ -124,7 +114,6 @@ protected:
 
 private:
     Node* m_node = nullptr;
-    std::vector<Node*> m_connected;
     action::Action& m_action;
     QColor m_color;
 

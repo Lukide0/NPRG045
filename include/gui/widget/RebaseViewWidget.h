@@ -4,6 +4,7 @@
 #include "action/ActionManager.h"
 #include "core/git/GitGraph.h"
 #include "core/git/parser.h"
+#include "core/git/types.h"
 #include "gui/widget/CommitViewWidget.h"
 #include "gui/widget/ConflictWidget.h"
 #include "gui/widget/DiffWidget.h"
@@ -26,6 +27,7 @@
 #include <QLabel>
 #include <QListWidgetItem>
 #include <QObject>
+#include <QPushButton>
 #include <QSplitter>
 #include <QStackedLayout>
 #include <QWidget>
@@ -63,17 +65,8 @@ public:
     void ignoreMoveSignal(bool enable) { m_ignore_move = enable; }
 
 private:
-    QHBoxLayout* m_layout;
-    // Contains: actions and graphs
-    LineSplitter* m_left_split;
-    // Contains: diff/conflict, commit and commit message
-    LineSplitter* m_right_split;
-    LineSplitter* m_diff_commit_split;
+    /* UI */
     QStackedLayout* m_diff_conflict_layout;
-
-    LineSplitter* m_horizontal_split;
-
-    LineSplitter* m_graphs_split;
 
     GraphWidget* m_old_commits_graph;
     GraphWidget* m_new_commits_graph;
@@ -84,20 +77,23 @@ private:
     DiffWidget* m_diff_widget;
     ConflictWidget* m_conflict_widget;
 
+    QPushButton* m_resolve_conflicts_btn;
+    QPushButton* m_mark_resolved_btn;
+
     int m_diff_widget_index;
     int m_conflict_widget_index;
+    int m_last_selected_index = -1;
+    bool m_ignore_move        = false;
 
     Node* m_last_new_commit = nullptr;
 
     core::git::GitGraph<Node*> m_graph;
     action::ActionsManager& m_actions;
+
+    /* GIT */
     git_repository* m_repo;
-
-    int m_last_selected_index = -1;
-
     Node* m_root_node;
-
-    bool m_ignore_move = false;
+    core::git::index_t m_conflict_index;
 
     std::optional<std::string> prepareItem(ListItem* item, action::Action& action);
 
@@ -123,5 +119,11 @@ private:
 
         return dynamic_cast<ListItem*>(m_list_actions->itemWidget(item));
     }
+
+    void changeItemSelection();
+
+    void updateConflict(Node* node);
+
+    bool updateConflictAction(action::Action* act);
 };
 }

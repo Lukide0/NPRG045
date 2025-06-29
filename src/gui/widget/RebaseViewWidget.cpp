@@ -48,6 +48,7 @@
 #include <qnamespace.h>
 #include <QObject>
 #include <QPalette>
+#include <QPushButton>
 #include <QSplitter>
 #include <QWidget>
 
@@ -63,46 +64,60 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
     m_actions.clear();
 
-    m_layout = new QHBoxLayout();
-    m_layout->setContentsMargins(0, 0, 0, 0);
-    setLayout(m_layout);
+    auto* widget_layout = new QHBoxLayout();
+    widget_layout->setContentsMargins(0, 0, 0, 0);
+    setLayout(widget_layout);
 
-    m_horizontal_split  = new LineSplitter(Qt::Orientation::Horizontal);
-    m_left_split        = new LineSplitter(Qt::Orientation::Vertical);
-    m_right_split       = new LineSplitter(Qt::Orientation::Horizontal);
-    m_diff_commit_split = new LineSplitter(Qt::Orientation::Vertical);
+    auto* horizontal_split  = new LineSplitter(Qt::Orientation::Horizontal);
+    auto* left_split        = new LineSplitter(Qt::Orientation::Vertical);
+    auto* diff_commit_split = new LineSplitter(Qt::Orientation::Vertical);
 
     m_diff_conflict_layout = new QStackedLayout();
 
-    m_horizontal_split->addWidget(m_left_split);
-    m_horizontal_split->addWidget(m_right_split);
+    auto* right_layout        = new QVBoxLayout();
+    auto* right_layout_widget = new QWidget();
+    right_layout_widget->setLayout(right_layout);
 
-    m_layout->addWidget(m_horizontal_split);
+    horizontal_split->addWidget(left_split);
+    horizontal_split->addWidget(right_layout_widget);
 
+    widget_layout->addWidget(horizontal_split);
+
+    auto* graphs_split = new LineSplitter(Qt::Orientation::Horizontal);
+
+    //-- LEFT LAYOUT --------------------------------------------------------//
     m_list_actions = new QListWidget();
-    m_graphs_split = new LineSplitter(Qt::Orientation::Horizontal);
-
     m_list_actions->setSelectionMode(QAbstractItemView::SelectionMode::SingleSelection);
     m_list_actions->setDragDropMode(QAbstractItemView::DragDropMode::InternalMove);
     m_list_actions->setDragEnabled(true);
 
-    //-- LEFT LAYOUT --------------------------------------------------------//
-
-    m_left_split->addWidget(m_list_actions);
-    m_left_split->addWidget(m_graphs_split);
+    left_split->addWidget(m_list_actions);
+    left_split->addWidget(graphs_split);
 
     m_old_commits_graph = new GraphWidget();
     m_new_commits_graph = new GraphWidget();
 
-    m_graphs_split->addWidget(m_old_commits_graph);
-    m_graphs_split->addWidget(m_new_commits_graph);
+    graphs_split->addWidget(m_old_commits_graph);
+    graphs_split->addWidget(m_new_commits_graph);
 
     //-- RIGHT LAYOUT -------------------------------------------------------//
     m_diff_widget     = new DiffWidget();
     m_commit_view     = new CommitViewWidget(m_diff_widget);
     m_conflict_widget = new ConflictWidget();
 
-    m_right_split->addWidget(m_diff_commit_split);
+    // Buttons
+    m_resolve_conflicts_btn = new QPushButton("Resolve conflicts");
+    m_mark_resolved_btn     = new QPushButton("Mark as resolved");
+
+    auto* toolbar_layout = new QHBoxLayout();
+    toolbar_layout->addWidget(m_resolve_conflicts_btn);
+    toolbar_layout->addWidget(m_mark_resolved_btn);
+
+    m_mark_resolved_btn->setEnabled(false);
+    m_resolve_conflicts_btn->setEnabled(false);
+
+    right_layout->addLayout(toolbar_layout);
+    right_layout->addWidget(diff_commit_split);
 
     m_diff_widget_index     = m_diff_conflict_layout->addWidget(m_diff_widget);
     m_conflict_widget_index = m_diff_conflict_layout->addWidget(m_conflict_widget);
@@ -112,42 +127,18 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     auto* diff_conflict_widget = new QWidget();
     diff_conflict_widget->setLayout(m_diff_conflict_layout);
 
-    m_diff_commit_split->addWidget(diff_conflict_widget);
-    m_diff_commit_split->addWidget(m_commit_view);
+    diff_commit_split->addWidget(diff_conflict_widget);
+    diff_commit_split->addWidget(m_commit_view);
 
-    m_diff_commit_split->setStretchFactor(0, 2);
-    m_diff_commit_split->setStretchFactor(1, 0);
+    diff_commit_split->setStretchFactor(0, 2);
+    diff_commit_split->setStretchFactor(1, 0);
 
     auto palette = m_list_actions->palette();
     palette.setColor(QPalette::Highlight, get_highlight_color());
 
     m_list_actions->setPalette(palette);
 
-    connect(m_list_actions, &QListWidget::itemSelectionChanged, this, [this]() {
-        if (m_last_selected_index != -1) {
-            auto* last_item = getListItem(m_last_selected_index);
-            last_item->setColorToAll(Qt::white);
-        }
-
-        QListWidget* list = m_list_actions;
-        auto selected     = list->selectedItems();
-        if (selected.size() != 1) {
-            m_last_selected_index = -1;
-            m_commit_view->update(nullptr);
-            return;
-        }
-
-        QListWidgetItem* item = selected.first();
-        auto* list_item       = dynamic_cast<ListItem*>(list->itemWidget(item));
-        if (list_item == nullptr) {
-            return;
-        }
-
-        m_last_selected_index = list_item->getRow();
-
-        list_item->setColorToAll(list_item->getItemColor());
-        m_commit_view->update(list_item->getNode());
-    });
+    connect(m_list_actions, &QListWidget::itemSelectionChanged, this, [this]() { changeItemSelection(); });
 
     auto handle = [&](Node* prev, Node* next) { this->showCommit(prev, next); };
 
@@ -183,6 +174,73 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
             this->updateGraph();
         }
     );
+}
+
+void RebaseViewWidget::changeItemSelection() {
+    if (m_last_selected_index != -1) {
+        auto* last_item = getListItem(m_last_selected_index);
+        last_item->setColor(Qt::white);
+    }
+
+    QListWidget* list = m_list_actions;
+    auto selected     = list->selectedItems();
+    if (selected.size() != 1) {
+        m_last_selected_index = -1;
+        m_commit_view->update(nullptr);
+        updateConflict(nullptr);
+        return;
+    }
+
+    QListWidgetItem* item = selected.first();
+    auto* list_item       = dynamic_cast<ListItem*>(list->itemWidget(item));
+    if (list_item == nullptr) {
+        return;
+    }
+
+    m_last_selected_index = list_item->getRow();
+
+    list_item->setColor(list_item->getItemColor());
+    m_commit_view->update(list_item->getNode());
+
+    updateConflict(list_item->getNode());
+}
+
+void RebaseViewWidget::updateConflict(Node* node) {
+
+    if (node == nullptr) {
+        m_resolve_conflicts_btn->setEnabled(false);
+        m_mark_resolved_btn->setEnabled(false);
+        return;
+    }
+
+    Action* act       = node->getAction();
+    bool has_conflict = updateConflictAction(act);
+
+    m_resolve_conflicts_btn->setEnabled(has_conflict);
+    m_mark_resolved_btn->setEnabled(has_conflict);
+}
+
+bool RebaseViewWidget::updateConflictAction(Action* act) {
+    if (act == nullptr) {
+        return false;
+    }
+
+    auto* commit        = act->get_commit();
+    auto* parent_commit = action::ActionsManager::get_parent_commit(act);
+
+    auto&& [status, conflict] = core::conflict::cherrypick_check(commit, parent_commit);
+    switch (status) {
+    case core::conflict::ConflictStatus::ERR:
+        core::utils::log_libgit_error();
+        return false;
+    case core::conflict::ConflictStatus::NO_CONFLICT:
+        return false;
+    case core::conflict::ConflictStatus::HAS_CONFLICT:
+        break;
+    }
+
+    m_conflict_index = std::move(conflict);
+    return true;
 }
 
 void RebaseViewWidget::moveAction(int from, int to) {
@@ -407,19 +465,12 @@ void RebaseViewWidget::updateGraph() {
         auto* item     = dynamic_cast<ListItem*>(raw_item);
         assert(item != nullptr);
 
-        item->clearConnections();
-
         Action& act = item->getCommitAction();
 
         switch (act.get_type()) {
         case ActionType::DROP: {
             item->setItemColor(convert_to_color(ColorType::DELETION));
             item->setNode(m_last_new_commit);
-
-            Node* old = findOldCommit(act.get_oid());
-            if (old != nullptr) {
-                item->addConnection(old);
-            }
             break;
         }
         case ActionType::FIXUP:
@@ -428,11 +479,9 @@ void RebaseViewWidget::updateGraph() {
 
             Node* old = findOldCommit(act.get_oid());
             if (old != nullptr) {
-                item->addConnection(old);
                 updateNode(m_last_new_commit, m_last_new_commit, old);
             }
 
-            item->addConnection(m_last_new_commit);
             item->setNode(m_last_new_commit);
             break;
         }
@@ -440,10 +489,6 @@ void RebaseViewWidget::updateGraph() {
         case ActionType::PICK:
         case ActionType::REWORD:
         case ActionType::EDIT: {
-            Node* old = findOldCommit(act.get_oid());
-            if (old != nullptr) {
-                item->addConnection(old);
-            }
             item->setItemColor(convert_to_color(ColorType::ADDITION));
 
             Node* new_node = m_new_commits_graph->addNode();
@@ -451,7 +496,6 @@ void RebaseViewWidget::updateGraph() {
             new_node->setParentNode(m_last_new_commit);
             new_node->setAction(&act);
 
-            item->addConnection(new_node);
             item->setNode(new_node);
 
             updateNode(new_node, m_last_new_commit, new_node);
@@ -501,7 +545,7 @@ void RebaseViewWidget::updateNode(Node* node, Node* parent, Node* current) {
 
     switch (status) {
     case ConflictStatus::ERR:
-        core::utils::print_last_error();
+        core::utils::log_libgit_error();
         return;
     case ConflictStatus::NO_CONFLICT:
         return;
@@ -525,7 +569,6 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
         item->setNode(m_last_new_commit);
 
         if (old != nullptr) {
-            item->addConnection(old);
             item_text += git_commit_summary(old->getCommit());
         } else {
             item_text += git_commit_summary(action.get_commit());
@@ -539,13 +582,11 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
 
         Node* old = findOldCommit(action.get_oid());
         if (old != nullptr) {
-            item->addConnection(old);
             updateNode(m_last_new_commit, m_last_new_commit, old);
             item_text += git_commit_summary(old->getCommit());
         } else {
             item_text += git_commit_summary(action.get_commit());
         }
-        item->addConnection(m_last_new_commit);
         item->setNode(m_last_new_commit);
         break;
     }
@@ -555,7 +596,6 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
     case ActionType::EDIT: {
         Node* old = findOldCommit(action.get_oid());
         if (old != nullptr) {
-            item->addConnection(old);
             item_text += git_commit_summary(old->getCommit());
         } else {
             item_text += git_commit_summary(action.get_commit());
@@ -567,7 +607,6 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
         new_node->setParentNode(m_last_new_commit);
         new_node->setAction(&action);
 
-        item->addConnection(new_node);
         item->setNode(new_node);
 
         updateNode(new_node, m_last_new_commit, new_node);
