@@ -89,6 +89,7 @@ private:
     /* GIT */
     git_repository* m_repo;
     Node* m_root_node;
+    core::git::tree_t m_conflict_parent_tree;
     core::git::index_t m_conflict_index;
 
     std::optional<std::string> prepareItem(ListItem* item, action::Action& action);

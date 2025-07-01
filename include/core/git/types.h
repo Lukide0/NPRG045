@@ -49,7 +49,7 @@ public:
         return *this;
     }
 
-    ~ptr_object_t() { Destructor(m_obj); }
+    ~ptr_object_t() { destroy(); }
 
     operator T*() { return m_obj; }
 
@@ -63,6 +63,14 @@ public:
         m_obj = nullptr;
 
         return tmp;
+    }
+
+    void destroy() {
+        if (m_obj != nullptr) {
+            Destructor(m_obj);
+        }
+
+        m_obj = nullptr;
     }
 
     T** operator&() { return &m_obj; }

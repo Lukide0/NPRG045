@@ -29,6 +29,7 @@
 #include <utility>
 #include <vector>
 
+#include <git2/checkout.h>
 #include <git2/cherrypick.h>
 #include <git2/commit.h>
 #include <git2/errors.h>
@@ -248,6 +249,11 @@ bool RebaseViewWidget::updateConflictAction(Action* act) {
     }
 
     m_conflict_index = std::move(conflict);
+
+    m_conflict_parent_tree.destroy();
+    if (git_commit_tree(&m_conflict_parent_tree, parent_commit) != 0) {
+        m_conflict_parent_tree = nullptr;
+    }
 
     m_conflict_widget->clearConflicts();
 
@@ -660,28 +666,59 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
 }
 
 void RebaseViewWidget::checkoutAndResolve() {
+    // TODO: Lock app
+
     // 1. Check if working index is clean
-    git_status_options opts = GIT_STATUS_OPTIONS_INIT;
+    {
+        git_status_options opts = GIT_STATUS_OPTIONS_INIT;
 
-    git_status_list* list;
+        git_status_list* list;
 
-    if (git_status_list_new(&list, m_repo, &opts) != 0) {
-        core::utils::log_libgit_error();
+        if (git_status_list_new(&list, m_repo, &opts) != 0) {
+            core::utils::log_libgit_error();
 
-        // TODO: ERROR
-        return;
-    }
+            // TODO: ERROR
+            return;
+        }
 
-    bool has_changes = (git_status_list_entrycount(list) != 0);
-    if (has_changes) {
-        // TODO: ERROR
-        LOG_ERROR("Working dir is not clean");
-        return;
+        bool has_changes = (git_status_list_entrycount(list) != 0);
+        if (has_changes) {
+            // TODO: ERROR
+            LOG_ERROR("Working dir is not clean");
+            return;
+        }
     }
 
     LOG_INFO("Working dir is clean");
+
+    // 2. Checkout
+    {
+        // TODO: limit checkout to just the conflicted files
+        git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
+
+        opts.checkout_strategy |= GIT_CHECKOUT_SAFE | GIT_CHECKOUT_RECREATE_MISSING | GIT_CHECKOUT_ALLOW_CONFLICTS;
+
+        // set expected content of working dir
+        opts.baseline = m_conflict_parent_tree.get();
+
+        if (git_checkout_index(m_repo, m_conflict_index.get(), &opts) != 0) {
+            // TODO: ERROR
+            core::utils::log_libgit_error();
+            return;
+        }
+
+        LOG_INFO("Checking out index with conflicts");
+    }
 }
 
-void RebaseViewWidget::markResolved() { }
+void RebaseViewWidget::markResolved() {
+
+    /*
+     *  TODO:
+     * 1. Add all modified files to the index using `git_index_add_bypath`
+     * 2. Write the updated index to disk
+     * 3. Complete the cherry-pick by creating a commit
+     */
+}
 
 }
