@@ -2,6 +2,7 @@
 
 #include "action/Action.h"
 #include "core/state/Command.h"
+#include "gui/color.h"
 #include "gui/widget/graph/Node.h"
 #include "logging/Log.h"
 
@@ -88,6 +89,17 @@ public:
         setPalette(pal);
     }
 
+    void setConflict(bool has) {
+        QColor color = m_original_highlight;
+        if (has) {
+            color = convert_to_color(ColorType::DELETION);
+        }
+
+        auto p = palette();
+        p.setColor(QPalette::Window, color);
+        setPalette(p);
+    }
+
     void setActionType(ActionType type) {
         LOG_INFO(
             "Changing action type: from {} to {}",
@@ -116,6 +128,8 @@ private:
     Node* m_node = nullptr;
     action::Action& m_action;
     QColor m_color;
+
+    QColor m_original_highlight;
 
     RebaseViewWidget* m_rebase;
     QListWidget* m_parent;

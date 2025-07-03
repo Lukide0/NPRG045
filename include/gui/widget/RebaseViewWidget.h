@@ -81,7 +81,7 @@ private:
     int m_last_selected_index = -1;
     bool m_ignore_move        = false;
 
-    Node* m_last_new_commit = nullptr;
+    Node* m_last_node = nullptr;
 
     core::git::GitGraph<Node*> m_graph;
     action::ActionsManager& m_actions;
@@ -98,7 +98,7 @@ private:
 
     Node* findOldCommit(const git_oid& oid);
 
-    void updateNode(Node* node, Node* current, Node* changes);
+    void updateNode(ListItem* item, Node* node, Node* current, Node* changes);
 
     void showCommit(Node* prev, Node* next);
 

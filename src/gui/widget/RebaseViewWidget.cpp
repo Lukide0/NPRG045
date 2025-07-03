@@ -476,7 +476,7 @@ void RebaseViewWidget::prepareGraph() {
     last->setCommit(last_node.commit);
     m_actions.set_root_commit(last_node.commit);
 
-    m_last_new_commit = last;
+    m_last_node = last;
 
     m_commit_view->update(nullptr);
 }
@@ -504,17 +504,21 @@ void RebaseViewWidget::updateGraph() {
 
     auto* list = m_list_actions;
 
+    m_last_node = m_root_node;
+
     for (std::int32_t i = 0; i < list->count(); ++i) {
         auto* raw_item = list->itemWidget(list->item(i));
         auto* item     = dynamic_cast<ListItem*>(raw_item);
         assert(item != nullptr);
+
+        item->setConflict(false);
 
         Action& act = item->getCommitAction();
 
         switch (act.get_type()) {
         case ActionType::DROP: {
             item->setItemColor(convert_to_color(ColorType::DELETION));
-            item->setNode(m_last_new_commit);
+            item->setNode(m_last_node);
             break;
         }
         case ActionType::FIXUP:
@@ -523,10 +527,10 @@ void RebaseViewWidget::updateGraph() {
 
             Node* old = findOldCommit(act.get_oid());
             if (old != nullptr) {
-                updateNode(m_last_new_commit, m_last_new_commit, old);
+                updateNode(item, m_last_node, m_last_node, old);
             }
 
-            item->setNode(m_last_new_commit);
+            item->setNode(m_last_node);
             break;
         }
 
@@ -537,14 +541,14 @@ void RebaseViewWidget::updateGraph() {
 
             Node* new_node = m_new_commits_graph->addNode();
             new_node->setCommit(act.get_commit());
-            new_node->setParentNode(m_last_new_commit);
+            new_node->setParentNode(m_last_node);
             new_node->setAction(&act);
 
             item->setNode(new_node);
 
-            updateNode(new_node, m_last_new_commit, new_node);
+            updateNode(item, new_node, m_last_node, new_node);
 
-            m_last_new_commit = new_node;
+            m_last_node = new_node;
             break;
         }
         }
@@ -578,7 +582,7 @@ Node* RebaseViewWidget::findOldCommit(const git_oid& oid) {
     return m_old_commits_graph->find([&](const Node* node) { return git_oid_equal(node->getCommitId(), &oid) != 0; });
 }
 
-void RebaseViewWidget::updateNode(Node* node, Node* parent, Node* current) {
+void RebaseViewWidget::updateNode(ListItem* item, Node* node, Node* parent, Node* current) {
     using core::conflict::ConflictStatus;
     using core::git::index_t;
 
@@ -587,6 +591,8 @@ void RebaseViewWidget::updateNode(Node* node, Node* parent, Node* current) {
 
     auto&& [status, conflict] = core::conflict::cherrypick_check(commit, parent_commit);
 
+    item->setConflict(false);
+
     switch (status) {
     case ConflictStatus::ERR:
         core::utils::log_libgit_error();
@@ -594,6 +600,7 @@ void RebaseViewWidget::updateNode(Node* node, Node* parent, Node* current) {
     case ConflictStatus::NO_CONFLICT:
         return;
     case ConflictStatus::HAS_CONFLICT:
+        item->setConflict(true);
         node->setConflict(true);
         break;
     }
@@ -605,12 +612,14 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
     item_text += QString::fromStdString(core::git::format_oid_to_str<7>(&action.get_oid()));
     item_text += "]: ";
 
+    item->setConflict(false);
+
     switch (action.get_type()) {
     case ActionType::DROP: {
         item->setItemColor(convert_to_color(ColorType::DELETION));
 
         Node* old = findOldCommit(action.get_oid());
-        item->setNode(m_last_new_commit);
+        item->setNode(m_last_node);
 
         if (old != nullptr) {
             item_text += git_commit_summary(old->getCommit());
@@ -626,12 +635,12 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
 
         Node* old = findOldCommit(action.get_oid());
         if (old != nullptr) {
-            updateNode(m_last_new_commit, m_last_new_commit, old);
+            updateNode(item, m_last_node, m_last_node, old);
             item_text += git_commit_summary(old->getCommit());
         } else {
             item_text += git_commit_summary(action.get_commit());
         }
-        item->setNode(m_last_new_commit);
+        item->setNode(m_last_node);
         break;
     }
 
@@ -648,14 +657,14 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
 
         Node* new_node = m_new_commits_graph->addNode();
         new_node->setCommit(action.get_commit());
-        new_node->setParentNode(m_last_new_commit);
+        new_node->setParentNode(m_last_node);
         new_node->setAction(&action);
 
         item->setNode(new_node);
 
-        updateNode(new_node, m_last_new_commit, new_node);
+        updateNode(item, new_node, m_last_node, new_node);
 
-        m_last_new_commit = new_node;
+        m_last_node = new_node;
         break;
     }
     }
@@ -691,12 +700,23 @@ void RebaseViewWidget::checkoutAndResolve() {
 
     LOG_INFO("Working dir is clean");
 
-    // 2. Checkout
+    // {
+    //     if (git_checkout_tree(m_repo, reinterpret_cast<const git_object*>(m_conflict_parent_tree.get()), nullptr)
+    //         != 0) {
+    //         // TODO: ERROR
+    //         core::utils::log_libgit_error();
+    //         return;
+    //     }
+    // }
+    //
+    // LOG_INFO("Checking out parent commit");
+
+    // 2. Checkout conflict
     {
         // TODO: limit checkout to just the conflicted files
         git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
 
-        opts.checkout_strategy |= GIT_CHECKOUT_SAFE | GIT_CHECKOUT_RECREATE_MISSING | GIT_CHECKOUT_ALLOW_CONFLICTS;
+        opts.checkout_strategy |= GIT_CHECKOUT_SAFE | GIT_CHECKOUT_ALLOW_CONFLICTS | GIT_CHECKOUT_REMOVE_UNTRACKED;
 
         // set expected content of working dir
         opts.baseline = m_conflict_parent_tree.get();

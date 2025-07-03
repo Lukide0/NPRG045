@@ -31,7 +31,9 @@ std::string load_message(const QDomElement& action) {
     QDomNodeList nodes = action.elementsByTagName("line");
 
     QStringList lines;
-    for (auto&& line : nodes) {
+
+    for (int i = 0; i < nodes.size(); ++i) {
+        auto&& line = nodes.at(i);
         lines << line.toElement().text();
     }
 
