@@ -60,45 +60,9 @@ public:
 
     Node* getNode() { return m_node; }
 
-    void setItemColor(QColor color) {
-        auto p = palette();
-        p.setColor(QPalette::Text, color);
-        setPalette(p);
-
-        m_color = color;
-    }
-
-    [[nodiscard]] const QColor& getItemColor() const { return m_color; }
-
-    static void handleChange(QListWidgetItem* curr) {
-        if (curr != nullptr) {
-            auto* item = dynamic_cast<ListItem*>(curr);
-            if (item == nullptr) {
-                return;
-            }
-
-            item->setColor(item->m_color);
-        }
-    }
-
     [[nodiscard]] int getRow() const { return m_row; }
 
-    void setColor(const QColor& color) {
-        auto pal = palette();
-        pal.setColor(backgroundRole(), color);
-        setPalette(pal);
-    }
-
-    void setConflict(bool has) {
-        QColor color = m_original_highlight;
-        if (has) {
-            color = convert_to_color(ColorType::DELETION);
-        }
-
-        auto p = palette();
-        p.setColor(QPalette::Window, color);
-        setPalette(p);
-    }
+    void setConflict(bool has);
 
     void setActionType(ActionType type) {
         LOG_INFO(

@@ -44,9 +44,8 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
     m_layout->addWidget(m_combo);
     m_layout->addWidget(m_text, 1);
 
-
-    auto pal = palette();
-    m_original_highlight = pal.color(QPalette::Window);
+    auto pal             = m_text->palette();
+    m_original_highlight = pal.color(QPalette::Text);
 
     setLayout(m_layout);
 
@@ -74,6 +73,17 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
 
         App::updateGraph();
     });
+}
+
+void ListItem::setConflict(bool has) {
+    QColor color = m_original_highlight;
+    if (has) {
+        color = convert_to_color(ColorType::DELETION);
+    }
+
+    auto p = m_text->palette();
+    p.setColor(QPalette::Text, color);
+    m_text->setPalette(p);
 }
 
 void ListItem::keyPressEvent(QKeyEvent* event) {
