@@ -89,8 +89,13 @@ private:
     /* GIT */
     git_repository* m_repo;
     Node* m_root_node;
+
+    action::Action* m_cherrypick = nullptr;
+
     core::git::tree_t m_conflict_parent_tree;
     core::git::index_t m_conflict_index;
+
+    std::vector<std::string> m_conflict_files;
 
     std::optional<std::string> prepareItem(ListItem* item, action::Action& action);
 

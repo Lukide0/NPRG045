@@ -14,4 +14,6 @@ struct entry_data_t {
 
 bool iterate(git_index* index, std::function<bool(entry_data_t)> entry);
 
+bool iterate_all(git_index* index, std::function<bool(const git_index_entry*)> entry);
+
 }

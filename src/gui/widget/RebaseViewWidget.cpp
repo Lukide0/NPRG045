@@ -22,6 +22,8 @@
 
 #include <cassert>
 #include <cstdint>
+#include <git2/repository.h>
+#include <git2/tree.h>
 #include <memory>
 #include <optional>
 #include <span>
@@ -178,11 +180,6 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 }
 
 void RebaseViewWidget::changeItemSelection() {
-    if (m_last_selected_index != -1) {
-        auto* last_item = getListItem(m_last_selected_index);
-        last_item->setColor(Qt::white);
-    }
-
     QListWidget* list = m_list_actions;
     auto selected     = list->selectedItems();
     if (selected.size() != 1) {
@@ -200,7 +197,6 @@ void RebaseViewWidget::changeItemSelection() {
 
     m_last_selected_index = list_item->getRow();
 
-    list_item->setColor(list_item->getItemColor());
     m_commit_view->update(list_item->getNode());
 
     updateConflict(list_item->getNode());
@@ -208,9 +204,10 @@ void RebaseViewWidget::changeItemSelection() {
 
 void RebaseViewWidget::updateConflict(Node* node) {
 
+    m_mark_resolved_btn->setEnabled(false);
+
     if (node == nullptr) {
         m_resolve_conflicts_btn->setEnabled(false);
-        m_mark_resolved_btn->setEnabled(false);
         m_conflict_widget->hide();
         return;
     }
@@ -219,7 +216,6 @@ void RebaseViewWidget::updateConflict(Node* node) {
     bool has_conflict = updateConflictAction(act);
 
     m_resolve_conflicts_btn->setEnabled(has_conflict);
-    m_mark_resolved_btn->setEnabled(has_conflict);
     if (has_conflict) {
         m_conflict_widget->show();
     } else {
@@ -256,6 +252,9 @@ bool RebaseViewWidget::updateConflictAction(Action* act) {
     }
 
     m_conflict_widget->clearConflicts();
+    m_conflict_files.clear();
+
+    m_cherrypick = act;
 
     bool iterator_status = conflict::iterate(m_conflict_index.get(), [this](conflict::entry_data_t entry) -> bool {
         git::merge_file_result_t res;
@@ -266,9 +265,9 @@ bool RebaseViewWidget::updateConflictAction(Action* act) {
 
         const git_merge_file_result& merge = res.get();
 
-        const char* path = entry.our->path;
+        const char* path = merge.path;
         if (path == nullptr) {
-            path = entry.their->path;
+            return true;
         }
 
         assert(path != nullptr);
@@ -276,6 +275,8 @@ bool RebaseViewWidget::updateConflictAction(Action* act) {
         std::string content(merge.ptr, merge.len);
 
         m_conflict_widget->addConflictFile(path, content);
+
+        m_conflict_files.emplace_back(merge.path);
 
         return true;
     });
@@ -517,14 +518,11 @@ void RebaseViewWidget::updateGraph() {
 
         switch (act.get_type()) {
         case ActionType::DROP: {
-            item->setItemColor(convert_to_color(ColorType::DELETION));
             item->setNode(m_last_node);
             break;
         }
         case ActionType::FIXUP:
         case ActionType::SQUASH: {
-            item->setItemColor(convert_to_color(ColorType::INFO));
-
             Node* old = findOldCommit(act.get_oid());
             if (old != nullptr) {
                 updateNode(item, m_last_node, m_last_node, old);
@@ -537,8 +535,6 @@ void RebaseViewWidget::updateGraph() {
         case ActionType::PICK:
         case ActionType::REWORD:
         case ActionType::EDIT: {
-            item->setItemColor(convert_to_color(ColorType::ADDITION));
-
             Node* new_node = m_new_commits_graph->addNode();
             new_node->setCommit(act.get_commit());
             new_node->setParentNode(m_last_node);
@@ -616,8 +612,6 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
 
     switch (action.get_type()) {
     case ActionType::DROP: {
-        item->setItemColor(convert_to_color(ColorType::DELETION));
-
         Node* old = findOldCommit(action.get_oid());
         item->setNode(m_last_node);
 
@@ -631,8 +625,6 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
 
     case ActionType::FIXUP:
     case ActionType::SQUASH: {
-        item->setItemColor(convert_to_color(ColorType::INFO));
-
         Node* old = findOldCommit(action.get_oid());
         if (old != nullptr) {
             updateNode(item, m_last_node, m_last_node, old);
@@ -647,13 +639,13 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
     case ActionType::PICK:
     case ActionType::REWORD:
     case ActionType::EDIT: {
+
         Node* old = findOldCommit(action.get_oid());
         if (old != nullptr) {
             item_text += git_commit_summary(old->getCommit());
         } else {
             item_text += git_commit_summary(action.get_commit());
         }
-        item->setItemColor(convert_to_color(ColorType::ADDITION));
 
         Node* new_node = m_new_commits_graph->addNode();
         new_node->setCommit(action.get_commit());
@@ -700,26 +692,34 @@ void RebaseViewWidget::checkoutAndResolve() {
 
     LOG_INFO("Working dir is clean");
 
-    // {
-    //     if (git_checkout_tree(m_repo, reinterpret_cast<const git_object*>(m_conflict_parent_tree.get()), nullptr)
-    //         != 0) {
-    //         // TODO: ERROR
-    //         core::utils::log_libgit_error();
-    //         return;
-    //     }
-    // }
-    //
-    // LOG_INFO("Checking out parent commit");
-
-    // 2. Checkout conflict
+    // 2. Checkout first commit
     {
-        // TODO: limit checkout to just the conflicted files
+        auto* commit = action::ActionsManager::get_parent_commit(m_cherrypick);
+
+        // set HEAD
+        if (git_repository_set_head_detached(m_repo, git_commit_id(commit)) != 0) {
+            core::utils::log_libgit_error();
+            return;
+        }
+
         git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
 
-        opts.checkout_strategy |= GIT_CHECKOUT_SAFE | GIT_CHECKOUT_ALLOW_CONFLICTS | GIT_CHECKOUT_REMOVE_UNTRACKED;
+        opts.checkout_strategy |= GIT_CHECKOUT_FORCE;
 
-        // set expected content of working dir
-        opts.baseline = m_conflict_parent_tree.get();
+        // checkout
+        if (git_checkout_head(m_repo, &opts) != 0) {
+            core::utils::log_libgit_error();
+            return;
+        }
+
+        LOG_INFO("Checking out commit");
+    }
+
+    // 3. Checkout conflict
+    {
+        git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
+
+        opts.checkout_strategy |= GIT_CHECKOUT_SAFE | GIT_CHECKOUT_ALLOW_CONFLICTS | GIT_CHECKOUT_RECREATE_MISSING;
 
         if (git_checkout_index(m_repo, m_conflict_index.get(), &opts) != 0) {
             // TODO: ERROR
@@ -728,17 +728,41 @@ void RebaseViewWidget::checkoutAndResolve() {
         }
 
         LOG_INFO("Checking out index with conflicts");
+
+        m_resolve_conflicts_btn->setEnabled(false);
+        m_mark_resolved_btn->setEnabled(true);
     }
 }
 
 void RebaseViewWidget::markResolved() {
+    using namespace core;
 
-    /*
-     *  TODO:
-     * 1. Add all modified files to the index using `git_index_add_bypath`
-     * 2. Write the updated index to disk
-     * 3. Complete the cherry-pick by creating a commit
-     */
+    if (m_conflict_index.get() == nullptr) {
+        return;
+    }
+
+    git::index_t repo_index;
+    if (git_repository_index(&repo_index, m_repo) != 0) {
+        // TODO: ERROR
+        utils::log_libgit_error();
+        return;
+    }
+
+    // 1. Add all modified files to the index and create new tree
+    auto&& [status, tree_oid] = conflict::add_resolved_files(repo_index, m_repo, m_conflict_files);
+    if (!status) {
+        // TODO: ERROR
+
+        utils::log_libgit_error();
+        return;
+    }
+
+    // 2. Create commit
+    LOG_INFO("Created tree: {}", git::format_oid_to_str(&tree_oid));
+
+    // TODO: Create commit and move head
+
+    m_mark_resolved_btn->setEnabled(false);
 }
 
 }

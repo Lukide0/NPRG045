@@ -1,9 +1,11 @@
 #include "core/conflict/conflict.h"
 #include "core/conflict/conflict_iterator.h"
 #include "core/git/types.h"
+#include <git2/blob.h>
 #include <git2/cherrypick.h>
 #include <git2/commit.h>
 #include <git2/index.h>
+#include <git2/repository.h>
 #include <git2/types.h>
 #include <utility>
 
@@ -24,6 +26,23 @@ std::pair<ConflictStatus, git::index_t> cherrypick_check(git_commit* commit, git
     } else {
         return std::make_pair(ConflictStatus::NO_CONFLICT, std::move(index));
     }
+}
+
+std::pair<bool, git_oid>
+add_resolved_files(git::index_t& index, git_repository* repo, const std::vector<std::string>& paths) {
+    git_oid oid;
+
+    bool ok = true;
+    for (auto&& path : paths) {
+        ok = git_index_add_bypath(index.get(), path.c_str()) == 0;
+        break;
+    }
+
+    if (ok) {
+        ok = git_index_write_tree_to(&oid, index.get(), repo) == 0;
+    }
+
+    return std::make_pair(ok, oid);
 }
 
 }
