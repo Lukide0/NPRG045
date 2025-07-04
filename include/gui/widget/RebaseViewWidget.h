@@ -88,6 +88,7 @@ private:
 
     /* GIT */
     git_repository* m_repo;
+    core::git::reference_t m_head;
     Node* m_root_node;
 
     action::Action* m_cherrypick = nullptr;

@@ -3,4 +3,5 @@ target_sources(${PROJECT_NAME}
         paths.cpp
         diff.cpp
         parser.cpp
+        commit.cpp
 )

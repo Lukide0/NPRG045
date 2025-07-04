@@ -4,7 +4,9 @@
 #include "action/ActionManager.h"
 #include "core/conflict/conflict.h"
 #include "core/conflict/conflict_iterator.h"
+#include "core/git/commit.h"
 #include "core/git/GitGraph.h"
+#include "core/git/head.h"
 #include "core/git/parser.h"
 #include "core/git/types.h"
 #include "core/state/CommandHistory.h"
@@ -22,7 +24,9 @@
 
 #include <cassert>
 #include <cstdint>
+#include <git2/refs.h>
 #include <git2/repository.h>
+#include <git2/signature.h>
 #include <git2/tree.h>
 #include <memory>
 #include <optional>
@@ -230,8 +234,19 @@ bool RebaseViewWidget::updateConflictAction(Action* act) {
         return false;
     }
 
+    switch (act->get_type()) {
+    case action::ActionType::DROP:
+        return false;
+    case action::ActionType::SQUASH:
+    case action::ActionType::FIXUP:
+    case action::ActionType::PICK:
+    case action::ActionType::REWORD:
+    case action::ActionType::EDIT:
+        break;
+    }
+
     auto* commit        = act->get_commit();
-    auto* parent_commit = action::ActionsManager::get_parent_commit(act);
+    auto* parent_commit = action::ActionsManager::get_picked_parent_commit(act);
 
     auto&& [status, conflict] = conflict::cherrypick_check(commit, parent_commit);
     switch (status) {
@@ -565,6 +580,7 @@ void RebaseViewWidget::updateGraph() {
         }
     }
 
+    updateConflict(node);
     m_commit_view->update(node);
 }
 
@@ -692,22 +708,19 @@ void RebaseViewWidget::checkoutAndResolve() {
 
     LOG_INFO("Working dir is clean");
 
+    // save HEAD
+    if (git_repository_head(&m_head, m_repo) != 0) {
+        // TODO: ERROR
+
+        core::utils::log_libgit_error();
+        return;
+    }
+
     // 2. Checkout first commit
     {
-        auto* commit = action::ActionsManager::get_parent_commit(m_cherrypick);
+        auto* commit = action::ActionsManager::get_picked_parent_commit(m_cherrypick);
 
-        // set HEAD
-        if (git_repository_set_head_detached(m_repo, git_commit_id(commit)) != 0) {
-            core::utils::log_libgit_error();
-            return;
-        }
-
-        git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
-
-        opts.checkout_strategy |= GIT_CHECKOUT_FORCE;
-
-        // checkout
-        if (git_checkout_head(m_repo, &opts) != 0) {
+        if (!core::git::set_repository_head_detached(m_repo, git_commit_id(commit))) {
             core::utils::log_libgit_error();
             return;
         }
@@ -744,6 +757,7 @@ void RebaseViewWidget::markResolved() {
     git::index_t repo_index;
     if (git_repository_index(&repo_index, m_repo) != 0) {
         // TODO: ERROR
+
         utils::log_libgit_error();
         return;
     }
@@ -757,12 +771,61 @@ void RebaseViewWidget::markResolved() {
         return;
     }
 
-    // 2. Create commit
-    LOG_INFO("Created tree: {}", git::format_oid_to_str(&tree_oid));
+    git::tree_t tree;
+    if (git_tree_lookup(&tree, m_repo, &tree_oid) != 0) {
+        // TODO: ERROR
 
-    // TODO: Create commit and move head
+        utils::log_libgit_error();
+        return;
+    }
+
+    // 2. Create commit
+    const git_commit* parent_commit = action::ActionsManager::get_picked_parent_commit(m_cherrypick);
+    const git_commit* commit        = m_cherrypick->get_commit();
+
+    git_oid commit_oid;
+
+    git::signature_t committer;
+    if (git_signature_default(&committer, m_repo) != 0) {
+        // TODO: ERROR
+
+        utils::log_libgit_error();
+        return;
+    }
+
+    if (!git::modify_commit(&commit_oid, commit, committer.get(), tree.get(), parent_commit)) {
+        // TODO: ERROR
+
+        utils::log_libgit_error();
+        return;
+    }
+
+    git::commit_t new_commit;
+    if (git_commit_lookup(&new_commit, m_repo, &commit_oid) != 0) {
+        // TODO: ERROR
+
+        utils::log_libgit_error();
+        return;
+    }
+
+    // Change working tree
+    if (!git::set_repository_head(m_repo, m_head.get())) {
+        // TODO: ERROR
+
+        utils::log_libgit_error();
+        return;
+    }
 
     m_mark_resolved_btn->setEnabled(false);
-}
 
+    auto& manager       = action::ActionsManager::get();
+    std::uint32_t index = manager.get_action_index(m_cherrypick);
+
+    auto cmd = std::make_unique<conflict::ConflictResolveCommand>(index, std::move(new_commit));
+
+    // swap commits
+    cmd->execute();
+
+    state::CommandHistory::Add(std::move(cmd));
+}
 }

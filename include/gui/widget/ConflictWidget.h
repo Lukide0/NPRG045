@@ -12,10 +12,11 @@ public:
 
     void addConflictFile(const std::string& path, const std::string& content);
 
-    void clearConflicts() { clear_layout(m_layout); }
+    void clearConflicts() { clear_layout(m_files); }
 
 private:
     QVBoxLayout* m_layout;
+    QVBoxLayout* m_files;
 };
 
 }

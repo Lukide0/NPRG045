@@ -246,6 +246,8 @@ public:
 
     void set_root_commit(git_commit* commit) { m_root_commit = commit; }
 
+    static void swap_commits(Action* act, core::git::commit_t& commit) { std::swap(act->m_commit, commit); }
+
     static ActionsManager& get() {
         static ActionsManager manager;
         return manager;
@@ -264,6 +266,30 @@ public:
         }
     }
 
+    static git_commit* get_picked_parent_commit(Action* act) {
+        if (act == nullptr) {
+            return nullptr;
+        }
+
+        auto* parent = act->get_prev();
+        while (parent != nullptr) {
+            switch (parent->get_type()) {
+            case ActionType::DROP:
+                break;
+            case ActionType::SQUASH:
+            case ActionType::FIXUP:
+            case ActionType::PICK:
+            case ActionType::REWORD:
+            case ActionType::EDIT:
+                return parent->get_commit();
+            }
+
+            parent = parent->get_prev();
+        }
+
+        return get().get_root_commit();
+    }
+
     Action* get_action(std::uint32_t index) {
         auto* act = m_head;
 
@@ -272,6 +298,17 @@ public:
         }
 
         return act;
+    }
+
+    std::uint32_t get_action_index(Action* find) {
+        auto* act           = m_head;
+        std::uint32_t index = 0;
+
+        for (; act != find && act != nullptr; ++index) {
+            act = act->get_next();
+        }
+
+        return index;
     }
 
 private:
