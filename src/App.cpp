@@ -65,13 +65,13 @@ App::App() {
     auto* menu = new QMenuBar(this);
     setMenuBar(menu);
 
-    auto* repo      = menu->addMenu("Repo");
-    auto* repo_open = new QAction(QIcon::fromTheme("folder-open"), "Open", this);
+    auto* repo  = menu->addMenu("Repo");
+    m_repo_open = new QAction(QIcon::fromTheme("folder-open"), "Open", this);
 
     {
-        repo_open->setStatusTip("Open a repo");
+        m_repo_open->setStatusTip("Open a repo");
 
-        connect(repo_open, &QAction::triggered, this, [this] {
+        connect(m_repo_open, &QAction::triggered, this, [this] {
             if (CommandHistory::CanUndo()) {
                 auto ans = QMessageBox::question(
                     this,
@@ -89,7 +89,7 @@ App::App() {
             openRepoDialog();
         });
 
-        repo->addAction(repo_open);
+        repo->addAction(m_repo_open);
     }
 
     {
@@ -113,7 +113,7 @@ App::App() {
         connect(edit_load, &QAction::triggered, this, [this] { loadSaveFile(); });
 
         auto* edit_todo_save = new QAction(QIcon::fromTheme("document-save-as"), "Save Todo");
-        connect(edit_todo_save, &QAction::triggered, this, [this] { tryApplyTodo(); });
+        connect(edit_todo_save, &QAction::triggered, this, [this] { saveTodoFile(); });
 
         auto* edit_preferences = new QAction("Preferences", this);
         connect(edit_preferences, &QAction::triggered, this, [this] { showPreferences(); });
@@ -168,6 +168,56 @@ App::App() {
     m_preferences = new gui::window::PreferencesWindow();
 }
 
+bool App::maybeSave() {
+    using core::state::CommandHistory;
+
+    bool res = true;
+
+    if (CommandHistory::CanUndo()) {
+        auto ans = QMessageBox::warning(
+            this,
+            "Unsaved changes",
+            "Do you want to save your changes?",
+            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
+            QMessageBox::Save
+        );
+
+        if (ans == QMessageBox::Save) {
+            res = saveSaveFile(false);
+        } else if (ans == QMessageBox::Cancel) {
+            res = false;
+        }
+    }
+
+    if (m_cli_start) {
+        auto ans = QMessageBox::warning(
+            this,
+            "Modified TODO file",
+            "Do you want to apply changes to the TODO file?",
+            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
+            QMessageBox::Save
+        );
+
+        if (ans == QMessageBox::Save) {
+            res &= saveTodoFile();
+        } else if (ans == QMessageBox::Cancel) {
+            res = false;
+        }
+    }
+
+    return res;
+}
+
+void App::closeEvent(QCloseEvent* event) {
+    if (maybeSave()) {
+        // close the app
+        event->accept();
+    } else {
+        // keep app open
+        event->ignore();
+    }
+}
+
 void App::hideOldCommits(bool state) {
     if (!state) {
         m_rebase_view->hideOldCommits();
@@ -211,6 +261,10 @@ void App::openRepoCLI(const std::string& path) {
         // NOTE: Only called in before QApplication::exec()
         std::exit(1);
     }
+
+    m_cli_start = true;
+
+    m_repo_open->setEnabled(false);
 }
 
 bool App::openRepo(const std::string& path) {
@@ -265,7 +319,7 @@ bool App::showRebase() {
     return true;
 }
 
-void App::saveSaveFile(bool choose_file) {
+bool App::saveSaveFile(bool choose_file) {
     if (!m_save_file.has_value() || choose_file) {
         QString default_path = QString::fromStdString(m_repo_path);
 
@@ -280,13 +334,13 @@ void App::saveSaveFile(bool choose_file) {
         dialog.setDefaultSuffix("xml");
 
         if (dialog.exec() != QDialog::Accepted) {
-            return;
+            return false;
         }
 
         QString filepath = dialog.selectedFiles().first();
 
         if (filepath.isEmpty()) {
-            return;
+            return false;
         }
 
         m_save_file = filepath;
@@ -296,8 +350,10 @@ void App::saveSaveFile(bool choose_file) {
 
     if (!core::state::State::save(m_save_file.value().toStdU32String(), m_repo_path, m_rebase_head, m_rebase_onto)) {
         QMessageBox::critical(this, "Save error", "Failed to save");
-        return;
+        return false;
     }
+
+    return true;
 }
 
 void App::loadSaveFile() {
@@ -352,19 +408,19 @@ void App::loadSaveFile() {
     }
 }
 
-void App::tryApplyTodo() {
+bool App::saveTodoFile() {
     std::string head;
     std::string onto;
 
     auto err = core::git::get_rebase_info(m_repo_path, head, onto);
     if (err.has_value()) {
         QMessageBox::critical(this, "Save Error", "Could not find rebase files");
-        return;
+        return false;
     }
 
     if (head != m_rebase_head || onto != m_rebase_onto) {
         QMessageBox::critical(this, "Save Error", "Rebase files have changed");
-        return;
+        return false;
     }
 
     auto filepath = m_repo_path + '/' + core::git::TODO_FILE.c_str();
@@ -372,13 +428,15 @@ void App::tryApplyTodo() {
     std::ofstream todo_file(filepath);
     if (!todo_file.good()) {
         QMessageBox::critical(this, "Save Error", "Could not open todo file");
-        return;
+        return false;
     }
 
     auto& manager = action::ActionsManager::get();
     action::Converter::actions_to_todo(todo_file, manager.get_actions(), manager);
 
     LOG_INFO("Saving todo file: {}", filepath);
+
+    return true;
 }
 
 void App::showPreferences() { m_preferences->show(); }

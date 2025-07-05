@@ -43,7 +43,13 @@ public:
     static gui::widget::RebaseViewWidget* getRebaseViewWidget();
     static const std::string& getRepoPath();
 
+protected:
+    void closeEvent(QCloseEvent* event) override;
+
 private:
+    bool m_cli_start = false;
+    QAction* m_repo_open;
+
     std::string m_repo_path;
     std::string m_rebase_head;
     std::string m_rebase_onto;
@@ -61,9 +67,10 @@ private:
     void hideResultCommits(bool state);
 
     void loadSaveFile();
-    void saveSaveFile(bool choose_file);
-
-    void tryApplyTodo();
+    bool saveTodoFile();
+    bool saveSaveFile(bool choose_file);
 
     void showPreferences();
+
+    bool maybeSave();
 };
