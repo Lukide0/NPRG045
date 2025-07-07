@@ -1,8 +1,9 @@
 #include "gui/widget/ConflictWidget.h"
-#include "gui/widget/ConflictFile.h"
 
 #include <QHBoxLayout>
 #include <QWidget>
+#include <QListWidget>
+#include <QLabel>
 
 namespace gui::widget {
 
@@ -10,7 +11,7 @@ ConflictWidget::ConflictWidget(QWidget* parent)
     : QWidget(parent) {
 
     m_layout = new QVBoxLayout();
-    m_files  = new QVBoxLayout();
+    m_files  = new QListWidget();
 
     auto* header = new QLabel("Conflicts");
     QFont font   = header->font();
@@ -20,23 +21,13 @@ ConflictWidget::ConflictWidget(QWidget* parent)
     header->setFont(font);
 
     m_layout->addWidget(header);
-    m_layout->addLayout(m_files, 1);
+    m_layout->addWidget(m_files, 1);
 
     setLayout(m_layout);
 }
 
-void ConflictWidget::addConflictFile(const std::string& path, const std::string& content) {
-    auto* file   = new ConflictFile();
-    auto* editor = file->getEditor();
-
-    file->setHeader(QString::fromStdString(path));
-
-    editor->setPlainText(QString::fromStdString(content));
-    editor->setReadOnly(true);
-
-    file->updateEditorHeight();
-
-    m_files->addWidget(file);
+void ConflictWidget::addConflictFile(const std::string& path) {
+    m_files->addItem(QString::fromStdString(path));
 }
 
 }

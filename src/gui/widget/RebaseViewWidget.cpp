@@ -272,26 +272,18 @@ bool RebaseViewWidget::updateConflictAction(Action* act) {
     m_cherrypick = act;
 
     bool iterator_status = conflict::iterate(m_conflict_index.get(), [this](conflict::entry_data_t entry) -> bool {
-        git::merge_file_result_t res;
-        if (git_merge_file_from_index(&res, m_repo, entry.ancestor, entry.our, entry.their, nullptr) != 0) {
-            utils::log_libgit_error();
-            return true;
-        }
+        const char* path = entry.their->path;
 
-        const git_merge_file_result& merge = res.get();
-
-        const char* path = merge.path;
         if (path == nullptr) {
-            return true;
+            path = entry.our->path;
         }
 
-        assert(path != nullptr);
+        if (path == nullptr) {
+            path = entry.ancestor->path;
+        }
 
-        std::string content(merge.ptr, merge.len);
-
-        m_conflict_widget->addConflictFile(path, content);
-
-        m_conflict_files.emplace_back(merge.path);
+        m_conflict_widget->addConflictFile(path);
+        m_conflict_files.emplace_back(path);
 
         return true;
     });
