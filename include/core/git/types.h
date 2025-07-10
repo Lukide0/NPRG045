@@ -4,23 +4,29 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <git2/buffer.h>
-#include <git2/merge.h>
+#include <cstring>
+#include <memory>
+#include <span>
+#include <string.h>
 #include <string>
 #include <string_view>
 #include <utility>
 
+#include <git2/buffer.h>
 #include <git2/commit.h>
 #include <git2/diff.h>
 #include <git2/index.h>
+#include <git2/merge.h>
 #include <git2/object.h>
 #include <git2/oid.h>
 #include <git2/patch.h>
 #include <git2/refs.h>
 #include <git2/revparse.h>
 #include <git2/signature.h>
+#include <git2/status.h>
 #include <git2/tree.h>
 #include <git2/types.h>
+#include <vector>
 
 namespace core::git {
 
@@ -135,6 +141,7 @@ using signature_t         = ptr_object_t<git_signature, git_signature_free>;
 using reference_t         = ptr_object_t<git_reference, git_reference_free>;
 using diff_t              = ptr_object_t<git_diff, git_diff_free>;
 using patch_t             = ptr_object_t<git_patch, git_patch_free>;
+using status_list_t       = ptr_object_t<git_status_list, git_status_list_free>;
 using conflict_iterator_t = ptr_object_t<git_index_conflict_iterator, git_index_conflict_iterator_free>;
 using index_iterator_t    = ptr_object_t<git_index_iterator, git_index_iterator_free>;
 
@@ -156,6 +163,37 @@ struct commit_parents_t {
             delete[] parents;
         }
     }
+};
+
+class str_array {
+public:
+    str_array(std::span<const std::string> strings)
+        : m_storage(strings.begin(), strings.end()) {
+        m_size    = strings.size();
+        m_strings = std::make_unique<char*[]>(m_size);
+
+        for (std::size_t i = 0; i < m_size; ++i) {
+            m_strings[i] = m_storage[i].data();
+        }
+    }
+
+    git_strarray get_array() {
+        git_strarray arr;
+        arr.count   = m_size;
+        arr.strings = m_strings.get();
+
+        return arr;
+    }
+
+    void fill(git_strarray& arr) {
+        arr.count   = m_size;
+        arr.strings = m_strings.get();
+    }
+
+private:
+    std::vector<std::string> m_storage;
+    std::unique_ptr<char*[]> m_strings;
+    std::size_t m_size;
 };
 
 inline bool get_commit_from_hash(commit_t& out_commit, const char* hash, git_repository* repo) {

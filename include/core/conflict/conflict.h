@@ -16,10 +16,14 @@ enum class ConflictStatus {
     NO_CONFLICT,
 };
 
+struct ResolutionResult {
+    std::optional<std::string> err;
+    git_oid id;
+};
+
 std::pair<ConflictStatus, git::index_t> cherrypick_check(git_commit* commit, git_commit* parent_commit);
 
-std::pair<bool, git_oid>
-add_resolved_files(git::index_t& index, git_repository* repo, const std::vector<std::string>& paths);
+ResolutionResult add_resolved_files(git::index_t& index, git_repository* repo, const std::vector<std::string>& paths);
 
 class ConflictResolveCommand : public core::state::Command {
 public:

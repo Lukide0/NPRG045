@@ -1,12 +1,15 @@
 #include "core/conflict/conflict.h"
 #include "core/conflict/conflict_iterator.h"
+#include "core/git/error.h"
 #include "core/git/types.h"
 #include <git2/blob.h>
 #include <git2/cherrypick.h>
 #include <git2/commit.h>
 #include <git2/index.h>
 #include <git2/repository.h>
+#include <git2/status.h>
 #include <git2/types.h>
+#include <memory>
 #include <utility>
 
 namespace core::conflict {
@@ -28,21 +31,46 @@ std::pair<ConflictStatus, git::index_t> cherrypick_check(git_commit* commit, git
     }
 }
 
-std::pair<bool, git_oid>
-add_resolved_files(git::index_t& index, git_repository* repo, const std::vector<std::string>& paths) {
-    git_oid oid;
+ResolutionResult add_resolved_files(git::index_t& index, git_repository* repo, const std::vector<std::string>& paths) {
+    ResolutionResult res;
 
-    bool ok = true;
-    for (auto&& path : paths) {
-        ok = git_index_add_bypath(index.get(), path.c_str()) == 0;
-        break;
+    git::status_list_t list;
+
+    git_status_options opts = GIT_STATUS_OPTIONS_INIT;
+    opts.show               = GIT_STATUS_SHOW_INDEX_AND_WORKDIR;
+    opts.flags |= GIT_STATUS_OPT_INCLUDE_UNTRACKED | GIT_STATUS_OPT_RENAMES_HEAD_TO_INDEX
+        | GIT_STATUS_OPT_SORT_CASE_SENSITIVELY;
+
+    // shortcut
+    git_strarray& ps = opts.pathspec;
+
+    git::str_array str_storage(paths);
+    str_storage.fill(ps);
+
+    if (git_status_list_new(&list, repo, &opts) != 0) {
+        res.err = git::get_last_error();
+        return res;
     }
 
-    if (ok) {
-        ok = git_index_write_tree_to(&oid, index.get(), repo) == 0;
+    std::size_t n = git_status_list_entrycount(list.get());
+    for (std::size_t i = 0; i < n; ++i) {
+        const git_status_entry* entry = git_status_byindex(list, i);
+        const auto status             = entry->status;
+
+        constexpr auto status_mask
+            = GIT_STATUS_INDEX_NEW | GIT_STATUS_INDEX_MODIFIED | GIT_STATUS_INDEX_DELETED | GIT_STATUS_INDEX_RENAMED;
+
+        if ((status & status_mask) == 0) {
+            res.err = "Not staged changes";
+            return res;
+        }
     }
 
-    return std::make_pair(ok, oid);
+    if (git_index_write_tree_to(&res.id, index.get(), repo) != 0) {
+        res.err = git::get_last_error();
+    }
+
+    return res;
 }
 
 }

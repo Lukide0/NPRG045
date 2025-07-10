@@ -168,10 +168,10 @@ App::App() {
     m_preferences = new gui::window::PreferencesWindow();
 }
 
-bool App::maybeSave() {
+App::SaveStatus App::maybeSave() {
     using core::state::CommandHistory;
 
-    bool res = true;
+    SaveStatus status = SaveStatus::SAVE;
 
     if (CommandHistory::CanUndo()) {
         auto ans = QMessageBox::warning(
@@ -183,9 +183,12 @@ bool App::maybeSave() {
         );
 
         if (ans == QMessageBox::Save) {
-            res = saveSaveFile(false);
+            if (!saveSaveFile(false)) {
+                status = SaveStatus::CANCEL;
+            }
+
         } else if (ans == QMessageBox::Cancel) {
-            res = false;
+            status = SaveStatus::CANCEL;
         }
     }
 
@@ -193,28 +196,38 @@ bool App::maybeSave() {
         auto ans = QMessageBox::warning(
             this,
             "Modified TODO file",
-            "Do you want to apply changes to the TODO file?",
+            "Do you want to save changes to the TODO file?",
             QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
             QMessageBox::Save
         );
 
         if (ans == QMessageBox::Save) {
-            res &= saveTodoFile();
+            if (!saveTodoFile()) {
+                status = SaveStatus::CANCEL;
+            }
         } else if (ans == QMessageBox::Cancel) {
-            res = false;
+            status = SaveStatus::CANCEL;
+        } else if (ans == QMessageBox::Discard) {
+            status = SaveStatus::DISCARD;
         }
     }
 
-    return res;
+    return status;
 }
 
 void App::closeEvent(QCloseEvent* event) {
-    if (maybeSave()) {
-        // close the app
+
+    switch (maybeSave()) {
+    case SaveStatus::SAVE:
         event->accept();
-    } else {
-        // keep app open
+        break;
+    case SaveStatus::DISCARD:
+        QApplication::exit(1);
+        event->accept();
+        break;
+    case SaveStatus::CANCEL:
         event->ignore();
+        break;
     }
 }
 
@@ -257,6 +270,7 @@ void App::openRepoCLI(const std::string& path) {
     if (!openRepo(repo_path)) {
         // NOTE: If this method is called before QApplication::exec() then it will do nothing.
         QApplication::exit(1);
+        qApp->quit();
 
         // NOTE: Only called in before QApplication::exec()
         std::exit(1);

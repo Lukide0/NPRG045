@@ -47,6 +47,12 @@ protected:
     void closeEvent(QCloseEvent* event) override;
 
 private:
+    enum class SaveStatus {
+        SAVE,
+        DISCARD,
+        CANCEL,
+    };
+
     bool m_cli_start = false;
     QAction* m_repo_open;
 
@@ -72,5 +78,5 @@ private:
 
     void showPreferences();
 
-    bool maybeSave();
+    SaveStatus maybeSave();
 };

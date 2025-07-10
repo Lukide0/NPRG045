@@ -675,7 +675,7 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
 }
 
 void RebaseViewWidget::checkoutAndResolve() {
-    // TODO: Lock app
+    using namespace core;
 
     // 1. Check if working index is clean
     {
@@ -684,16 +684,15 @@ void RebaseViewWidget::checkoutAndResolve() {
         git_status_list* list;
 
         if (git_status_list_new(&list, m_repo, &opts) != 0) {
-            core::utils::log_libgit_error();
-
-            // TODO: ERROR
+            utils::log_libgit_error();
+            QMessageBox::critical(this, "Status error", QString::fromStdString(git::get_last_error()));
             return;
         }
 
         bool has_changes = (git_status_list_entrycount(list) != 0);
         if (has_changes) {
-            // TODO: ERROR
-            LOG_ERROR("Working dir is not clean");
+            LOG_ERROR("Working directory is not clean");
+            QMessageBox::critical(this, "Status error", "Working directory is not clean");
             return;
         }
     }
@@ -702,9 +701,8 @@ void RebaseViewWidget::checkoutAndResolve() {
 
     // save HEAD
     if (git_repository_head(&m_head, m_repo) != 0) {
-        // TODO: ERROR
-
-        core::utils::log_libgit_error();
+        utils::log_libgit_error();
+        QMessageBox::critical(this, "Repo head error", QString::fromStdString(git::get_last_error()));
         return;
     }
 
@@ -712,8 +710,9 @@ void RebaseViewWidget::checkoutAndResolve() {
     {
         auto* commit = action::ActionsManager::get_picked_parent_commit(m_cherrypick);
 
-        if (!core::git::set_repository_head_detached(m_repo, git_commit_id(commit))) {
-            core::utils::log_libgit_error();
+        if (!git::set_repository_head_detached(m_repo, git_commit_id(commit))) {
+            utils::log_libgit_error();
+            QMessageBox::critical(this, "Repo head error", QString::fromStdString(git::get_last_error()));
             return;
         }
 
@@ -727,8 +726,8 @@ void RebaseViewWidget::checkoutAndResolve() {
         opts.checkout_strategy |= GIT_CHECKOUT_SAFE | GIT_CHECKOUT_ALLOW_CONFLICTS | GIT_CHECKOUT_RECREATE_MISSING;
 
         if (git_checkout_index(m_repo, m_conflict_index.get(), &opts) != 0) {
-            // TODO: ERROR
-            core::utils::log_libgit_error();
+            utils::log_libgit_error();
+            QMessageBox::critical(this, "Repo head error", QString::fromStdString(git::get_last_error()));
             return;
         }
 
@@ -748,26 +747,23 @@ void RebaseViewWidget::markResolved() {
 
     git::index_t repo_index;
     if (git_repository_index(&repo_index, m_repo) != 0) {
-        // TODO: ERROR
-
         utils::log_libgit_error();
+        QMessageBox::critical(this, "Repo index", QString::fromStdString(git::get_last_error()));
         return;
     }
 
     // 1. Add all modified files to the index and create new tree
-    auto&& [status, tree_oid] = conflict::add_resolved_files(repo_index, m_repo, m_conflict_files);
-    if (!status) {
-        // TODO: ERROR
-
-        utils::log_libgit_error();
+    auto&& [err, tree_oid] = conflict::add_resolved_files(repo_index, m_repo, m_conflict_files);
+    if (err.has_value()) {
+        LOG_ERROR("{}", err.value());
+        QMessageBox::critical(this, "Resolution error", QString::fromStdString(err.value()));
         return;
     }
 
     git::tree_t tree;
     if (git_tree_lookup(&tree, m_repo, &tree_oid) != 0) {
-        // TODO: ERROR
-
         utils::log_libgit_error();
+        QMessageBox::critical(this, "Tree error", QString::fromStdString(git::get_last_error()));
         return;
     }
 
@@ -779,32 +775,28 @@ void RebaseViewWidget::markResolved() {
 
     git::signature_t committer;
     if (git_signature_default(&committer, m_repo) != 0) {
-        // TODO: ERROR
-
         utils::log_libgit_error();
+        QMessageBox::critical(this, "Signature error", QString::fromStdString(git::get_last_error()));
         return;
     }
 
     if (!git::modify_commit(&commit_oid, commit, committer.get(), tree.get(), parent_commit)) {
-        // TODO: ERROR
-
         utils::log_libgit_error();
+        QMessageBox::critical(this, "Commit error", QString::fromStdString(git::get_last_error()));
         return;
     }
 
     git::commit_t new_commit;
     if (git_commit_lookup(&new_commit, m_repo, &commit_oid) != 0) {
-        // TODO: ERROR
-
         utils::log_libgit_error();
+        QMessageBox::critical(this, "Commit error", QString::fromStdString(git::get_last_error()));
         return;
     }
 
     // Change working tree
     if (!git::set_repository_head(m_repo, m_head.get())) {
-        // TODO: ERROR
-
         utils::log_libgit_error();
+        QMessageBox::critical(this, "Repo head error", QString::fromStdString(git::get_last_error()));
         return;
     }
 
