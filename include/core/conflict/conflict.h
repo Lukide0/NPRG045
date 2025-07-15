@@ -2,11 +2,14 @@
 
 #include "action/ActionManager.h"
 #include "App.h"
-#include "core/conflict/conflict_iterator.h"
 #include "core/git/types.h"
 #include "core/state/Command.h"
-#include <git2/types.h>
+
+#include <span>
+#include <string>
 #include <utility>
+
+#include <git2/types.h>
 
 namespace core::conflict {
 
@@ -23,7 +26,13 @@ struct ResolutionResult {
 
 std::pair<ConflictStatus, git::index_t> cherrypick_check(git_commit* commit, git_commit* parent_commit);
 
-ResolutionResult add_resolved_files(git::index_t& index, git_repository* repo, const std::vector<std::string>& paths);
+ResolutionResult add_resolved_files(
+    git::index_t& index,
+    git_repository* repo,
+    std::span<const std::string> paths,
+    std::span<const ConflictEntry> entries,
+    ConflictManager& manager
+);
 
 class ConflictResolveCommand : public core::state::Command {
 public:

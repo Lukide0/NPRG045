@@ -2,6 +2,7 @@
 
 #include "action/Action.h"
 #include "action/ActionManager.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/types.h"
 #include <filesystem>
 #include <git2/types.h>
@@ -13,6 +14,7 @@ namespace core::state {
 
 struct SaveData {
     std::vector<std::pair<action::Action, std::string>> actions;
+    std::vector<std::pair<conflict::ConflictEntry, std::string>> conflicts;
     git::commit_t root;
 
     std::string head;

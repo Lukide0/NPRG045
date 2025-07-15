@@ -2,6 +2,7 @@
 
 #include "action/Action.h"
 #include "action/ActionManager.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/GitGraph.h"
 #include "core/git/parser.h"
 #include "core/git/types.h"
@@ -85,6 +86,7 @@ private:
 
     core::git::GitGraph<Node*> m_graph;
     action::ActionsManager& m_actions;
+    core::conflict::ConflictManager& m_conflict_manager;
 
     /* GIT */
     git_repository* m_repo;
@@ -96,7 +98,8 @@ private:
     core::git::tree_t m_conflict_parent_tree;
     core::git::index_t m_conflict_index;
 
-    std::vector<std::string> m_conflict_files;
+    std::vector<std::string> m_conflict_paths;
+    std::vector<core::conflict::ConflictEntry> m_conflict_entries;
 
     std::optional<std::string> prepareItem(ListItem* item, action::Action& action);
 

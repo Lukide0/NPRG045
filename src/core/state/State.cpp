@@ -1,6 +1,7 @@
 #include "core/state/State.h"
 #include "action/Action.h"
 #include "action/ActionManager.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/types.h"
 #include "logging/Log.h"
 
@@ -22,10 +23,12 @@
 
 namespace core::state {
 
-constexpr const char* ROOT_NODE    = "save_data";
-constexpr const char* ROOT_COMMIT  = "root";
-constexpr const char* ACTIONS_NODE = "actions";
-constexpr const char* ACTION_NODE  = "action";
+constexpr const char* ROOT_NODE      = "save_data";
+constexpr const char* ROOT_COMMIT    = "root";
+constexpr const char* ACTIONS_NODE   = "actions";
+constexpr const char* ACTION_NODE    = "action";
+constexpr const char* CONFLICTS_NODE = "conflicts";
+constexpr const char* CONFLICT_NODE  = "conflict";
 
 std::string load_message(const QDomElement& action) {
     QDomNodeList nodes = action.elementsByTagName("line");
@@ -53,25 +56,7 @@ void save_message(const QString& msg, QDomDocument& doc, QDomElement& action) {
     }
 }
 
-bool State::save(
-    const std::filesystem::path& path,
-    const std::filesystem::path& repo,
-    const std::string& head,
-    const std::string& onto
-) {
-
-    QDomDocument doc;
-
-    QDomProcessingInstruction header = doc.createProcessingInstruction("xml", R"(version="1.0" encoding="UTF-8")");
-    doc.appendChild(header);
-
-    QDomElement root = doc.createElement(ROOT_NODE);
-    root.setAttribute("repo", QString::fromStdU32String(repo.u32string()));
-    root.setAttribute("head", QString::fromStdString(head));
-    root.setAttribute("onto", QString::fromStdString(onto));
-
-    doc.appendChild(root);
-
+void save_actions(QDomElement& root, QDomDocument& doc) {
     auto& manager = action::ActionsManager::get();
 
     auto* cmt = manager.get_root_commit();
@@ -120,6 +105,133 @@ bool State::save(
     }
 
     root.appendChild(actions);
+}
+
+bool load_actions(QDomElement& root, SaveData& save_data, git_repository* repo) {
+    // -- Root commit ---------------------------------------------------------
+    QDomElement root_commit = root.firstChildElement(ROOT_COMMIT);
+    if (root_commit.isNull() || !root_commit.hasAttribute("hash") || root_commit.attribute("hash").isEmpty()) {
+        return false;
+    }
+
+    auto root_commit_hash = root_commit.attribute("hash").toStdString();
+
+    if (!git::get_commit_from_hash(save_data.root, root_commit_hash.c_str(), repo)) {
+        return false;
+    }
+
+    // -- Actions -------------------------------------------------------------
+    QDomElement actions = root.firstChildElement(ACTIONS_NODE);
+    if (actions.isNull()) {
+        return false;
+    }
+
+    for (QDomNode node = actions.firstChildElement(ACTION_NODE); !node.isNull();
+         node          = node.nextSiblingElement(ACTION_NODE)) {
+
+        // -- Action ----------------------------------------------------------
+        QDomElement el = node.toElement();
+
+        QString type_str = el.attribute("type");
+        action::ActionType type;
+
+        if (type_str == "pick") {
+            type = action::ActionType::PICK;
+        } else if (type_str == "edit") {
+            type = action::ActionType::EDIT;
+        } else if (type_str == "drop") {
+            type = action::ActionType::DROP;
+        } else if (type_str == "fixup") {
+            type = action::ActionType::FIXUP;
+        } else if (type_str == "reword") {
+            type = action::ActionType::REWORD;
+        } else if (type_str == "squash") {
+            type = action::ActionType::SQUASH;
+        } else {
+            return false;
+        }
+
+        auto hash = el.attribute("hash").toStdString();
+        if (hash.empty()) {
+            return false;
+        }
+
+        git::commit_t action_commit;
+        if (!git::get_commit_from_hash(action_commit, hash.c_str(), repo)) {
+            return false;
+        }
+
+        auto msg = load_message(el);
+
+        save_data.actions.emplace_back(action::Action(type, std::move(action_commit)), msg);
+    }
+
+    return true;
+}
+
+void save_conflicts(QDomElement& root, QDomDocument& doc) {
+    auto& manager = conflict::ConflictManager::get();
+
+    QDomElement conflicts = doc.createElement(CONFLICTS_NODE);
+
+    for (auto&& [entry, blob] : manager.get_conflicts()) {
+        QDomElement conflict = doc.createElement(CONFLICT_NODE);
+
+        conflict.setAttribute("their", QString::fromStdString(entry.their_id));
+        conflict.setAttribute("our", QString::fromStdString(entry.our_id));
+        conflict.setAttribute("ancestor", QString::fromStdString(entry.ancestor_id));
+        conflict.setAttribute("blob", QString::fromStdString(blob));
+
+        conflicts.appendChild(conflict);
+    }
+
+    root.appendChild(conflicts);
+}
+
+void load_conflicts(QDomElement& root, SaveData& save_data) {
+    QDomElement conflicts = root.firstChildElement(CONFLICTS_NODE);
+    if (conflicts.isNull()) {
+        return;
+    }
+
+    for (QDomNode node = conflicts.firstChildElement(CONFLICT_NODE); !node.isNull();
+         node          = node.nextSiblingElement(CONFLICT_NODE)) {
+
+        QDomElement conflict = node.toElement();
+
+        conflict::ConflictEntry entry;
+        entry.their_id    = conflict.attribute("their").toStdString();
+        entry.our_id      = conflict.attribute("our").toStdString();
+        entry.ancestor_id = conflict.attribute("ancestor").toStdString();
+
+        std::string blob = conflict.attribute("blob").toStdString();
+
+        save_data.conflicts.emplace_back(entry, blob);
+    }
+}
+
+bool State::save(
+    const std::filesystem::path& path,
+    const std::filesystem::path& repo,
+    const std::string& head,
+    const std::string& onto
+) {
+
+    QDomDocument doc;
+
+    QDomProcessingInstruction header = doc.createProcessingInstruction("xml", R"(version="1.0" encoding="UTF-8")");
+    doc.appendChild(header);
+
+    QDomElement root = doc.createElement(ROOT_NODE);
+    root.setAttribute("repo", QString::fromStdU32String(repo.u32string()));
+    root.setAttribute("head", QString::fromStdString(head));
+    root.setAttribute("onto", QString::fromStdString(onto));
+
+    doc.appendChild(root);
+
+    save_actions(root, doc);
+
+    save_conflicts(root, doc);
 
     QFile file(QString::fromStdU32String(path.u32string()));
     if (!file.open(QFile::WriteOnly)) {
@@ -164,63 +276,11 @@ std::optional<SaveData> State::load(const std::filesystem::path& path, git_repos
         return std::nullopt;
     }
 
-    // -- Root commit ---------------------------------------------------------
-    QDomElement root_commit = root.firstChildElement(ROOT_COMMIT);
-    if (root_commit.isNull() || !root_commit.hasAttribute("hash") || root_commit.attribute("hash").isEmpty()) {
+    if (!load_actions(root, save_data, *repo)) {
         return std::nullopt;
     }
 
-    auto root_commit_hash = root_commit.attribute("hash").toStdString();
-
-    if (!git::get_commit_from_hash(save_data.root, root_commit_hash.c_str(), *repo)) {
-        return std::nullopt;
-    }
-
-    // -- Actions -------------------------------------------------------------
-    QDomElement actions = root.firstChildElement(ACTIONS_NODE);
-    if (actions.isNull()) {
-        return std::nullopt;
-    }
-
-    for (QDomNode node = actions.firstChildElement(ACTION_NODE); !node.isNull();
-         node          = node.nextSiblingElement(ACTION_NODE)) {
-
-        // -- Action ----------------------------------------------------------
-        QDomElement el = node.toElement();
-
-        QString type_str = el.attribute("type");
-        action::ActionType type;
-
-        if (type_str == "pick") {
-            type = action::ActionType::PICK;
-        } else if (type_str == "edit") {
-            type = action::ActionType::EDIT;
-        } else if (type_str == "drop") {
-            type = action::ActionType::DROP;
-        } else if (type_str == "fixup") {
-            type = action::ActionType::FIXUP;
-        } else if (type_str == "reword") {
-            type = action::ActionType::REWORD;
-        } else if (type_str == "squash") {
-            type = action::ActionType::SQUASH;
-        } else {
-            return std::nullopt;
-        }
-
-        auto hash = el.attribute("hash").toStdString();
-        if (hash.empty()) {
-            return std::nullopt;
-        }
-
-        git::commit_t action_commit;
-        if (!git::get_commit_from_hash(action_commit, hash.c_str(), *repo)) {
-            return std::nullopt;
-        }
-
-        auto msg = load_message(el);
-
-        save_data.actions.emplace_back(action::Action(type, std::move(action_commit)), msg);
-    }
+    load_conflicts(root, save_data);
 
     return save_data;
 }

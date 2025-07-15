@@ -401,15 +401,22 @@ void App::loadSaveFile() {
     m_rebase_head = save_data->head;
     m_rebase_onto = save_data->onto;
 
-    auto& manager = action::ActionsManager::get();
-    manager.clear();
+    auto& act_manager = action::ActionsManager::get();
+    act_manager.clear();
 
     for (auto&& [act, msg] : save_data->actions) {
         if (!msg.empty()) {
-            act.set_msg_id(optional_u31::some(manager.add_msg(msg)));
+            act.set_msg_id(optional_u31::some(act_manager.add_msg(msg)));
         }
 
-        manager.append(std::move(act));
+        act_manager.append(std::move(act));
+    }
+
+    auto& conflict_manager = core::conflict::ConflictManager::get();
+    conflict_manager.clear();
+
+    for (auto&& [entry, blob] : save_data->conflicts) {
+        conflict_manager.add_resolution(entry, blob);
     }
 
     core::state::CommandHistory::Clear();

@@ -10,6 +10,7 @@
 #include <git2/status.h>
 #include <git2/types.h>
 #include <memory>
+#include <span>
 #include <utility>
 
 namespace core::conflict {
@@ -31,7 +32,15 @@ std::pair<ConflictStatus, git::index_t> cherrypick_check(git_commit* commit, git
     }
 }
 
-ResolutionResult add_resolved_files(git::index_t& index, git_repository* repo, const std::vector<std::string>& paths) {
+ResolutionResult add_resolved_files(
+    git::index_t& index,
+    git_repository* repo,
+    std::span<const std::string> paths,
+    std::span<const ConflictEntry> entries,
+    ConflictManager& manager
+) {
+    assert(paths.size() == entries.size());
+
     ResolutionResult res;
 
     git::status_list_t list;
@@ -64,6 +73,26 @@ ResolutionResult add_resolved_files(git::index_t& index, git_repository* repo, c
             res.err = "Not staged changes";
             return res;
         }
+    }
+
+    if (res.err.has_value()) {
+        return res;
+    }
+
+    // record resolutions
+    for (std::size_t i = 0; i < entries.size(); ++i) {
+        const auto& entry = entries[i];
+        const auto& path  = paths[i];
+
+        const git_index_entry* index_entry = git_index_get_bypath(index, path.c_str(), GIT_INDEX_STAGE_NORMAL);
+        // not found in index
+        if (index_entry == nullptr) {
+            // TODO: handle
+            continue;
+        }
+
+        std::string id = git_oid_tostr_s(&index_entry->id);
+        manager.add_resolution(entry, id);
     }
 
     if (git_index_write_tree_to(&res.id, index.get(), repo) != 0) {

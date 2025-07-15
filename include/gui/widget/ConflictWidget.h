@@ -1,9 +1,9 @@
 #pragma once
 
 #include "gui/clear_layout.h"
+#include <QListWidget>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <QListWidget>
 
 namespace gui::widget {
 
@@ -12,6 +12,8 @@ public:
     ConflictWidget(QWidget* parent = nullptr);
 
     void addConflictFile(const std::string& path);
+
+    [[nodiscard]] bool isEmpty() const { return m_files->count() == 0; }
 
     void clearConflicts() { m_files->clear(); }
 

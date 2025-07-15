@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <git2/blob.h>
 #include <memory>
 #include <span>
 #include <string.h>
@@ -144,6 +145,7 @@ using patch_t             = ptr_object_t<git_patch, git_patch_free>;
 using status_list_t       = ptr_object_t<git_status_list, git_status_list_free>;
 using conflict_iterator_t = ptr_object_t<git_index_conflict_iterator, git_index_conflict_iterator_free>;
 using index_iterator_t    = ptr_object_t<git_index_iterator, git_index_iterator_free>;
+using blob_t              = ptr_object_t<git_blob, git_blob_free>;
 
 using buffer_t            = object_t<git_buf, git_buf_dispose>;
 using merge_file_result_t = weak_object_t<git_merge_file_result, git_merge_file_result_free>;

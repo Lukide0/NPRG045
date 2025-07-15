@@ -5,6 +5,7 @@
 #include "core/conflict/conflict.h"
 #include "core/conflict/conflict_iterator.h"
 #include "core/git/commit.h"
+#include "core/git/error.h"
 #include "core/git/GitGraph.h"
 #include "core/git/head.h"
 #include "core/git/parser.h"
@@ -68,7 +69,8 @@ using action::ActionType;
 RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     : QWidget(parent)
     , m_graph(core::git::GitGraph<Node*>::empty())
-    , m_actions(action::ActionsManager::get()) {
+    , m_actions(action::ActionsManager::get())
+    , m_conflict_manager(core::conflict::ConflictManager::get()) {
 
     m_actions.clear();
 
@@ -267,12 +269,26 @@ bool RebaseViewWidget::updateConflictAction(Action* act) {
     }
 
     m_conflict_widget->clearConflicts();
-    m_conflict_files.clear();
+    m_conflict_paths.clear();
+    m_conflict_entries.clear();
 
     m_cherrypick = act;
 
     bool iterator_status = conflict::iterate(m_conflict_index.get(), [this](conflict::entry_data_t entry) -> bool {
         const char* path = entry.their->path;
+
+        conflict::ConflictEntry conflict_entry;
+        if (entry.ancestor != nullptr) {
+            conflict_entry.ancestor_id = git_oid_tostr_s(&entry.ancestor->id);
+        }
+
+        if (entry.their != nullptr) {
+            conflict_entry.their_id = git_oid_tostr_s(&entry.their->id);
+        }
+
+        if (entry.our != nullptr) {
+            conflict_entry.our_id = git_oid_tostr_s(&entry.our->id);
+        }
 
         if (path == nullptr) {
             path = entry.our->path;
@@ -282,8 +298,12 @@ bool RebaseViewWidget::updateConflictAction(Action* act) {
             path = entry.ancestor->path;
         }
 
-        m_conflict_widget->addConflictFile(path);
-        m_conflict_files.emplace_back(path);
+        m_conflict_paths.emplace_back(path);
+        m_conflict_entries.push_back(conflict_entry);
+
+        if (!m_conflict_manager.is_resolved(conflict_entry)) {
+            m_conflict_widget->addConflictFile(path);
+        }
 
         return true;
     });
@@ -292,7 +312,7 @@ bool RebaseViewWidget::updateConflictAction(Action* act) {
         utils::log_libgit_error();
     }
 
-    return true;
+    return !m_conflict_widget->isEmpty();
 }
 
 void RebaseViewWidget::moveAction(int from, int to) {
@@ -422,8 +442,9 @@ RebaseViewWidget::update(git_repository* repo, const std::string& head, const st
     std::uint32_t max_depth = m_graph.max_depth();
     std::uint32_t max_width = m_graph.max_width();
 
-    // TODO: Implement merge commits
-    assert(max_width == 1);
+    if (max_width != 1) {
+        return "Merge commits are not supported";
+    }
 
     Node* parent = nullptr;
     std::string err_msg;
@@ -597,6 +618,8 @@ void RebaseViewWidget::updateNode(ListItem* item, Node* node, Node* parent, Node
 
     item->setConflict(false);
 
+    bool not_resolved = !m_conflict_manager.is_resolved(conflict);
+
     switch (status) {
     case ConflictStatus::ERR:
         core::utils::log_libgit_error();
@@ -604,8 +627,8 @@ void RebaseViewWidget::updateNode(ListItem* item, Node* node, Node* parent, Node
     case ConflictStatus::NO_CONFLICT:
         return;
     case ConflictStatus::HAS_CONFLICT:
-        item->setConflict(true);
-        node->setConflict(true);
+        item->setConflict(not_resolved);
+        node->setConflict(not_resolved);
         break;
     }
 }
@@ -736,6 +759,22 @@ void RebaseViewWidget::checkoutAndResolve() {
         m_resolve_conflicts_btn->setEnabled(false);
         m_mark_resolved_btn->setEnabled(true);
     }
+
+    // 4. Apply conflict resolutions
+    {
+        git::index_t index;
+        if (git_repository_index(&index, m_repo) != 0) {
+            utils::log_libgit_error();
+            QMessageBox::critical(this, "Repo error", QString::fromStdString(git::get_last_error()));
+            return;
+        }
+
+        if (!m_conflict_manager.apply_resolutions(m_conflict_entries, m_conflict_paths, m_repo, index.get())) {
+            utils::log_libgit_error();
+            QMessageBox::critical(this, "Recorded resolution error", QString::fromStdString(git::get_last_error()));
+            return;
+        }
+    }
 }
 
 void RebaseViewWidget::markResolved() {
@@ -753,7 +792,8 @@ void RebaseViewWidget::markResolved() {
     }
 
     // 1. Add all modified files to the index and create new tree
-    auto&& [err, tree_oid] = conflict::add_resolved_files(repo_index, m_repo, m_conflict_files);
+    auto&& [err, tree_oid]
+        = conflict::add_resolved_files(repo_index, m_repo, m_conflict_paths, m_conflict_entries, m_conflict_manager);
     if (err.has_value()) {
         LOG_ERROR("{}", err.value());
         QMessageBox::critical(this, "Resolution error", QString::fromStdString(err.value()));
