@@ -177,7 +177,7 @@ private:
             node.depth = std::max(depth + 1, node.depth);
             return true;
         }
-        // TODO: Implement merge commits
+        // merge commit
         else if (parents.count != 1) {
             return false;
         }

@@ -15,6 +15,7 @@ namespace core::state {
 struct SaveData {
     std::vector<std::pair<action::Action, std::string>> actions;
     std::vector<std::pair<conflict::ConflictEntry, std::string>> conflicts;
+    std::vector<std::pair<conflict::ConflictCommits, core::git::tree_t>> conflict_commits;
     git::commit_t root;
 
     std::string head;

@@ -218,27 +218,32 @@ void RebaseViewWidget::updateConflict(Node* node) {
         return;
     }
 
-    Action* act       = node->getAction();
-    bool has_conflict = updateConflictAction(act);
+    Action* act                    = node->getAction();
+    ConflictStatus conflict_status = updateConflictAction(act);
 
-    m_resolve_conflicts_btn->setEnabled(has_conflict);
-    if (has_conflict) {
-        m_conflict_widget->show();
-    } else {
+    switch (conflict_status) {
+    case ConflictStatus::NO_CONFLICT:
+        m_resolve_conflicts_btn->setEnabled(false);
         m_conflict_widget->hide();
+        break;
+    case ConflictStatus::RESOLVED:
+    case ConflictStatus::NOT_RESOLVED:
+        m_resolve_conflicts_btn->setEnabled(true);
+        m_conflict_widget->show();
+        break;
     }
 }
 
-bool RebaseViewWidget::updateConflictAction(Action* act) {
+RebaseViewWidget::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
     using namespace core;
 
     if (act == nullptr) {
-        return false;
+        return ConflictStatus::NO_CONFLICT;
     }
 
     switch (act->get_type()) {
     case action::ActionType::DROP:
-        return false;
+        return ConflictStatus::NO_CONFLICT;
     case action::ActionType::SQUASH:
     case action::ActionType::FIXUP:
     case action::ActionType::PICK:
@@ -254,9 +259,9 @@ bool RebaseViewWidget::updateConflictAction(Action* act) {
     switch (status) {
     case conflict::ConflictStatus::ERR:
         utils::log_libgit_error();
-        return false;
+        return ConflictStatus::NO_CONFLICT;
     case conflict::ConflictStatus::NO_CONFLICT:
-        return false;
+        return ConflictStatus::NO_CONFLICT;
     case conflict::ConflictStatus::HAS_CONFLICT:
         break;
     }
@@ -312,7 +317,11 @@ bool RebaseViewWidget::updateConflictAction(Action* act) {
         utils::log_libgit_error();
     }
 
-    return !m_conflict_widget->isEmpty();
+    if (m_conflict_widget->isEmpty()) {
+        return ConflictStatus::RESOLVED;
+    } else {
+        return ConflictStatus::NOT_RESOLVED;
+    }
 }
 
 void RebaseViewWidget::moveAction(int from, int to) {
@@ -359,8 +368,9 @@ std::optional<std::string> RebaseViewWidget::update(
     std::uint32_t max_depth = m_graph.max_depth();
     std::uint32_t max_width = m_graph.max_width();
 
-    // TODO: Implement merge commits
-    assert(max_width == 1);
+    if (max_width > 1) {
+        return "Merge commits are not supported";
+    }
 
     Node* parent = nullptr;
     std::string err_msg;
@@ -807,32 +817,6 @@ void RebaseViewWidget::markResolved() {
         return;
     }
 
-    // 2. Create commit
-    const git_commit* parent_commit = action::ActionsManager::get_picked_parent_commit(m_cherrypick);
-    const git_commit* commit        = m_cherrypick->get_commit();
-
-    git_oid commit_oid;
-
-    git::signature_t committer;
-    if (git_signature_default(&committer, m_repo) != 0) {
-        utils::log_libgit_error();
-        QMessageBox::critical(this, "Signature error", QString::fromStdString(git::get_last_error()));
-        return;
-    }
-
-    if (!git::modify_commit(&commit_oid, commit, committer.get(), tree.get(), parent_commit)) {
-        utils::log_libgit_error();
-        QMessageBox::critical(this, "Commit error", QString::fromStdString(git::get_last_error()));
-        return;
-    }
-
-    git::commit_t new_commit;
-    if (git_commit_lookup(&new_commit, m_repo, &commit_oid) != 0) {
-        utils::log_libgit_error();
-        QMessageBox::critical(this, "Commit error", QString::fromStdString(git::get_last_error()));
-        return;
-    }
-
     // Change working tree
     if (!git::set_repository_head(m_repo, m_head.get())) {
         utils::log_libgit_error();
@@ -842,14 +826,18 @@ void RebaseViewWidget::markResolved() {
 
     m_mark_resolved_btn->setEnabled(false);
 
-    auto& manager       = action::ActionsManager::get();
-    std::uint32_t index = manager.get_action_index(m_cherrypick);
+    auto* parent_commit = action::ActionsManager::get_picked_parent_commit(m_cherrypick);
 
-    auto cmd = std::make_unique<conflict::ConflictResolveCommand>(index, std::move(new_commit));
+    conflict::ConflictCommits conflict;
 
-    // swap commits
-    cmd->execute();
+    auto& conflict_manager = conflict::ConflictManager::get();
+    conflict.child_id      = git::format_oid_to_str<git::OID_SIZE>(&m_cherrypick->get_oid());
+    conflict.parent_id     = git::format_oid_to_str<git::OID_SIZE>(git_commit_id(parent_commit));
 
-    state::CommandHistory::Add(std::move(cmd));
+    conflict_manager.add_commits_resolution(conflict, std::move(tree));
+
+    LOG_INFO("Saving conflict resolution");
+
+    updateActions();
 }
 }

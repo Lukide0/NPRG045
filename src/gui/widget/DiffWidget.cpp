@@ -87,7 +87,7 @@ void DiffWidget::update(git_commit* child, git_commit* parent, Action* action) {
         return;
     }
 
-    diff_result_t res = core::git::prepare_diff(parent_commit, commit);
+    diff_result_t res = core::git::prepare_resolution_diff(parent_commit, commit);
     switch (res.state) {
     case diff_result_t::FAILED_TO_RETRIEVE_TREE:
         QMessageBox::critical(this, "Commit diff error", "Failed to retrieve tree from commit");

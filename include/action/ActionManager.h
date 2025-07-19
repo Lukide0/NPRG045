@@ -81,7 +81,6 @@ public:
         return index;
     }
 
-    // TODO: Fix messages
     core::git::commit_t split(Action* act, core::git::commit_t&& prev, core::git::commit_t&& next) {
 
         core::git::commit_t commit = std::move(act->m_commit);
@@ -98,7 +97,6 @@ public:
         return commit;
     }
 
-    // TODO: Fix messages
     std::pair<core::git::commit_t, core::git::commit_t> merge_next(Action* act, core::git::commit_t&& commit) {
         assert(act->get_next() != nullptr);
 

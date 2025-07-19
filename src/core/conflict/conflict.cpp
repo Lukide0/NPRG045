@@ -87,7 +87,8 @@ ResolutionResult add_resolved_files(
         const git_index_entry* index_entry = git_index_get_bypath(index, path.c_str(), GIT_INDEX_STAGE_NORMAL);
         // not found in index
         if (index_entry == nullptr) {
-            // TODO: handle
+            // deleted
+            manager.add_resolution(entry, "");
             continue;
         }
 

@@ -28,6 +28,19 @@ struct ConflictEntry {
     }
 };
 
+struct ConflictCommits {
+    std::string parent_id;
+    std::string child_id;
+
+    bool operator<(const ConflictCommits& other) const {
+        if (parent_id != other.parent_id) {
+            return parent_id < other.parent_id;
+        }
+
+        return child_id < other.child_id;
+    }
+};
+
 class ConflictManager {
 public:
     bool is_resolved(const git_index_entry* ancestor, const git_index_entry* their, const git_index_entry* our);
@@ -49,7 +62,14 @@ public:
 
     void add_resolution(const ConflictEntry& entry, std::string id);
 
+    void add_commits_resolution(const ConflictCommits& conflict, core::git::tree_t&& resolution);
+
+    git_tree* get_commits_resolution(const ConflictCommits& conflict);
+    git_tree* get_commits_resolution(const git_commit* old_commit, const git_commit* new_commit);
+
     [[nodiscard]] const auto& get_conflicts() const { return m_conflicts; }
+
+    [[nodiscard]] const auto& get_commits_conflicts() const { return m_commits; }
 
     void clear() { m_conflicts.clear(); }
 
@@ -60,6 +80,8 @@ public:
 
 private:
     std::map<ConflictEntry, std::string> m_conflicts;
+
+    std::map<ConflictCommits, core::git::tree_t> m_commits;
 };
 
 }

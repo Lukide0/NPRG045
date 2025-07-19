@@ -8,7 +8,6 @@
 #include <git2/blob.h>
 #include <memory>
 #include <span>
-#include <string.h>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -30,6 +29,8 @@
 #include <vector>
 
 namespace core::git {
+
+constexpr std::size_t OID_SIZE = 40;
 
 template <typename T> using destructor_t = void (*)(T*);
 

@@ -81,7 +81,9 @@ bool ConflictManager::apply_resolution(
     const std::string& resolution_id = it->second;
 
     // The file is deleted
-    if (resolution_id.empty()) { }
+    if (resolution_id.empty()) {
+        return git_index_remove_bypath(index, path.c_str()) == 0;
+    }
 
     git_oid oid;
     git::blob_t blob;
@@ -100,13 +102,13 @@ bool ConflictManager::apply_resolution(
 
         std::ofstream file(path, std::ios::out | std::ios::binary);
         if (!file.good()) {
-            // TODO: ERROR
+            git_error_set_str(GIT_ERROR_FILESYSTEM, "Could not open file");
             return false;
         }
 
         file.write(content, static_cast<std::streamsize>(content_size));
         if (!file.good()) {
-            // TODO: ERROR
+            git_error_set_str(GIT_ERROR_FILESYSTEM, "Could not write to file");
             return false;
         }
     }
@@ -115,5 +117,27 @@ bool ConflictManager::apply_resolution(
 }
 
 void ConflictManager::add_resolution(const ConflictEntry& entry, std::string id) { m_conflicts[entry] = id; }
+
+void ConflictManager::add_commits_resolution(const ConflictCommits& conflict, core::git::tree_t&& resolution) {
+    m_commits[conflict] = std::move(resolution);
+}
+
+git_tree* ConflictManager::get_commits_resolution(const git_commit* old_commit, const git_commit* new_commit) {
+    ConflictCommits commits;
+
+    commits.parent_id = git::format_oid_to_str<git::OID_SIZE>(git_commit_id(old_commit));
+    commits.child_id  = git::format_oid_to_str<git::OID_SIZE>(git_commit_id(new_commit));
+
+    return get_commits_resolution(commits);
+}
+
+git_tree* ConflictManager::get_commits_resolution(const ConflictCommits& conflict) {
+    auto it = m_commits.find(conflict);
+    if (it != m_commits.end()) {
+        return it->second.get();
+    }
+
+    return nullptr;
+}
 
 }

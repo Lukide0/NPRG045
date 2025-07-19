@@ -34,30 +34,4 @@ ResolutionResult add_resolved_files(
     ConflictManager& manager
 );
 
-class ConflictResolveCommand : public core::state::Command {
-public:
-    ConflictResolveCommand(std::size_t id, git::commit_t&& commit)
-        : m_commit(std::move(commit))
-        , m_action_id(id) { }
-
-    void undo() override { swap_commits(); }
-
-    void execute() override { swap_commits(); }
-
-private:
-    git::commit_t m_commit;
-    std::size_t m_action_id;
-
-    void swap_commits() {
-        auto& manager = action::ActionsManager::get();
-
-        auto* act = manager.get_action(m_action_id);
-        assert(act != nullptr);
-
-        action::ActionsManager::swap_commits(act, m_commit);
-
-        App::updateActions();
-    }
-};
-
 }

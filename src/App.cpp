@@ -419,6 +419,10 @@ void App::loadSaveFile() {
         conflict_manager.add_resolution(entry, blob);
     }
 
+    for (auto&& [conflict, tree] : save_data->conflict_commits) {
+        conflict_manager.add_commits_resolution(conflict, std::move(tree));
+    }
+
     core::state::CommandHistory::Clear();
 
     m_rebase_view->show();
@@ -452,10 +456,15 @@ bool App::saveTodoFile() {
         return false;
     }
 
-    auto& manager = action::ActionsManager::get();
-    action::Converter::actions_to_todo(todo_file, manager.get_actions(), manager);
-
     LOG_INFO("Saving todo file: {}", filepath);
+
+    auto& manager = action::ActionsManager::get();
+    bool status   = action::Converter::actions_to_todo(todo_file, manager, core::conflict::ConflictManager::get());
+
+    if (!status) {
+        QMessageBox::critical(this, "Save Error", "Failed to save the todo file");
+        return false;
+    }
 
     return true;
 }

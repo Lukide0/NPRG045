@@ -66,6 +66,12 @@ public:
     void ignoreMoveSignal(bool enable) { m_ignore_move = enable; }
 
 private:
+    enum class ConflictStatus {
+        NO_CONFLICT,
+        RESOLVED,
+        NOT_RESOLVED,
+    };
+
     /* UI */
     GraphWidget* m_old_commits_graph;
     GraphWidget* m_new_commits_graph;
@@ -126,7 +132,7 @@ private:
 
     void updateConflict(Node* node);
 
-    bool updateConflictAction(action::Action* act);
+    ConflictStatus updateConflictAction(action::Action* act);
 
     void checkoutAndResolve();
 

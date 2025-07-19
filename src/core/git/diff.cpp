@@ -1,4 +1,5 @@
 #include "core/git/diff.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/types.h"
 #include "core/utils/unexpected.h"
 #include <git2/commit.h>
@@ -62,6 +63,43 @@ private:
     }
 };
 
+diff_result_t prepare_resolution_diff(git_commit* old_commit, git_commit* new_commit, const git_diff_options* opts) {
+    if (old_commit == nullptr || new_commit == nullptr) {
+        return prepare_diff(old_commit, new_commit, opts);
+    }
+
+    diff_result_t res;
+    auto& manager = conflict::ConflictManager::get();
+
+    auto* tree = manager.get_commits_resolution(old_commit, new_commit);
+    git::tree_t parent_tree;
+
+    git_repository* repo;
+
+    if (tree == nullptr) {
+        return prepare_diff(old_commit, new_commit, opts);
+    }
+
+    if (git_commit_tree(&parent_tree, old_commit) != 0) {
+        res.state = diff_result_t::FAILED_TO_RETRIEVE_TREE;
+        return res;
+    }
+
+    repo = git_tree_owner(parent_tree.get());
+
+    return prepare_diff(parent_tree.get(), tree, repo, opts);
+}
+
+diff_result_t prepare_diff(git_tree* old_tree, git_tree* new_tree, git_repository* repo, const git_diff_options* opts) {
+    diff_result_t res;
+
+    if (git_diff_tree_to_tree(&res.diff, repo, old_tree, new_tree, opts) != 0) {
+        res.state = diff_result_t::FAILED_TO_CREATE_DIFF;
+    }
+
+    return res;
+}
+
 diff_result_t prepare_diff(git_commit* old_commit, git_commit* new_commit, const git_diff_options* opts) {
     tree_t old_tree;
     tree_t new_tree;
@@ -87,11 +125,11 @@ diff_result_t prepare_diff(git_commit* old_commit, git_commit* new_commit, const
         }
     }
 
-    if (git_diff_tree_to_tree(&res.diff, repo, old_tree, new_tree, opts) != 0) {
-        res.state = diff_result_t::FAILED_TO_CREATE_DIFF;
+    if (res.state != diff_result_t::OK) {
+        return res;
     }
 
-    return res;
+    return prepare_diff(old_tree, new_tree, repo, opts);
 }
 
 std::vector<diff_files_t> create_diff(git_diff* diff) {

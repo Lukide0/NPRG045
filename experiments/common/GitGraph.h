@@ -141,13 +141,15 @@ private:
 
         m_commit_map.emplace(id, index);
 
-        m_nodes.push_back(node_t {
-            .commit   = std::move(commit),
-            .depth    = depth,
-            .index    = index, // NOTE: used for sorting
-            .children = children,
-            .data     = {},
-        });
+        m_nodes.push_back(
+            node_t {
+                .commit   = std::move(commit),
+                .depth    = depth,
+                .index    = index, // NOTE: used for sorting
+                .children = children,
+                .data     = {},
+            }
+        );
 
         return index;
     }
@@ -167,7 +169,7 @@ private:
             return false;
         }
 
-        // TODO: Implement merge commits
+        // merge commit
         if (parents.count != 1) {
             return false;
         }

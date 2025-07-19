@@ -36,6 +36,7 @@ bool create_commit(
     const git_commit** parents,
     std::size_t parent_count
 ) {
+    assert(author != nullptr && committer != nullptr);
     return git_commit_create(out_oid, repo, nullptr, author, committer, nullptr, msg, tree, parent_count, parents) == 0;
 }
 

@@ -6,6 +6,8 @@
 #include "logging/Log.h"
 
 #include <filesystem>
+#include <git2/oid.h>
+#include <git2/tree.h>
 #include <optional>
 #include <string>
 #include <utility>
@@ -23,12 +25,14 @@
 
 namespace core::state {
 
-constexpr const char* ROOT_NODE      = "save_data";
-constexpr const char* ROOT_COMMIT    = "root";
-constexpr const char* ACTIONS_NODE   = "actions";
-constexpr const char* ACTION_NODE    = "action";
-constexpr const char* CONFLICTS_NODE = "conflicts";
-constexpr const char* CONFLICT_NODE  = "conflict";
+constexpr const char* ROOT_NODE             = "save_data";
+constexpr const char* ROOT_COMMIT           = "root";
+constexpr const char* ACTIONS_NODE          = "actions";
+constexpr const char* ACTION_NODE           = "action";
+constexpr const char* CONFLICT_COMMITS_NODE = "conflict_commits";
+constexpr const char* CONFLICT_COMMIT_NODE  = "conflict_commit";
+constexpr const char* CONFLICTS_NODE        = "conflicts";
+constexpr const char* CONFLICT_NODE         = "conflict";
 
 std::string load_message(const QDomElement& action) {
     QDomNodeList nodes = action.elementsByTagName("line");
@@ -62,7 +66,7 @@ void save_actions(QDomElement& root, QDomDocument& doc) {
     auto* cmt = manager.get_root_commit();
 
     QDomElement root_commit = doc.createElement(ROOT_COMMIT);
-    root_commit.setAttribute("hash", QString::fromStdString(git::format_oid_to_str<40>(git_commit_id(cmt))));
+    root_commit.setAttribute("hash", QString::fromStdString(git::format_oid_to_str<git::OID_SIZE>(git_commit_id(cmt))));
     root.appendChild(root_commit);
 
     QDomElement actions = doc.createElement(ACTIONS_NODE);
@@ -71,7 +75,7 @@ void save_actions(QDomElement& root, QDomDocument& doc) {
         QDomElement action = doc.createElement(ACTION_NODE);
 
         const git_oid& id = act.get_oid();
-        action.setAttribute("hash", QString::fromStdString(git::format_oid_to_str<40>(&id)));
+        action.setAttribute("hash", QString::fromStdString(git::format_oid_to_str<git::OID_SIZE>(&id)));
 
         switch (act.get_type()) {
         case action::ActionType::PICK:
@@ -185,10 +189,25 @@ void save_conflicts(QDomElement& root, QDomDocument& doc) {
         conflicts.appendChild(conflict);
     }
 
+    QDomElement conflict_commits = doc.createElement(CONFLICT_COMMITS_NODE);
+
+    for (auto&& [conflict, tree] : manager.get_commits_conflicts()) {
+        QDomElement commits = doc.createElement(CONFLICT_COMMIT_NODE);
+
+        const auto* tree_id = git_tree_id(tree.get());
+
+        commits.setAttribute("parent", QString::fromStdString(conflict.parent_id));
+        commits.setAttribute("child", QString::fromStdString(conflict.child_id));
+        commits.setAttribute("tree", QString::fromStdString(git::format_oid_to_str<git::OID_SIZE>(tree_id)));
+
+        conflict_commits.appendChild(commits);
+    }
+
     root.appendChild(conflicts);
+    root.appendChild(conflict_commits);
 }
 
-void load_conflicts(QDomElement& root, SaveData& save_data) {
+void load_conflicts(QDomElement& root, SaveData& save_data, git_repository* repo) {
     QDomElement conflicts = root.firstChildElement(CONFLICTS_NODE);
     if (conflicts.isNull()) {
         return;
@@ -207,6 +226,35 @@ void load_conflicts(QDomElement& root, SaveData& save_data) {
         std::string blob = conflict.attribute("blob").toStdString();
 
         save_data.conflicts.emplace_back(entry, blob);
+    }
+
+    QDomElement conflict_commits = root.firstChildElement(CONFLICT_COMMITS_NODE);
+    if (conflict_commits.isNull()) {
+        return;
+    }
+
+    for (QDomNode node = conflicts.firstChildElement(CONFLICT_COMMIT_NODE); !node.isNull();
+         node          = node.nextSiblingElement(CONFLICT_COMMIT_NODE)) {
+
+        QDomElement commits = node.toElement();
+
+        conflict::ConflictCommits entry;
+        entry.parent_id = commits.attribute("parent").toStdString();
+        entry.child_id  = commits.attribute("child").toStdString();
+
+        auto tree_id = commits.attribute("tree").toStdString();
+
+        git_oid oid;
+        if (git_oid_fromstr(&oid, tree_id.c_str()) != 0) {
+            continue;
+        }
+
+        git::tree_t tree;
+        if (git_tree_lookup(&tree, repo, &oid) != 0) {
+            continue;
+        }
+
+        save_data.conflict_commits.emplace_back(entry, std::move(tree));
     }
 }
 
@@ -280,7 +328,7 @@ std::optional<SaveData> State::load(const std::filesystem::path& path, git_repos
         return std::nullopt;
     }
 
-    load_conflicts(root, save_data);
+    load_conflicts(root, save_data, *repo);
 
     return save_data;
 }
