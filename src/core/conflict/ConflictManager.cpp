@@ -21,9 +21,18 @@ bool ConflictManager::is_resolved(
     const git_index_entry* ancestor, const git_index_entry* their, const git_index_entry* our
 ) {
     ConflictEntry entry;
-    entry.ancestor_id = git_oid_tostr_s(&ancestor->id);
-    entry.their_id    = git_oid_tostr_s(&their->id);
-    entry.our_id      = git_oid_tostr_s(&our->id);
+
+    if (ancestor != nullptr) {
+        entry.ancestor_id = git_oid_tostr_s(&ancestor->id);
+    }
+
+    if (their != nullptr) {
+        entry.their_id = git_oid_tostr_s(&their->id);
+    }
+
+    if (our != nullptr) {
+        entry.our_id = git_oid_tostr_s(&our->id);
+    }
 
     return is_resolved(entry);
 }
