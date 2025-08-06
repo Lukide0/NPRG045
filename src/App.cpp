@@ -7,7 +7,6 @@
 #include "core/state/State.h"
 #include "core/utils/optional_uint.h"
 #include "gui/widget/RebaseViewWidget.h"
-#include "gui/window/PreferencesWindow.h"
 #include "logging/Log.h"
 
 #include <cassert>
@@ -61,6 +60,7 @@ App::App() {
     QPalette palette;
     palette.setColor(QPalette::Window, Qt::white);
     setPalette(palette);
+
     // TOP BAR ------------------------------------------------------------
     auto* menu = new QMenuBar(this);
     setMenuBar(menu);
@@ -115,9 +115,6 @@ App::App() {
         auto* edit_todo_save = new QAction(QIcon::fromTheme("document-save-as"), "Save Todo");
         connect(edit_todo_save, &QAction::triggered, this, [this] { saveTodoFile(); });
 
-        auto* edit_preferences = new QAction("Preferences", this);
-        connect(edit_preferences, &QAction::triggered, this, [this] { showPreferences(); });
-
         edit->addAction(edit_undo);
         edit->addAction(edit_redo);
         edit->addSeparator();
@@ -125,8 +122,6 @@ App::App() {
         edit->addAction(edit_save_as);
         edit->addAction(edit_load);
         edit->addAction(edit_todo_save);
-        edit->addSeparator();
-        edit->addAction(edit_preferences);
 
         edit_undo->setShortcut(QKeySequence::Undo);
         edit_redo->setShortcut(QKeySequence::Redo);
@@ -164,8 +159,6 @@ App::App() {
 
     m_rebase_view->hide();
     m_rebase_view->hideOldCommits();
-
-    m_preferences = new gui::window::PreferencesWindow();
 }
 
 App::SaveStatus App::maybeSave() {
@@ -468,5 +461,3 @@ bool App::saveTodoFile() {
 
     return true;
 }
-
-void App::showPreferences() { m_preferences->show(); }

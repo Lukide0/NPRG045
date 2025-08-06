@@ -1,7 +1,6 @@
 #pragma once
 
 #include "gui/widget/RebaseViewWidget.h"
-#include "gui/window/PreferencesWindow.h"
 
 #include <cassert>
 #include <cctype>
@@ -62,7 +61,6 @@ private:
 
     QHBoxLayout* m_layout;
     gui::widget::RebaseViewWidget* m_rebase_view;
-    gui::window::PreferencesWindow* m_preferences;
 
     git_repository* m_repo = nullptr;
 
@@ -75,8 +73,6 @@ private:
     void loadSaveFile();
     bool saveTodoFile();
     bool saveSaveFile(bool choose_file);
-
-    void showPreferences();
 
     SaveStatus maybeSave();
 };
