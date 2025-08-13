@@ -1,6 +1,6 @@
 target_sources(${PROJECT_NAME} PRIVATE
     color.cpp
-    open_file.cpp
+    file.cpp
 )
 
 add_subdirectory(widget)

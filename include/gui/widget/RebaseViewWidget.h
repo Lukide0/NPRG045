@@ -11,14 +11,11 @@
 #include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Graph.h"
 #include "gui/widget/graph/Node.h"
-#include "gui/widget/LineSplitter.h"
 #include "gui/widget/ListItem.h"
-#include "gui/widget/NamedListWidget.h"
 
 #include <git2/oid.h>
 #include <git2/types.h>
 
-#include <memory>
 #include <optional>
 #include <string>
 #include <vector>

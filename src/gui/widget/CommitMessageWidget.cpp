@@ -1,7 +1,9 @@
 #include "gui/widget/CommitMessageWidget.h"
 #include "action/Action.h"
 #include "action/ActionManager.h"
+#include "core/git/types.h"
 #include "core/utils/optional_uint.h"
+#include "gui/file.h"
 
 #include <cstddef>
 #include <format>
@@ -10,6 +12,7 @@
 
 #include <QAction>
 #include <QHBoxLayout>
+#include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QString>
 
@@ -27,7 +30,19 @@ CommitMessageWidget::CommitMessageWidget(QWidget* parent)
     m_editor = new QPlainTextEdit();
     m_editor->setReadOnly(true);
 
+    auto* buttons = new QVBoxLayout();
+    m_open_editor = new QPushButton("Open in editor");
+    m_update_msg  = new QPushButton("Update from file");
+
+    m_open_editor->setEnabled(false);
+    m_update_msg->setEnabled(false);
+
+    buttons->addWidget(m_open_editor);
+    buttons->addWidget(m_update_msg);
+    buttons->addStretch();
+
     m_layout->addWidget(m_editor);
+    m_layout->addLayout(buttons);
 
     connect(m_editor, &QPlainTextEdit::textChanged, this, [this]() {
         if (m_action == nullptr || !m_action->can_edit_msg()) {
@@ -50,6 +65,10 @@ CommitMessageWidget::CommitMessageWidget(QWidget* parent)
             m_handle(text);
         }
     });
+
+    connect(m_open_editor, &QPushButton::clicked, this, [this]() { this->openInEditor(); });
+
+    connect(m_update_msg, &QPushButton::clicked, this, [this]() { this->updateText(); });
 }
 
 QString create_commit_message(Action* action) {
@@ -116,6 +135,77 @@ void CommitMessageWidget::setAction(Action* action) {
     m_editor->blockSignals(true);
     m_editor->setPlainText(msg);
     m_editor->blockSignals(false);
+}
+
+void CommitMessageWidget::openInEditor() {
+    if (m_action == nullptr) {
+        return;
+    }
+
+    auto filename = QString::fromStdString(core::git::format_oid_to_str(&m_action->get_oid()));
+
+    // already opened
+    if (!m_filepath.isEmpty()) {
+        bool status = open_temp_file(m_filepath);
+        if (!status) {
+            QMessageBox::warning(
+                this,
+                "Editor Error",
+                QString(
+                    "Failed to open the temporary file in editor.\n"
+                    "The file may have been deleted or moved.\n"
+                    "File: %1"
+                )
+                    .arg(m_filepath),
+                QMessageBox::Ok
+            );
+
+            m_filepath.clear();
+        }
+
+        return;
+    }
+
+    auto&& [filepath, status] = create_temp_file(m_editor->toPlainText(), filename, true);
+
+    if (!status) {
+        QMessageBox::critical(this, "Editor Error", "Failed to create temporary file for editing.", QMessageBox::Ok);
+        return;
+    }
+
+    m_filepath = filepath;
+}
+
+void CommitMessageWidget::updateText() {
+    if (m_action == nullptr) {
+        return;
+    }
+
+    // editor is not open
+    if (m_filepath.isEmpty()) {
+        return;
+    }
+
+    auto&& [content, status] = read_file(m_filepath);
+
+    if (!status) {
+        QMessageBox::critical(
+            this,
+            "File Read Error",
+            QString(
+                "Failed to read the edited file.\n"
+                "The file may have been deleted or is no longer accessible.\n"
+                "File: %1"
+            )
+                .arg(m_filepath),
+            QMessageBox::Ok
+        );
+
+        m_filepath.clear();
+        return;
+    }
+
+    setEditorText(content);
 }
 
 }
