@@ -11,7 +11,7 @@ A tool for editing Git history: conveniently reordering commits in a branch befo
 # Manual build
 mkdir build
 cd build
-cmake ..
+cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake --build .
 ```
 
