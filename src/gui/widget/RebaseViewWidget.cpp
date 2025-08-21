@@ -211,27 +211,40 @@ void RebaseViewWidget::changeItemSelection() {
 void RebaseViewWidget::updateConflict(Node* node) {
 
     m_mark_resolved_btn->setEnabled(false);
+    m_resolve_conflicts_btn->setEnabled(false);
 
     if (node == nullptr) {
-        m_resolve_conflicts_btn->setEnabled(false);
         m_conflict_widget->hide();
         return;
     }
 
     Action* act                    = node->getAction();
+    const bool in_progress         = (act == m_resolving.action && act->get_prev() == m_resolving.parent_action);
     ConflictStatus conflict_status = updateConflictAction(act);
 
     switch (conflict_status) {
     case ConflictStatus::NO_CONFLICT:
-        m_resolve_conflicts_btn->setEnabled(false);
         m_conflict_widget->hide();
-        break;
+        return;
     case ConflictStatus::RESOLVED:
     case ConflictStatus::NOT_RESOLVED:
-        m_resolve_conflicts_btn->setEnabled(true);
-        m_conflict_widget->show();
         break;
     }
+
+    m_conflict_widget->show();
+
+    if (in_progress) {
+        // check if the HEAD is correct
+        auto* commit           = action::ActionsManager::get_picked_parent_commit(m_cherrypick);
+        const auto* commit_oid = git_commit_id(commit);
+
+        if (core::git::is_head(m_repo, commit_oid)) {
+            m_mark_resolved_btn->setEnabled(true);
+            return;
+        }
+    }
+
+    m_resolve_conflicts_btn->setEnabled(true);
 }
 
 RebaseViewWidget::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
@@ -732,6 +745,9 @@ void RebaseViewWidget::checkoutAndResolve() {
 
     LOG_INFO("Working dir is clean");
 
+    m_resolving.action        = nullptr;
+    m_resolving.parent_action = nullptr;
+
     // save HEAD
     if (git_repository_head(&m_head, m_repo) != 0) {
         utils::log_libgit_error();
@@ -785,6 +801,9 @@ void RebaseViewWidget::checkoutAndResolve() {
             return;
         }
     }
+
+    m_resolving.action        = m_cherrypick;
+    m_resolving.parent_action = m_cherrypick->get_prev();
 }
 
 void RebaseViewWidget::markResolved() {
@@ -837,6 +856,9 @@ void RebaseViewWidget::markResolved() {
     conflict_manager.add_commits_resolution(conflict, std::move(tree));
 
     LOG_INFO("Saving conflict resolution");
+
+    m_resolving.action        = nullptr;
+    m_resolving.parent_action = nullptr;
 
     updateActions();
 }

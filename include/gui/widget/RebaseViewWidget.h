@@ -98,6 +98,11 @@ private:
 
     action::Action* m_cherrypick = nullptr;
 
+    struct {
+        action::Action* action;
+        action::Action* parent_action;
+    } m_resolving;
+
     core::git::tree_t m_conflict_parent_tree;
     core::git::index_t m_conflict_index;
 

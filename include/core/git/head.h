@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/git/types.h"
 #include <git2/checkout.h>
 #include <git2/oid.h>
 #include <git2/refs.h>
@@ -30,6 +31,21 @@ inline bool set_repository_head(git_repository* repo, const git_reference* ref) 
     opts.checkout_strategy |= GIT_CHECKOUT_FORCE;
 
     return git_checkout_head(repo, &opts) == 0;
+}
+
+inline bool is_head(git_repository* repo, const git_oid* oid) {
+    reference_t head_ref;
+
+    if (git_repository_head(&head_ref, repo) != 0) {
+        return false;
+    }
+
+    const git_oid* head_oid = git_reference_target(head_ref.get());
+    if (head_oid == nullptr) {
+        return false;
+    }
+
+    return git_oid_equal(oid, head_oid) != 0;
 }
 
 }
