@@ -132,7 +132,8 @@ private:
     void set_prev(Action* prev) { m_prev = prev; }
 
     void init_commit(git_repository* repo, const git_oid& oid) {
-        assert(git_commit_lookup(&m_commit, repo, &oid) == 0);
+        const bool status = git_commit_lookup(&m_commit, repo, &oid) == 0;
+        assert(status && m_commit != nullptr);
     }
 
     friend ActionsManager;
