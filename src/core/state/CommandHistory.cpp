@@ -51,7 +51,7 @@ void CommandHistory::add(std::unique_ptr<Command>&& cmd) {
 
     // invalidate the saved index
     if (m_index == m_saved_index) {
-        m_saved_index = -2;
+        m_saved_index = -1;
     }
 
     if (static_cast<std::size_t>(m_index) != m_commands.size()) {
@@ -68,7 +68,7 @@ void CommandHistory::add(std::unique_ptr<Command>&& cmd) {
 void CommandHistory::clear() {
     m_commands.clear();
     m_index       = -1;
-    m_saved_index = -2;
+    m_saved_index = -1;
 
     m_undo->setEnabled(false);
     m_redo->setEnabled(false);

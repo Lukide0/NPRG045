@@ -25,6 +25,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <format>
 #include <git2/refs.h>
 #include <git2/repository.h>
 #include <git2/signature.h>
@@ -440,12 +441,16 @@ std::optional<std::string> RebaseViewWidget::update(
         case CmdType::RESET:
         case CmdType::MERGE:
         case CmdType::UPDATE_REF:
-            TODO("Unsupported command");
-            break;
+            return std::format(
+                "Advanced rebase command not supported '{}'. Only basic commit actions (pick, edit, squash, etc.) are "
+                "available.",
+                core::git::cmd_to_str(action.type)
+            );
         }
     }
 
-    return prepareActions();
+    prepareActions();
+    return std::nullopt;
 }
 
 std::optional<std::string>
@@ -488,10 +493,11 @@ RebaseViewWidget::update(git_repository* repo, const std::string& head, const st
         return err_msg;
     }
 
-    return prepareActions();
+    prepareActions();
+    return std::nullopt;
 }
 
-std::optional<std::string> RebaseViewWidget::prepareActions() {
+void RebaseViewWidget::prepareActions() {
 
     prepareGraph();
 
@@ -502,18 +508,14 @@ std::optional<std::string> RebaseViewWidget::prepareActions() {
     for (auto& action : m_actions) {
         auto* action_item = new ListItem(this, list, list->count(), action);
 
-        auto result = prepareItem(action_item, action);
-        if (auto err = result) {
-            return err;
-        }
+        prepareItem(action_item, action);
+
         auto* item = new QListWidgetItem();
 
         item->setSizeHint(action_item->sizeHint());
         list->addItem(item);
         list->setItemWidget(item, action_item);
     }
-
-    return std::nullopt;
 }
 
 void RebaseViewWidget::prepareGraph() {
@@ -535,14 +537,8 @@ void RebaseViewWidget::prepareGraph() {
 
 void RebaseViewWidget::updateActions() {
     LOG_INFO("Updating actions");
-    auto opt = prepareActions();
 
-    if (opt.has_value()) {
-        QMessageBox::critical(this, "Operation Error", opt.value().c_str());
-
-        // TODO: Rollback
-        return;
-    }
+    prepareActions();
 
     m_commit_view->update(nullptr);
 }
@@ -656,7 +652,7 @@ void RebaseViewWidget::updateNode(ListItem* item, Node* node, Node* parent, Node
     }
 }
 
-std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action& action) {
+void RebaseViewWidget::prepareItem(ListItem* item, Action& action) {
     QString item_text;
     item_text += " [";
     item_text += QString::fromStdString(core::git::format_oid_to_str<7>(&action.get_oid()));
@@ -716,8 +712,6 @@ std::optional<std::string> RebaseViewWidget::prepareItem(ListItem* item, Action&
     }
 
     item->setText(item_text);
-
-    return std::nullopt;
 }
 
 void RebaseViewWidget::checkoutAndResolve() {

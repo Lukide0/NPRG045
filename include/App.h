@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gui/widget/RebaseViewWidget.h"
+#include "gui/widget/WelcomeWidget.h"
 
 #include <cassert>
 #include <string>
@@ -61,6 +62,7 @@ private:
 
     QHBoxLayout* m_layout;
     gui::widget::RebaseViewWidget* m_rebase_view;
+    gui::widget::WelcomeWidget* m_welcome_widget;
 
     git_repository* m_repo = nullptr;
 
@@ -70,7 +72,7 @@ private:
     void hideOldCommits(bool state);
     void hideResultCommits(bool state);
 
-    void loadSaveFile();
+    bool loadSaveFile();
     bool saveTodoFile();
     bool saveSaveFile(bool choose_file);
 

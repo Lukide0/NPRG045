@@ -109,9 +109,9 @@ private:
     std::vector<std::string> m_conflict_paths;
     std::vector<core::conflict::ConflictEntry> m_conflict_entries;
 
-    std::optional<std::string> prepareItem(ListItem* item, action::Action& action);
+    void prepareItem(ListItem* item, action::Action& action);
 
-    std::optional<std::string> prepareActions();
+    void prepareActions();
 
     Node* findOldCommit(const git_oid& oid);
 

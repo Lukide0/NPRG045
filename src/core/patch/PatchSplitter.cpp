@@ -5,6 +5,8 @@
 #include <iostream>
 #include <string>
 
+#include <QMessageBox>
+
 namespace core::patch {
 
 using git::diff_files_header_t;
@@ -12,7 +14,7 @@ using git::diff_files_t;
 using git::diff_hunk_t;
 using git::diff_line_t;
 
-void PatchSplitter::file_begin(const diff_files_header_t& header) {
+bool PatchSplitter::file_begin(const diff_files_header_t& header) {
 
     using State = diff_files_t::State;
 
@@ -42,7 +44,12 @@ void PatchSplitter::file_begin(const diff_files_header_t& header) {
     case State::TYPECHANGE:
     case State::UNREADABLE:
     case State::CONFLICTED:
-        TODO("Implement");
+        QMessageBox::critical(
+            nullptr,
+            "Unsupported Diff State",
+            QString("File diff state '%1' is not supported.").arg(diff_files_t::state_to_str(header.state))
+        );
+        return false;
     case State::MODIFIED:
         m_file_patch << "index " << git::format_oid(&header.old_file.id).data() << ".."
                      << git::format_oid(&header.new_file.id).data() << " 100644\n";
@@ -51,6 +58,8 @@ void PatchSplitter::file_begin(const diff_files_header_t& header) {
         m_file_patch << "+++ " << new_file << '\n';
         break;
     }
+
+    return true;
 }
 
 void PatchSplitter::file_end() {

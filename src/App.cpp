@@ -154,11 +154,31 @@ App::App() {
 
     m_layout = new QHBoxLayout(main);
 
-    m_rebase_view = new gui::widget::RebaseViewWidget();
+    m_rebase_view    = new gui::widget::RebaseViewWidget();
+    m_welcome_widget = new gui::widget::WelcomeWidget();
+
     m_layout->addWidget(m_rebase_view);
+    m_layout->addWidget(m_welcome_widget);
 
     m_rebase_view->hide();
     m_rebase_view->hideOldCommits();
+
+    connect(m_welcome_widget, &gui::widget::WelcomeWidget::openCurrentDirectory, this, [this]() {
+        QString currentPath = QDir::currentPath();
+
+        // NOTE: openRepo handles widget visibility based on success/failure
+        openRepo(currentPath.toStdString());
+    });
+
+    connect(m_welcome_widget, &gui::widget::WelcomeWidget::openRepository, this, [this]() {
+        // NOTE: openRepoDialog handles widget visibility based on success/failure
+        openRepoDialog();
+    });
+
+    connect(m_welcome_widget, &gui::widget::WelcomeWidget::loadSaveFile, this, [this]() {
+        // NOTE: loadSaveFile handles widget visibility based on success/failure
+        loadSaveFile();
+    });
 }
 
 App::SaveStatus App::maybeSave() {
@@ -324,6 +344,7 @@ bool App::showRebase() {
     }
 
     m_rebase_view->show();
+    m_welcome_widget->hide();
 
     return true;
 }
@@ -367,14 +388,14 @@ bool App::saveSaveFile(bool choose_file) {
     return true;
 }
 
-void App::loadSaveFile() {
+bool App::loadSaveFile() {
     QString filter = "XML Files (*.xml)";
     QString dir    = m_save_file.value_or(QString::fromStdString(m_repo_path));
 
     QString filepath = QFileDialog::getOpenFileName(this, "Load", dir, filter, nullptr);
 
     if (filepath.isEmpty()) {
-        return;
+        return false;
     }
 
     LOG_INFO("Loading: {}", filepath.toStdString());
@@ -383,7 +404,7 @@ void App::loadSaveFile() {
     auto save_data = core::state::State::load(filepath.toStdU32String(), &repo);
     if (!save_data.has_value()) {
         QMessageBox::critical(this, "Load error", "Failed to load save file");
-        return;
+        return false;
     }
 
     if (m_repo != repo) {
@@ -423,11 +444,14 @@ void App::loadSaveFile() {
     core::state::CommandHistory::Clear();
 
     m_rebase_view->show();
+    m_welcome_widget->hide();
 
     auto rebase_res = m_rebase_view->update(m_repo, save_data->head, save_data->onto);
     if (rebase_res.has_value()) {
         QMessageBox::critical(this, "Rebase Error", rebase_res.value().c_str());
     }
+
+    return true;
 }
 
 bool App::saveTodoFile() {

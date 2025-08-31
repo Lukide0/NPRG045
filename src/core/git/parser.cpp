@@ -92,7 +92,7 @@ ParseResult parse_file(const std::string& filepath) {
     auto file = std::ifstream(filepath);
     ParseResult res;
     if (!file.good()) {
-        res.err = "Cannot open rebase todo file";
+        res.err = "Cannot read rebase TODO file. Make sure you're in the middle of a git rebase.";
         return res;
     }
 
@@ -107,12 +107,15 @@ ParseResult parse_file(const std::string& filepath) {
 
         switch (line_res.type) {
         case CmdType::INVALID:
-            res.err = "Invalid command in rebase todo file";
+            res.err = "Unknown command found in git rebase TODO file. The file may be corrupted or use unsupported "
+                      "rebase actions.";
             return res;
         case CmdType::NONE:
         case CmdType::BREAK:
-        case CmdType::EXEC:
             goto no_commit;
+        case CmdType::EXEC:
+            res.err = "Execution commands (exec) are not supported. Please remove or edit this command manually.";
+            return res;
         case CmdType::PICK:
         case CmdType::REWORD:
         case CmdType::EDIT:
@@ -145,8 +148,9 @@ ParseResult parse_file(const std::string& filepath) {
             break;
 
         case CmdType::UPDATE_REF:
-            TODO("Implement");
-            break;
+            res.err
+                = "Update ref commands (update-ref) are not supported. Please remove or edit this command manually.";
+            return res;
         }
 
         if (commit_hash.empty()) {
@@ -169,14 +173,14 @@ std::optional<const char*> get_rebase_info(const std::string& repo, std::string&
         auto onto_file = std::ifstream(repo + '/' + ONTO_FILE.c_str());
 
         if (!head_file.good() || !onto_file) {
-            return "Could not find rebase files";
+            return "Cannot find git rebase files. Make sure you're in an active rebase operation.";
         }
         std::getline(head_file, out_head);
         std::getline(onto_file, out_onto);
     }
 
     if (out_head.empty() || out_onto.empty()) {
-        return "Invalid rebase files";
+        return "Git rebase files are empty or corrupted. The rebase operation may be in an invalid state.";
     }
 
     return std::nullopt;

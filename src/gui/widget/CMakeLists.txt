@@ -14,6 +14,9 @@ target_sources(${PROJECT_NAME} PRIVATE
         graph/Graph.cpp
         graph/Node.cpp
 
+        WelcomeWidget.cpp
+        ${INCLUDE_PATH}/gui/widget/WelcomeWidget.h
+
         ${INCLUDE_PATH}/gui/widget/DiffEditor.h
         ${INCLUDE_PATH}/gui/widget/DiffFile.h
 )

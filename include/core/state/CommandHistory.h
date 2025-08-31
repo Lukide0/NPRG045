@@ -45,7 +45,7 @@ public:
 
 private:
     std::int32_t m_index       = -1;
-    std::int32_t m_saved_index = -2;
+    std::int32_t m_saved_index = -1;
 
     std::vector<std::unique_ptr<Command>> m_commands;
     QAction* m_undo;

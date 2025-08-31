@@ -76,6 +76,35 @@ struct diff_files_t {
     State state;
 
     std::vector<diff_hunk_t> hunks;
+
+    static constexpr const char* state_to_str(State state) {
+        switch (state) {
+        case State::UNMODIFIED:
+            return "unmodified";
+        case State::ADDED:
+            return "added";
+        case State::DELETED:
+            return "deleted";
+        case State::MODIFIED:
+            return "modified";
+        case State::RENAMED:
+            return "renamed";
+        case State::COPIED:
+            return "copied";
+        case State::IGNORED:
+            return "ignored";
+        case State::UNTRACKED:
+            return "untracted";
+        case State::TYPECHANGE:
+            return "typechange";
+        case State::UNREADABLE:
+            return "unreadable";
+        case State::CONFLICTED:
+            return "conflicted";
+        default:
+            return "unknown";
+        }
+    }
 };
 
 struct diff_files_header_t {

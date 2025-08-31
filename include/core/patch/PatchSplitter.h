@@ -12,7 +12,7 @@ class PatchSplitter {
 public:
     PatchSplitter() = default;
 
-    void file_begin(const git::diff_files_header_t& file);
+    bool file_begin(const git::diff_files_header_t& file);
     void process(const git::diff_line_t& line, const git::diff_hunk_t& hunk, bool selected);
     void file_end();
 
@@ -30,10 +30,9 @@ private:
     int m_lines_count   = 0;
     int m_hunk_offset   = 0;
 
-
     bool m_not_used = true;
-    bool m_all   = true;
-    bool m_empty = true;
+    bool m_all      = true;
+    bool m_empty    = true;
 
     const git::diff_hunk_t* m_hunk = nullptr;
 

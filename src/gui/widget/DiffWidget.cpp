@@ -145,9 +145,18 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
         header += " -> ";
         header += QString::fromStdString(diff.new_file.path);
         break;
-    default:
-        TODO("Unsupported file state");
-        break;
+    default: {
+        const std::string& path = (!diff.old_file.path.empty()) ? diff.old_file.path : diff.new_file.path;
+        LOG_ERROR("Unsupported file ({}) state: {}", path, static_cast<int>(diff.state));
+        QMessageBox::critical(
+            this,
+            "Repository error",
+            QString("Unsupported file '%1' has unsupported state: %2")
+                .arg(QString::fromStdString(path))
+                .arg(QString::number(static_cast<int>(diff.state)))
+        );
+        return;
+    }
     }
 
     file_diff->setDiff(core::git::diff_header(diff));
@@ -273,9 +282,9 @@ void DiffWidget::splitCommitEvent() {
         core::patch::PatchSplitter splitter;
 
         for (auto&& file : m_files) {
-            // TODO: Handle empty file
-
-            splitter.file_begin(file->getDiff());
+            if (!splitter.file_begin(file->getDiff())) {
+                return;
+            }
 
             std::vector<diff_line_t> lines;
 
