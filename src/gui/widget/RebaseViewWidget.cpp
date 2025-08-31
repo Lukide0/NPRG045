@@ -21,6 +21,7 @@
 #include "gui/widget/LineSplitter.h"
 #include "gui/widget/ListItem.h"
 #include "gui/widget/NamedListWidget.h"
+#include "gui/widget/ScrollListWidget.h"
 #include "logging/Log.h"
 
 #include <cassert>
@@ -96,7 +97,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     auto* graphs_split = new LineSplitter(Qt::Orientation::Horizontal);
 
     //-- LEFT LAYOUT --------------------------------------------------------//
-    m_list_actions = new QListWidget();
+    m_list_actions = new ScrollListWidget();
     m_list_actions->setSelectionMode(QAbstractItemView::SelectionMode::SingleSelection);
     m_list_actions->setDragDropMode(QAbstractItemView::DragDropMode::InternalMove);
     m_list_actions->setDragEnabled(true);

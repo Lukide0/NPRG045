@@ -17,6 +17,9 @@ target_sources(${PROJECT_NAME} PRIVATE
         WelcomeWidget.cpp
         ${INCLUDE_PATH}/gui/widget/WelcomeWidget.h
 
+        ScrollListWidget.cpp
+        ${INCLUDE_PATH}/gui/widget/ScrollListWidget.h
+
         ${INCLUDE_PATH}/gui/widget/DiffEditor.h
         ${INCLUDE_PATH}/gui/widget/DiffFile.h
 )
