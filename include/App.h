@@ -53,6 +53,7 @@ private:
 
     bool m_cli_start = false;
     QAction* m_repo_open;
+    QAction* m_load_save;
 
     std::string m_repo_path;
     std::string m_rebase_head;

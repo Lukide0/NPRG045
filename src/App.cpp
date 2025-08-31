@@ -109,8 +109,8 @@ App::App() {
         auto* edit_save_as = new QAction(QIcon::fromTheme("edit-save"), "Save as", this);
         connect(edit_save_as, &QAction::triggered, this, [this] { saveSaveFile(true); });
 
-        auto* edit_load = new QAction(QIcon::fromTheme("edit-load"), "Load", this);
-        connect(edit_load, &QAction::triggered, this, [this] { loadSaveFile(); });
+        m_load_save = new QAction(QIcon::fromTheme("edit-load"), "Load", this);
+        connect(m_load_save, &QAction::triggered, this, [this] { loadSaveFile(); });
 
         auto* edit_todo_save = new QAction(QIcon::fromTheme("document-save-as"), "Save Todo");
         connect(edit_todo_save, &QAction::triggered, this, [this] { saveTodoFile(); });
@@ -120,7 +120,7 @@ App::App() {
         edit->addSeparator();
         edit->addAction(edit_save);
         edit->addAction(edit_save_as);
-        edit->addAction(edit_load);
+        edit->addAction(m_load_save);
         edit->addAction(edit_todo_save);
 
         edit_undo->setShortcut(QKeySequence::Undo);
@@ -188,8 +188,9 @@ App::SaveStatus App::maybeSave() {
     if (m_cli_start) {
         auto ans = QMessageBox::warning(
             this,
-            "Modified TODO file",
-            "Do you want to save changes to the TODO file?",
+            "Save Rebase Plan",
+            "Do you want to save your changes to the rebase plan? This file tells git how to replay your commits "
+            "during the rebase.",
             QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
             QMessageBox::Save
         );
@@ -272,6 +273,7 @@ void App::openRepoCLI(const std::string& path) {
     m_cli_start = true;
 
     m_repo_open->setEnabled(false);
+    m_load_save->setEnabled(false);
 }
 
 bool App::openRepo(const std::string& path) {
@@ -434,12 +436,31 @@ bool App::saveTodoFile() {
 
     auto err = core::git::get_rebase_info(m_repo_path, head, onto);
     if (err.has_value()) {
-        QMessageBox::critical(this, "Save Error", "Could not find rebase files");
+        QMessageBox::critical(
+            this,
+            "Rebase Error",
+            "Cannot save: Git rebase files not found.\n\n"
+            "Make sure you're in the middle of an active rebase operation."
+        );
         return false;
     }
 
     if (head != m_rebase_head || onto != m_rebase_onto) {
-        QMessageBox::critical(this, "Save Error", "Rebase files have changed");
+        QMessageBox::critical(
+            this,
+            "Rebase State Mismatch",
+            QString(
+                "Cannot save: The current rebase no longer matches what this application is editing.\n\n"
+                "Expected - HEAD: %1, onto: %2\n"
+                "Current  - HEAD: %3, onto: %4\n\n"
+                "Git operations were performed that changed the rebase state."
+            )
+                .arg(QString::fromStdString(m_rebase_head.substr(0, 8)))
+                .arg(QString::fromStdString(m_rebase_onto.substr(0, 8)))
+                .arg(QString::fromStdString(head.substr(0, 8)))
+                .arg(QString::fromStdString(onto.substr(0, 8)))
+        );
+
         return false;
     }
 
@@ -447,7 +468,12 @@ bool App::saveTodoFile() {
 
     std::ofstream todo_file(filepath);
     if (!todo_file.good()) {
-        QMessageBox::critical(this, "Save Error", "Could not open todo file");
+        QMessageBox::critical(
+            this,
+            "File Access Error",
+            "Cannot save rebase instructions.\n\n"
+            "Unable to write to the git rebase file."
+        );
         return false;
     }
 
@@ -457,7 +483,7 @@ bool App::saveTodoFile() {
     bool status   = action::Converter::actions_to_todo(todo_file, manager, core::conflict::ConflictManager::get());
 
     if (!status) {
-        QMessageBox::critical(this, "Save Error", "Failed to save the todo file");
+        QMessageBox::critical(this, "Save Error", "Failed to save rebase instructions.");
         return false;
     }
 
