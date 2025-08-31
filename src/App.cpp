@@ -166,7 +166,7 @@ App::SaveStatus App::maybeSave() {
 
     SaveStatus status = SaveStatus::SAVE;
 
-    if (CommandHistory::CanUndo()) {
+    if (!CommandHistory::IsSaved()) {
         auto ans = QMessageBox::warning(
             this,
             "Unsaved changes",
@@ -359,6 +359,8 @@ bool App::saveSaveFile(bool choose_file) {
         QMessageBox::critical(this, "Save error", "Failed to save");
         return false;
     }
+
+    core::state::CommandHistory::Save();
 
     return true;
 }

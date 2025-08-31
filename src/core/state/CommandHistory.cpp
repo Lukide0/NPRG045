@@ -49,6 +49,11 @@ bool CommandHistory::redo() {
 void CommandHistory::add(std::unique_ptr<Command>&& cmd) {
     m_index += 1;
 
+    // invalidate the saved index
+    if (m_index == m_saved_index) {
+        m_saved_index = -2;
+    }
+
     if (static_cast<std::size_t>(m_index) != m_commands.size()) {
         m_commands.resize(m_index);
     }
@@ -62,7 +67,8 @@ void CommandHistory::add(std::unique_ptr<Command>&& cmd) {
 
 void CommandHistory::clear() {
     m_commands.clear();
-    m_index = -1;
+    m_index       = -1;
+    m_saved_index = -2;
 
     m_undo->setEnabled(false);
     m_redo->setEnabled(false);
@@ -88,4 +94,7 @@ void CommandHistory::SetUndo(QAction* undo) { g_history.setUndo(undo); }
 
 void CommandHistory::SetRedo(QAction* redo) { g_history.setRedo(redo); }
 
+void CommandHistory::Save() { g_history.save(); }
+
+bool CommandHistory::IsSaved() { return g_history.isSaved(); }
 }

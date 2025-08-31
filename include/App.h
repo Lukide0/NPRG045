@@ -3,7 +3,6 @@
 #include "gui/widget/RebaseViewWidget.h"
 
 #include <cassert>
-#include <cctype>
 #include <string>
 
 #include <git2.h>
