@@ -52,10 +52,11 @@ private:
     diff_files_t& create_file(const git_diff_file& old_file, const git_diff_file& new_file) {
         files.push_back(
             {
-                .new_file = create_file(new_file),
-                .old_file = create_file(old_file),
-                .state    = diff_files_t::State::UNMODIFIED,
-                .hunks    = {},
+                .new_file   = create_file(new_file),
+                .old_file   = create_file(old_file),
+                .state      = diff_files_t::State::UNMODIFIED,
+                .similarity = 0,
+                .hunks      = {},
             }
         );
 
@@ -160,10 +161,12 @@ int diff_file_callback(const git_diff_delta* delta, float /*unused*/, void* stat
         file.state = diff_files_t::State::MODIFIED;
         break;
     case GIT_DELTA_RENAMED:
-        file.state = diff_files_t::State::RENAMED;
+        file.state      = diff_files_t::State::RENAMED;
+        file.similarity = delta->similarity;
         break;
     case GIT_DELTA_COPIED:
-        file.state = diff_files_t::State::COPIED;
+        file.state      = diff_files_t::State::COPIED;
+        file.similarity = delta->similarity;
         break;
     case GIT_DELTA_IGNORED:
         file.state = diff_files_t::State::IGNORED;

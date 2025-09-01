@@ -116,7 +116,7 @@ void DiffWidget::update(git_commit* child, git_commit* parent, Action* action) {
 }
 
 void DiffWidget::createFileDiff(const diff_files_t& diff) {
-    auto* file_diff = new DiffFile();
+    auto* file_diff = new DiffFile(diff);
     m_curr_editor   = file_diff->getEditor();
 
     QString header;

@@ -21,8 +21,9 @@ namespace gui::widget {
 
 using core::git::diff_line_t;
 
-DiffEditor::DiffEditor(QWidget* parent)
-    : QPlainTextEdit(parent) {
+DiffEditor::DiffEditor(const core::git::diff_files_t& diff, QWidget* parent)
+    : QPlainTextEdit(parent)
+    , m_diff(diff) {
 
     m_line = new DiffEditorLine(this);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
@@ -122,37 +123,82 @@ void DiffEditor::onSelectionChanged() {
 }
 
 void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
+    using State = core::git::diff_files_t::State;
+
     auto* menu = new QMenu();
 
     m_context_menu_point = event->globalPos();
 
-    if (m_context_menu) {
+    bool show_context_menu = m_context_menu;
+
+    switch (m_diff.state) {
+    case State::ADDED:
+    case State::DELETED:
+    case State::MODIFIED:
+    case State::RENAMED:
+    case State::COPIED:
+        break;
+    case State::IGNORED:
+    case State::UNTRACKED:
+    case State::TYPECHANGE:
+    case State::UNREADABLE:
+    case State::CONFLICTED:
+    case State::UNMODIFIED:
+        show_context_menu = false;
+        break;
+    }
+
+    if (show_context_menu) {
         auto cursor = textCursor();
 
-        if (cursor.hasSelection()) {
-            menu->addSection("Lines");
-            QAction* select_lines   = menu->addAction("Select lines");
-            QAction* deselect_lines = menu->addAction("Deselect lines");
-
-            connect(select_lines, &QAction::triggered, this, [this]() { this->selectLines(SelectionType::SELECT); });
-            connect(deselect_lines, &QAction::triggered, this, [this]() {
-                this->selectLines(SelectionType::DESELECT);
-            });
-        } else {
-            menu->addSection("Line");
-            QAction* select_line   = menu->addAction("Select line");
-            QAction* deselect_line = menu->addAction("Deselect line");
-
-            connect(select_line, &QAction::triggered, this, [this]() { this->selectLine(SelectionType::SELECT); });
-            connect(deselect_line, &QAction::triggered, this, [this]() { this->selectLine(SelectionType::DESELECT); });
+        bool file_only = false;
+        switch (m_diff.state) {
+        case State::DELETED:
+        case State::RENAMED:
+        case State::COPIED:
+            file_only = true;
+            break;
+        default:
+            break;
         }
 
-        menu->addSection("Hunk");
-        QAction* select_hunk   = menu->addAction("Select hunk");
-        QAction* deselect_hunk = menu->addAction("Deselect hunk");
+        if (!file_only) {
+            if (cursor.hasSelection()) {
+                menu->addSection("Lines");
+                QAction* select_lines   = menu->addAction("Select lines");
+                QAction* deselect_lines = menu->addAction("Deselect lines");
 
-        connect(select_hunk, &QAction::triggered, this, [this]() { this->selectHunk(SelectionType::SELECT); });
-        connect(deselect_hunk, &QAction::triggered, this, [this]() { this->selectHunk(SelectionType::DESELECT); });
+                connect(select_lines, &QAction::triggered, this, [this]() {
+                    this->selectLines(SelectionType::SELECT);
+                });
+                connect(deselect_lines, &QAction::triggered, this, [this]() {
+                    this->selectLines(SelectionType::DESELECT);
+                });
+            } else {
+                menu->addSection("Line");
+                QAction* select_line   = menu->addAction("Select line");
+                QAction* deselect_line = menu->addAction("Deselect line");
+
+                connect(select_line, &QAction::triggered, this, [this]() { this->selectLine(SelectionType::SELECT); });
+                connect(deselect_line, &QAction::triggered, this, [this]() {
+                    this->selectLine(SelectionType::DESELECT);
+                });
+            }
+
+            menu->addSection("Hunk");
+            QAction* select_hunk   = menu->addAction("Select hunk");
+            QAction* deselect_hunk = menu->addAction("Deselect hunk");
+
+            connect(select_hunk, &QAction::triggered, this, [this]() { this->selectHunk(SelectionType::SELECT); });
+            connect(deselect_hunk, &QAction::triggered, this, [this]() { this->selectHunk(SelectionType::DESELECT); });
+        }
+
+        menu->addSection("File");
+        QAction* select_file   = menu->addAction("Select file");
+        QAction* deselect_file = menu->addAction("Deselect file");
+
+        connect(select_file, &QAction::triggered, this, [this]() { this->selectFile(SelectionType::SELECT); });
+        connect(deselect_file, &QAction::triggered, this, [this]() { this->selectFile(SelectionType::DESELECT); });
 
         emit extendContextMenu(menu);
     }
@@ -162,6 +208,14 @@ void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
     delete menu;
 
     event->accept();
+}
+
+void DiffEditor::selectFile(SelectionType type) {
+    auto* doc = document();
+
+    for (auto block = doc->begin(); block.isValid() && block != doc->end(); block = block.next()) {
+        selectBlock(block, type);
+    }
 }
 
 void DiffEditor::processLines(std::function<void(const DiffEditorLineData&)> process_data) {

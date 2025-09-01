@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/git/types.h"
+#include <cstdint>
 #include <git2/diff.h>
 #include <git2/oid.h>
 #include <git2/types.h>
@@ -74,6 +75,7 @@ struct diff_files_t {
     diff_file_t new_file;
     diff_file_t old_file;
     State state;
+    std::uint16_t similarity;
 
     std::vector<diff_hunk_t> hunks;
 
@@ -111,6 +113,7 @@ struct diff_files_header_t {
     diff_file_t new_file;
     diff_file_t old_file;
     diff_files_t::State state;
+    std::uint16_t similarity;
 };
 
 diff_result_t
@@ -125,9 +128,10 @@ std::vector<diff_files_t> create_diff(git_diff* diff);
 
 inline diff_files_header_t diff_header(const diff_files_t& files) {
     return {
-        .new_file = files.new_file,
-        .old_file = files.old_file,
-        .state    = files.state,
+        .new_file   = files.new_file,
+        .old_file   = files.old_file,
+        .state      = files.state,
+        .similarity = files.similarity,
     };
 }
 

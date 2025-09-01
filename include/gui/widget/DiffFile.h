@@ -15,7 +15,7 @@ namespace gui::widget {
 class DiffFile : public QWidget {
     Q_OBJECT
 public:
-    DiffFile(QWidget* parent = nullptr)
+    DiffFile(const core::git::diff_files_t& diff, QWidget* parent = nullptr)
         : QWidget(parent) {
         m_layout = new QVBoxLayout();
         m_layout->setContentsMargins(0, 0, 0, 0);
@@ -29,7 +29,7 @@ public:
         font.setBold(true);
         m_label->setFont(font);
 
-        m_editor         = new DiffEditor();
+        m_editor         = new DiffEditor(diff);
         auto line_offset = m_editor->diffLineWidth();
 
         m_label->setContentsMargins(line_offset, 0, 0, 0);

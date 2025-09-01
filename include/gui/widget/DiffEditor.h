@@ -13,7 +13,7 @@ class DiffEditorLineData;
 class DiffEditor : public QPlainTextEdit {
     Q_OBJECT
 public:
-    DiffEditor(QWidget* parent = nullptr);
+    DiffEditor(const core::git::diff_files_t& diff, QWidget* parent = nullptr);
 
     void diffLinePaintEvent(QPaintEvent* event);
     int diffLineWidth();
@@ -35,6 +35,8 @@ private:
 
     void selectLine(SelectionType type);
 
+    void selectFile(SelectionType type);
+
     void selectLines(SelectionType type);
 
     void selectHunk(SelectionType type);
@@ -46,6 +48,7 @@ private:
     void contextMenuEvent(QContextMenuEvent* event) override;
 
     void updateDiffLineWidth(int new_block_count = 0);
+
     void onSelectionChanged();
 
     void updateDiffLine(const QRect& rect, int dy);
@@ -53,6 +56,8 @@ private:
     void setBlockHighlight(QTextBlock block, bool enable);
 
 private:
+    const core::git::diff_files_t& m_diff;
+
     DiffEditorLine* m_line;
     bool m_context_menu          = false;
     std::size_t m_highlight_size = 0;
