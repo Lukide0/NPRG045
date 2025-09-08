@@ -10,9 +10,16 @@ namespace core::patch {
 
 class PatchSplitter {
 public:
+    enum FileState {
+        UNKNOWN       = 0,
+        ALL_SELECTED  = 0b01,
+        NONE_SELECTED = 0b10,
+        SOME          = ALL_SELECTED | NONE_SELECTED,
+    };
+
     PatchSplitter() = default;
 
-    bool file_begin(const git::diff_files_header_t& file);
+    bool file_begin(const git::diff_files_header_t& header, FileState state = FileState::UNKNOWN);
     void process(const git::diff_line_t& line, const git::diff_hunk_t& hunk, bool selected);
     void file_end();
 
@@ -27,13 +34,6 @@ public:
     [[nodiscard]] std::string get_patch() const { return m_patch.str(); }
 
 private:
-    enum FileState {
-        UNKNOWN       = 0,
-        ALL_SELECTED  = 0b01,
-        NONE_SELECTED = 0b10,
-        SOME          = ALL_SELECTED | NONE_SELECTED,
-    };
-
     std::stringstream m_patch;
     std::stringstream m_file_header;
     std::stringstream m_file_patch;
@@ -49,7 +49,7 @@ private:
     FileState m_file_selection  = FileState::UNKNOWN;
     FileState m_patch_selection = FileState::UNKNOWN;
 
-    bool m_not_used = true;
+    bool m_used = false;
 
     const git::diff_hunk_t* m_hunk = nullptr;
 

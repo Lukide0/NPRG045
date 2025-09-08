@@ -3,6 +3,7 @@
 #include "gui/color.h"
 #include "gui/widget/DiffEditorLine.h"
 
+#include <algorithm>
 #include <functional>
 
 #include <QColor>
@@ -122,6 +123,18 @@ void DiffEditor::onSelectionChanged() {
     setExtraSelections(selections);
 }
 
+bool DiffEditor::selectOnlyFile() const {
+    using State = core::git::diff_files_t::State;
+    switch (m_diff.state) {
+    case State::DELETED:
+    case State::RENAMED:
+    case State::COPIED:
+        return true;
+    default:
+        return false;
+    }
+}
+
 void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
     using State = core::git::diff_files_t::State;
 
@@ -151,17 +164,7 @@ void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
     if (show_context_menu) {
         auto cursor = textCursor();
 
-        bool file_only = false;
-        switch (m_diff.state) {
-        case State::DELETED:
-        case State::RENAMED:
-        case State::COPIED:
-            file_only = true;
-            break;
-        default:
-            break;
-        }
-
+        bool file_only = selectOnlyFile();
         if (!file_only) {
             if (cursor.hasSelection()) {
                 menu->addSection("Lines");
@@ -170,18 +173,24 @@ void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
 
                 connect(select_lines, &QAction::triggered, this, [this]() {
                     this->selectLines(SelectionType::SELECT);
+                    emit this->lineOrFileSelect(this->selectedLineOrFile());
                 });
                 connect(deselect_lines, &QAction::triggered, this, [this]() {
                     this->selectLines(SelectionType::DESELECT);
+                    emit this->lineOrFileSelect(this->selectedLineOrFile());
                 });
             } else {
                 menu->addSection("Line");
                 QAction* select_line   = menu->addAction("Select line");
                 QAction* deselect_line = menu->addAction("Deselect line");
 
-                connect(select_line, &QAction::triggered, this, [this]() { this->selectLine(SelectionType::SELECT); });
+                connect(select_line, &QAction::triggered, this, [this]() {
+                    this->selectLine(SelectionType::SELECT);
+                    emit this->lineOrFileSelect(this->selectedLineOrFile());
+                });
                 connect(deselect_line, &QAction::triggered, this, [this]() {
                     this->selectLine(SelectionType::DESELECT);
+                    emit this->lineOrFileSelect(this->selectedLineOrFile());
                 });
             }
 
@@ -189,16 +198,28 @@ void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
             QAction* select_hunk   = menu->addAction("Select hunk");
             QAction* deselect_hunk = menu->addAction("Deselect hunk");
 
-            connect(select_hunk, &QAction::triggered, this, [this]() { this->selectHunk(SelectionType::SELECT); });
-            connect(deselect_hunk, &QAction::triggered, this, [this]() { this->selectHunk(SelectionType::DESELECT); });
+            connect(select_hunk, &QAction::triggered, this, [this]() {
+                this->selectHunk(SelectionType::SELECT);
+                emit this->lineOrFileSelect(this->selectedLineOrFile());
+            });
+            connect(deselect_hunk, &QAction::triggered, this, [this]() {
+                this->selectHunk(SelectionType::DESELECT);
+                emit this->lineOrFileSelect(this->selectedLineOrFile());
+            });
         }
 
         menu->addSection("File");
         QAction* select_file   = menu->addAction("Select file");
         QAction* deselect_file = menu->addAction("Deselect file");
 
-        connect(select_file, &QAction::triggered, this, [this]() { this->selectFile(SelectionType::SELECT); });
-        connect(deselect_file, &QAction::triggered, this, [this]() { this->selectFile(SelectionType::DESELECT); });
+        connect(select_file, &QAction::triggered, this, [this]() {
+            this->selectFile(SelectionType::SELECT);
+            emit this->lineOrFileSelect(this->selectedLineOrFile());
+        });
+        connect(deselect_file, &QAction::triggered, this, [this]() {
+            this->selectFile(SelectionType::DESELECT);
+            emit this->lineOrFileSelect(this->selectedLineOrFile());
+        });
 
         emit extendContextMenu(menu);
     }
@@ -213,18 +234,20 @@ void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
 void DiffEditor::selectFile(SelectionType type) {
     auto* doc = document();
 
+    m_selected_file = (type == SelectionType::SELECT);
+
     for (auto block = doc->begin(); block.isValid() && block != doc->end(); block = block.next()) {
         selectBlock(block, type);
     }
 }
 
-void DiffEditor::processLines(std::function<void(const DiffEditorLineData&)> process_data) {
+void DiffEditor::processLines(std::function<void(const DiffEditorLineData&)> process_data) const {
     auto* doc = document();
 
     for (auto block = doc->begin(); block.isValid() && block != doc->end(); block = block.next()) {
-        auto* user_data = block.userData();
+        const auto* user_data = block.userData();
 
-        if (auto* line_data = dynamic_cast<DiffEditorLineData*>(user_data)) {
+        if (const auto* line_data = dynamic_cast<const DiffEditorLineData*>(user_data)) {
             process_data(*line_data);
         }
     }
@@ -250,7 +273,12 @@ void DiffEditor::selectBlock(QTextBlock block, SelectionType type) {
         return;
     }
 
-    auto line_type = line_data->get_line().type;
+    auto line_type          = line_data->get_line().type;
+    std::int32_t difference = (type == SelectionType::SELECT) ? 1 : -1;
+
+    if (m_selected_file && type == SelectionType::DESELECT) {
+        m_selected_file = false;
+    }
 
     switch (line_type) {
     case diff_line_t::Type::CONTEXT:
@@ -261,6 +289,8 @@ void DiffEditor::selectBlock(QTextBlock block, SelectionType type) {
     case diff_line_t::Type::DELETION:
     case diff_line_t::Type::DELETION_NEWLINE:
         setBlockHighlight(block, type == SelectionType::SELECT);
+        m_selected_count = std::max(m_selected_count + difference, 0);
+
         break;
     }
 }

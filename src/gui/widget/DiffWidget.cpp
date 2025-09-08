@@ -275,6 +275,7 @@ void DiffWidget::addLineDiff(const diff_hunk_t& hunk, const diff_line_t& line, s
 }
 
 void DiffWidget::splitCommitEvent() {
+    using FileState = core::patch::PatchSplitter::FileState;
 
     std::string patch_text;
 
@@ -282,13 +283,18 @@ void DiffWidget::splitCommitEvent() {
         core::patch::PatchSplitter splitter;
 
         for (auto&& file : m_files) {
-            if (!splitter.file_begin(file->getDiff())) {
+            const DiffEditor* editor = file->getEditor();
+
+            if (!editor->selectedLineOrFile()) {
+                continue;
+            }
+
+            FileState state = FileState::ALL_SELECTED;
+            if (!splitter.file_begin(file->getDiff(), state)) {
                 return;
             }
 
             std::vector<diff_line_t> lines;
-
-            auto* editor = file->getEditor();
 
             editor->processLines([&](const DiffEditorLineData& line) {
                 splitter.process(line.get_line(), line.get_hunk(), line.is_selected());

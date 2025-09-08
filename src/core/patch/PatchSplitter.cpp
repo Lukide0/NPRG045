@@ -13,14 +13,14 @@ using git::diff_files_t;
 using git::diff_hunk_t;
 using git::diff_line_t;
 
-bool PatchSplitter::file_begin(const diff_files_header_t& header) {
+bool PatchSplitter::file_begin(const diff_files_header_t& header, FileState state) {
 
     using State = diff_files_t::State;
 
     m_header = &header;
 
-    m_not_used       = true;
-    m_file_selection = FileState::UNKNOWN;
+    m_used           = (state == FileState::ALL_SELECTED || state == FileState::SOME);
+    m_file_selection = state;
 
     m_file_header.str("");
     m_file_header.clear();
@@ -109,7 +109,7 @@ void PatchSplitter::file_end() {
 
     m_patch_selection = static_cast<FileState>(m_patch_selection | m_file_selection);
 
-    if (!m_not_used) {
+    if (m_used) {
         prepare_header();
         m_patch << m_file_header.str();
         m_patch << m_file_patch.str();
@@ -150,7 +150,7 @@ void PatchSplitter::process(const diff_line_t& line, const diff_hunk_t& hunk, bo
             m_lines_added += 1;
             m_hunk_stream << '+' << line.content << '\n';
             m_file_selection = static_cast<FileState>(m_file_selection | FileState::ALL_SELECTED);
-            m_not_used       = false;
+            m_used           = true;
         } else {
             m_lines_count -= 1;
             m_file_selection = static_cast<FileState>(m_file_selection | FileState::NONE_SELECTED);
@@ -162,7 +162,7 @@ void PatchSplitter::process(const diff_line_t& line, const diff_hunk_t& hunk, bo
             m_lines_removed += 1;
             m_hunk_stream << '-' << line.content << '\n';
             m_file_selection = static_cast<FileState>(m_file_selection | FileState::ALL_SELECTED);
-            m_not_used       = false;
+            m_used           = true;
         } else {
             m_file_selection = static_cast<FileState>(m_file_selection | FileState::NONE_SELECTED);
 
@@ -173,17 +173,20 @@ void PatchSplitter::process(const diff_line_t& line, const diff_hunk_t& hunk, bo
 }
 
 void PatchSplitter::create_hunk() {
-    const int old_offset = m_hunk->old_file.offset;
-    const int old_count  = m_hunk->old_file.count;
+    if (m_hunk != nullptr) {
+        const int old_offset = m_hunk->old_file.offset;
+        const int old_count  = m_hunk->old_file.count;
 
-    int new_offset = old_offset + m_hunk_offset;
-    int new_count  = old_count + (m_lines_added - m_lines_removed);
+        int new_offset = old_offset + m_hunk_offset;
+        int new_count  = old_count + (m_lines_added - m_lines_removed);
 
-    m_hunk_offset += m_lines_added - m_lines_removed;
+        m_hunk_offset += m_lines_added - m_lines_removed;
 
-    if (m_lines_added != 0 || m_lines_removed != 0) {
-        m_file_patch << "@@ -" << old_offset << ',' << old_count << " +" << new_offset << ',' << new_count << " @@\n";
-        m_file_patch << m_hunk_stream.str();
+        if (m_lines_added != 0 || m_lines_removed != 0) {
+            m_file_patch << "@@ -" << old_offset << ',' << old_count << " +" << new_offset << ',' << new_count
+                         << " @@\n";
+            m_file_patch << m_hunk_stream.str();
+        }
     }
 
     m_hunk_stream.str("");

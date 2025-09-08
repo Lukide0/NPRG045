@@ -36,9 +36,29 @@ public:
 
         m_layout->addWidget(m_editor);
         m_layout->addWidget(m_label);
+
+        connect(m_editor, &DiffEditor::lineOrFileSelect, this, [this](bool selected) {
+            QString baseText = m_label->text();
+            QPalette palette = m_label->palette();
+
+            // remove prefix
+            if (baseText.startsWith("● ") || baseText.startsWith("○ ")) {
+                baseText = baseText.mid(2);
+            }
+
+            if (selected) {
+                m_label->setText("● " + baseText);
+                palette.setColor(QPalette::WindowText, QColor(0, 120, 215));
+            } else {
+                m_label->setText("○ " + baseText);
+                palette.setColor(QPalette::WindowText, palette.color(QPalette::Text));
+            }
+
+            m_label->setPalette(palette);
+        });
     }
 
-    void setHeader(const QString& filepath) { m_label->setText(filepath); }
+    void setHeader(const QString& filepath) { m_label->setText("○ " + filepath); }
 
     void setDiff(core::git::diff_files_header_t diff) { m_diff = std::move(diff); }
 

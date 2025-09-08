@@ -18,12 +18,16 @@ public:
     void diffLinePaintEvent(QPaintEvent* event);
     int diffLineWidth();
 
-    void processLines(std::function<void(const DiffEditorLineData&)> process_data);
+    void processLines(std::function<void(const DiffEditorLineData&)> process_data) const;
 
     void enableContextMenu(bool enable) { m_context_menu = enable; }
 
+    [[nodiscard]] bool selectedLineOrFile() const { return m_selected_file || m_selected_count > 0; }
+
 signals:
     void extendContextMenu(QMenu* menu);
+
+    void lineOrFileSelect(bool selected);
 
 private:
     static constexpr int HIGHLIGHT_SELECTION = 0x1;
@@ -55,12 +59,16 @@ private:
 
     void setBlockHighlight(QTextBlock block, bool enable);
 
+    bool selectOnlyFile() const;
+
 private:
     const core::git::diff_files_t& m_diff;
 
     DiffEditorLine* m_line;
-    bool m_context_menu          = false;
-    std::size_t m_highlight_size = 0;
+    bool m_context_menu           = false;
+    std::int32_t m_selected_count = 0;
+    bool m_selected_file          = false;
+    std::size_t m_highlight_size  = 0;
 
     QPoint m_context_menu_point;
 };
