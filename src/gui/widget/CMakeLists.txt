@@ -20,6 +20,9 @@ target_sources(${PROJECT_NAME} PRIVATE
         ScrollListWidget.cpp
         ${INCLUDE_PATH}/gui/widget/ScrollListWidget.h
 
+        SettingsDialog.cpp
+        ${INCLUDE_PATH}/gui/widget/SettingsDialog.h
+
         ${INCLUDE_PATH}/gui/widget/DiffEditor.h
         ${INCLUDE_PATH}/gui/widget/DiffFile.h
 )

@@ -7,9 +7,7 @@
 #include "core/patch/PatchSplitter.h"
 #include "core/patch/split.h"
 #include "core/state/CommandHistory.h"
-#include "core/utils/todo.h"
 #include "gui/clear_layout.h"
-#include "gui/color.h"
 #include "gui/widget/DiffEditor.h"
 #include "gui/widget/DiffEditorLine.h"
 #include "gui/widget/DiffFile.h"
@@ -115,10 +113,7 @@ void DiffWidget::update(git_commit* child, git_commit* parent, Action* action) {
     }
 }
 
-void DiffWidget::createFileDiff(const diff_files_t& diff) {
-    auto* file_diff = new DiffFile(diff);
-    m_curr_editor   = file_diff->getEditor();
-
+QString create_diff_header(const diff_files_t& diff) {
     QString header;
     switch (diff.state) {
     case diff_files_t::State::ADDED:
@@ -145,8 +140,21 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
         header += " -> ";
         header += QString::fromStdString(diff.new_file.path);
         break;
-    default: {
+    default:
+        return "";
+    }
+
+    return header;
+}
+
+void DiffWidget::createFileDiff(const diff_files_t& diff) {
+    auto* file_diff = new DiffFile(diff);
+    m_curr_editor   = file_diff->getEditor();
+
+    QString header = create_diff_header(diff);
+    if (header.isEmpty()) {
         const std::string& path = (!diff.old_file.path.empty()) ? diff.old_file.path : diff.new_file.path;
+
         LOG_ERROR("Unsupported file ({}) state: {}", path, static_cast<int>(diff.state));
         QMessageBox::critical(
             this,
@@ -156,7 +164,6 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
                 .arg(QString::number(static_cast<int>(diff.state)))
         );
         return;
-    }
     }
 
     file_diff->setDiff(core::git::diff_header(diff));
@@ -175,7 +182,7 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
         text_section.cursor = QTextCursor(section.block);
         text_section.cursor.clearSelection();
 
-        text_section.format.setForeground(convert_to_color(section.type));
+        text_section.format.setForeground(style::DiffStyle::get_color(section.type));
 
         if (section.type == section_t::Type::INFO) {
             text_section.format.setFontWeight(QFont::Bold);
@@ -369,5 +376,4 @@ void CommitSplitCommand::undo() {
 
     App::updateActions();
 }
-
 }

@@ -1,6 +1,8 @@
 #include "gui/color.h"
 #include "core/git/diff.h"
 #include "core/utils/unexpected.h"
+#include "gui/style/DiffStyle.h"
+#include "gui/style/StyleManager.h"
 
 #include <QColor>
 
@@ -23,17 +25,17 @@ QColor convert_to_color(ColorType type) {
     UNEXPECTED("Invalid color type");
 }
 
-QColor convert_to_color(diff_line_t::Type type) {
+style::DiffStyle::Style convert_to_diff_color(diff_line_t::Type type) {
     switch (type) {
     case diff_line_t::Type::CONTEXT:
     case diff_line_t::Type::CONTEXT_NO_NEWLINE:
-        return convert_to_color(ColorType::NORMAL);
+        return style::DiffStyle::NORMAL;
     case diff_line_t::Type::ADDITION:
     case diff_line_t::Type::ADDITION_NEWLINE:
-        return convert_to_color(ColorType::ADDITION);
+        return style::DiffStyle::ADDITION;
     case diff_line_t::Type::DELETION:
     case diff_line_t::Type::DELETION_NEWLINE:
-        return convert_to_color(ColorType::DELETION);
+        return style::DiffStyle::DELETION;
     }
 
     UNEXPECTED("Invalid diff line type");

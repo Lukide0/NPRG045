@@ -1,6 +1,7 @@
 #include "gui/widget/DiffEditor.h"
 #include "core/git/diff.h"
 #include "gui/color.h"
+#include "gui/style/StyleManager.h"
 #include "gui/widget/DiffEditorLine.h"
 
 #include <algorithm>
@@ -374,7 +375,7 @@ void DiffEditor::setBlockHighlight(QTextBlock block, bool enable) {
     }
 
     auto line        = line_data->get_line();
-    QColor highlight = convert_to_color(line.type);
+    QColor highlight = style::DiffStyle::get_color(convert_to_diff_color(line.type));
     highlight.setAlpha(30);
 
     line_data->set_select(enable);
@@ -419,8 +420,7 @@ void DiffEditor::diffLinePaintEvent(QPaintEvent* event) {
                 str += convert_to_symbol(line.type);
 
                 if (line_data->is_selected()) {
-
-                    painter.setPen(convert_to_color(line.type));
+                    painter.setPen(style::DiffStyle::get_color(convert_to_diff_color(line.type)));
                 } else {
                     painter.setPen(Qt::black);
                 }

@@ -7,6 +7,7 @@
 #include "core/state/State.h"
 #include "core/utils/optional_uint.h"
 #include "gui/widget/RebaseViewWidget.h"
+#include "gui/widget/SettingsDialog.h"
 #include "logging/Log.h"
 
 #include <cassert>
@@ -115,6 +116,12 @@ App::App() {
         auto* edit_todo_save = new QAction(QIcon::fromTheme("document-save-as"), "Save Todo");
         connect(edit_todo_save, &QAction::triggered, this, [this] { saveTodoFile(); });
 
+        auto* edit_preferences = new QAction("Preferences...", this);
+        connect(edit_preferences, &QAction::triggered, this, [this] {
+            gui::widget::SettingsDialog dialog(this);
+            dialog.exec();
+        });
+
         edit->addAction(edit_undo);
         edit->addAction(edit_redo);
         edit->addSeparator();
@@ -122,6 +129,8 @@ App::App() {
         edit->addAction(edit_save_as);
         edit->addAction(m_load_save);
         edit->addAction(edit_todo_save);
+        edit->addSeparator();
+        edit->addAction(edit_preferences);
 
         edit_undo->setShortcut(QKeySequence::Undo);
         edit_redo->setShortcut(QKeySequence::Redo);
