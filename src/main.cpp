@@ -14,6 +14,8 @@ int main(int argc, char* argv[]) {
     app.styleHints()->setColorScheme(Qt::ColorScheme::Light);
     QApplication::setStyle("fusion");
 
+    QIcon::setThemeName("hicolor");
+
     QCommandLineParser parser;
     auto help = parser.addHelpOption();
 
