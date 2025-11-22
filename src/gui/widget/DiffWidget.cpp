@@ -73,19 +73,40 @@ void DiffWidget::ensureEditorVisible(DiffFile* file) {
     bar->setValue(file->y());
 }
 
-void DiffWidget::update(git_commit* child, git_commit* parent, Action* action) {
+void DiffWidget::update(Action* action) {
+    using ConflictStatus = core::conflict::ConflictStatus;
+
     clear_layout(m_scroll_layout);
     m_files.clear();
     m_action = action;
 
-    git_commit* commit        = child;
-    git_commit* parent_commit = parent;
-
-    if (child == nullptr) {
+    if (action == nullptr) {
         return;
     }
+    Action* parent = action->get_prev();
 
-    diff_result_t res = core::git::prepare_resolution_diff(parent_commit, commit);
+    diff_result_t res;
+    if (parent == nullptr) {
+        git_commit* root_commit = action::ActionsManager::get().get_root_commit();
+        res                     = core::git::prepare_resolution_diff(root_commit, action->get_commit());
+    } else {
+        switch (parent->get_tree_status()) {
+        case ConflictStatus::UNKNOWN:
+        case ConflictStatus::ERR:
+            return;
+        case ConflictStatus::HAS_CONFLICT:
+        case ConflictStatus::NO_CONFLICT:
+        case ConflictStatus::RESOLVED_CONFLICT:
+            break;
+        }
+
+        if (parent->get_tree() == nullptr) {
+            return;
+        }
+
+        res = core::git::prepare_resolution_diff(parent->get_tree(), action->get_commit());
+    }
+
     switch (res.state) {
     case diff_result_t::FAILED_TO_RETRIEVE_TREE:
         QMessageBox::critical(this, "Commit diff error", "Failed to retrieve tree from commit");

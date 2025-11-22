@@ -21,7 +21,8 @@ public:
     static constexpr qreal MIN_WIDTH = 300;
     static constexpr qreal HEIGHT    = 20;
 
-    using Action = action::Action;
+    using ConflictStatus = core::conflict::ConflictStatus;
+    using Action         = action::Action;
 
     Node(GraphWidget* graph)
         : m_graph(graph) {
@@ -59,9 +60,11 @@ public:
 
     void setParentNode(Node* parent) { m_parent = parent; }
 
-    void setConflict(bool conflict) { m_has_conflict = conflict; }
+    void setConflict(ConflictStatus conflict) { m_conflict = conflict; }
 
-    [[nodiscard]] bool hasConflict() const { return m_has_conflict; }
+    void updateConflict(ConflictStatus conflict);
+
+    [[nodiscard]] bool hasConflict() const { return m_conflict == ConflictStatus::HAS_CONFLICT; }
 
     void setFill(const QColor& color);
 
@@ -83,7 +86,7 @@ private:
 
     Node* m_parent = nullptr;
 
-    bool m_has_conflict = false;
+    ConflictStatus m_conflict = ConflictStatus::NO_CONFLICT;
 };
 
 }

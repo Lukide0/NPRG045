@@ -28,7 +28,7 @@ public:
     DiffWidget(QWidget* parent = nullptr);
     ~DiffWidget() override = default;
 
-    void update(git_commit* child, git_commit* parent, action::Action* act);
+    void update(action::Action* act);
 
     [[nodiscard]] const std::vector<core::git::diff_files_t>& getDiffs() const { return m_diffs; }
 

@@ -64,6 +64,32 @@ private:
     }
 };
 
+diff_result_t prepare_resolution_diff(git_tree* old_tree, git_commit* new_commit, const git_diff_options* opts) {
+    git_repository* repo = nullptr;
+    if (old_tree != nullptr) {
+        repo = git_tree_owner(old_tree);
+    }
+
+    if (new_commit != nullptr && repo == nullptr) {
+        repo = git_commit_owner(new_commit);
+    }
+
+    if (new_commit == nullptr) {
+        return prepare_diff(old_tree, nullptr, repo, opts);
+    }
+
+    tree_t new_tree;
+    if (git_commit_tree(&new_tree, new_commit) != 0) {
+        diff_result_t res;
+        res.state = diff_result_t::FAILED_TO_RETRIEVE_TREE;
+        return res;
+    }
+
+    // TODO: check if there is resultion tree
+
+    return prepare_diff(old_tree, new_tree, repo, opts);
+}
+
 diff_result_t prepare_resolution_diff(git_commit* old_commit, git_commit* new_commit, const git_diff_options* opts) {
     if (old_commit == nullptr || new_commit == nullptr) {
         return prepare_diff(old_commit, new_commit, opts);

@@ -60,15 +60,11 @@ public:
 
     const auto& getActionsManager() const { return m_actions; }
 
+    auto& getActionsManager() { return m_actions; }
+
     void ignoreMoveSignal(bool enable) { m_ignore_move = enable; }
 
 private:
-    enum class ConflictStatus {
-        NO_CONFLICT,
-        RESOLVED,
-        NOT_RESOLVED,
-    };
-
     /* UI */
     GraphWidget* m_old_commits_graph;
     GraphWidget* m_new_commits_graph;
@@ -103,7 +99,6 @@ private:
         action::Action* parent_action;
     } m_resolving;
 
-    core::git::tree_t m_conflict_parent_tree;
     core::git::index_t m_conflict_index;
 
     std::vector<std::string> m_conflict_paths;
@@ -115,7 +110,7 @@ private:
 
     Node* findOldCommit(const git_oid& oid);
 
-    void updateNode(ListItem* item, Node* node, Node* current, Node* changes);
+    // void updateNode(ListItem* item, Node* node, Node* current, Node* changes);
 
     void showCommit(Node* prev, Node* next);
 
@@ -131,10 +126,11 @@ private:
     }
 
     void changeItemSelection();
+    void showConflict(Node* node);
 
-    void updateConflict(Node* node);
+    void updateConflictList(action::Action* start);
 
-    ConflictStatus updateConflictAction(action::Action* act);
+    ListItem::ConflictStatus updateConflictAction(action::Action* act);
 
     void checkoutAndResolve();
 

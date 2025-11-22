@@ -3,6 +3,7 @@
 #include "App.h"
 #include "core/git/parser.h"
 #include "core/state/CommandHistory.h"
+#include "gui/style/ConflictStyle.h"
 #include "gui/widget/RebaseViewWidget.h"
 #include "logging/Log.h"
 
@@ -75,10 +76,25 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
     });
 }
 
-void ListItem::setConflict(bool has) {
-    QColor color = m_original_highlight;
-    if (has) {
-        color = convert_to_color(ColorType::DELETION);
+void ListItem::setConflict(ConflictStatus status) {
+    using ConflictColor = style::ConflictStyle::Style;
+
+    QColor color;
+
+    switch (status) {
+    case ConflictStatus::UNKNOWN:
+    case ConflictStatus::ERR:
+        color = style::ConflictStyle::get_color(ConflictColor::UNKNOWN);
+        break;
+    case ConflictStatus::HAS_CONFLICT:
+        color = style::ConflictStyle::get_color(ConflictColor::CONFLICT);
+        break;
+    case ConflictStatus::NO_CONFLICT:
+        color = style::ConflictStyle::get_color(ConflictColor::NORMAL);
+        break;
+    case ConflictStatus::RESOLVED_CONFLICT:
+        color = style::ConflictStyle::get_color(ConflictColor::RESOLVED_CONFLICT);
+        break;
     }
 
     auto p = m_text->palette();
@@ -123,7 +139,6 @@ void ListItemMoveCommand::move(int from, int to) {
     m_rebase->ignoreMoveSignal(false);
 
     m_rebase->moveAction(from, to);
-    m_rebase->updateGraph();
 }
 
 ListItemChangedCommand::ListItemChangedCommand(QListWidget* parent, int row, ActionType prev, ActionType curr)

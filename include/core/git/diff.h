@@ -124,6 +124,9 @@ diff_result_t prepare_diff(git_commit* old_commit, git_commit* new_commit, const
 diff_result_t
 prepare_resolution_diff(git_commit* old_commit, git_commit* new_commit, const git_diff_options* opts = nullptr);
 
+diff_result_t
+prepare_resolution_diff(git_tree* old_tree, git_commit* new_commit, const git_diff_options* opts = nullptr);
+
 std::vector<diff_files_t> create_diff(git_diff* diff);
 
 inline diff_files_header_t diff_header(const diff_files_t& files) {

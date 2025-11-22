@@ -28,6 +28,7 @@ DiffEditor::DiffEditor(const core::git::diff_files_t& diff, QWidget* parent)
     , m_diff(diff) {
 
     m_line = new DiffEditorLine(this);
+    setLineWrapMode(QPlainTextEdit::NoWrap);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setFrameShape(QFrame::NoFrame);

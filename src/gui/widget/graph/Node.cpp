@@ -1,6 +1,7 @@
 #include "gui/widget/graph/Node.h"
 #include "action/ActionManager.h"
 #include "gui/color.h"
+#include "gui/style/ConflictStyle.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -20,6 +21,19 @@
 
 namespace gui::widget {
 
+void Node::updateConflict(ConflictStatus conflict) {
+    switch (m_conflict) {
+    case ConflictStatus::ERR:
+    case ConflictStatus::UNKNOWN:
+    case ConflictStatus::HAS_CONFLICT:
+    case ConflictStatus::RESOLVED_CONFLICT:
+        return;
+    case ConflictStatus::NO_CONFLICT:
+        m_conflict = conflict;
+        break;
+    }
+}
+
 QRectF Node::boundingRect() const { return { 0, 0, m_width, HEIGHT }; }
 
 QPainterPath Node::shape() const {
@@ -34,14 +48,36 @@ void Node::setFill(const QColor& color) {
 }
 
 void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, QWidget* /*widget*/) {
+    using ConflictColor = style::ConflictStyle::Style;
 
     constexpr int PADDING       = 2;
     constexpr int HASH_BOX_SIZE = 58;
 
     constexpr int TEXT_OFFSET = HASH_BOX_SIZE + (2 * PADDING) + PADDING;
 
-    if (hasConflict()) {
-        auto brush = QBrush(convert_to_color(ColorType::DELETION));
+    bool draw_box = true;
+    QColor color;
+    switch (m_conflict) {
+    case ConflictStatus::NO_CONFLICT:
+        draw_box = false;
+        break;
+
+    case ConflictStatus::UNKNOWN:
+    case ConflictStatus::ERR:
+        color = style::ConflictStyle::get_color(ConflictColor::UNKNOWN);
+        break;
+
+    case ConflictStatus::HAS_CONFLICT:
+        color = style::ConflictStyle::get_color(ConflictColor::CONFLICT);
+        break;
+
+    case ConflictStatus::RESOLVED_CONFLICT:
+        color = style::ConflictStyle::get_color(ConflictColor::RESOLVED_CONFLICT);
+        break;
+    }
+
+    if (draw_box) {
+        auto brush = QBrush(color);
         painter->setBrush(brush);
         painter->setPen(Qt::PenStyle::NoPen);
         painter->drawRect(HASH_BOX_SIZE, 0, m_width - TEXT_OFFSET, HEIGHT);

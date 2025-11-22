@@ -13,6 +13,7 @@
 #include "core/state/CommandHistory.h"
 #include "core/utils/debug.h"
 #include "core/utils/todo.h"
+#include "core/utils/unexpected.h"
 #include "gui/color.h"
 #include "gui/widget/CommitViewWidget.h"
 #include "gui/widget/DiffWidget.h"
@@ -181,8 +182,6 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
             this->moveAction(source_row, destination_row);
 
             m_last_selected_index = destination_row;
-
-            this->updateGraph();
         }
     );
 }
@@ -193,7 +192,7 @@ void RebaseViewWidget::changeItemSelection() {
     if (selected.size() != 1) {
         m_last_selected_index = -1;
         m_commit_view->update(nullptr);
-        updateConflict(nullptr);
+        showConflict(nullptr);
         return;
     }
 
@@ -206,11 +205,11 @@ void RebaseViewWidget::changeItemSelection() {
     m_last_selected_index = list_item->getRow();
 
     m_commit_view->update(list_item->getNode());
-
-    updateConflict(list_item->getNode());
+    showConflict(list_item->getNode());
 }
 
-void RebaseViewWidget::updateConflict(Node* node) {
+void RebaseViewWidget::showConflict(Node* node) {
+    using ConflictStatus = Action::ConflictStatus;
 
     m_mark_resolved_btn->setEnabled(false);
     m_resolve_conflicts_btn->setEnabled(false);
@@ -222,14 +221,16 @@ void RebaseViewWidget::updateConflict(Node* node) {
 
     Action* act                    = node->getAction();
     const bool in_progress         = (act == m_resolving.action && act->get_prev() == m_resolving.parent_action);
-    ConflictStatus conflict_status = updateConflictAction(act);
+    ConflictStatus conflict_status = act->get_tree_status();
 
     switch (conflict_status) {
     case ConflictStatus::NO_CONFLICT:
+    case ConflictStatus::UNKNOWN:
+    case ConflictStatus::ERR:
         m_conflict_widget->hide();
         return;
-    case ConflictStatus::RESOLVED:
-    case ConflictStatus::NOT_RESOLVED:
+    case ConflictStatus::RESOLVED_CONFLICT:
+    case ConflictStatus::HAS_CONFLICT:
         break;
     }
 
@@ -249,50 +250,85 @@ void RebaseViewWidget::updateConflict(Node* node) {
     m_resolve_conflicts_btn->setEnabled(true);
 }
 
-RebaseViewWidget::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
+void RebaseViewWidget::updateConflictList(Action* start) {
+
+    if (start == nullptr) {
+        start = getActionsManager().get_action(0);
+    } else {
+        start = start->get_next();
+    }
+
+    for (Action* act = start; act != nullptr; act = act->get_next()) {
+        updateConflictAction(act);
+    }
+}
+
+Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
     using namespace core;
+    using ConflictStatus = Action::ConflictStatus;
 
     if (act == nullptr) {
         return ConflictStatus::NO_CONFLICT;
     }
 
-    switch (act->get_type()) {
-    case action::ActionType::DROP:
-        return ConflictStatus::NO_CONFLICT;
-    case action::ActionType::SQUASH:
-    case action::ActionType::FIXUP:
-    case action::ActionType::PICK:
-    case action::ActionType::REWORD:
-    case action::ActionType::EDIT:
-        break;
+    // clear the resulting tree
+    act->clear_tree();
+
+    Action* parent_act = act->get_prev();
+
+    ConflictStatus conflict_status;
+    core::git::index_t conflict_index;
+
+    // first action
+    if (parent_act == nullptr) {
+        git_commit* root_commit                   = getActionsManager().get_root_commit();
+        std::tie(conflict_status, conflict_index) = conflict::cherrypick_check(act, root_commit);
+    } else {
+        std::tie(conflict_status, conflict_index) = conflict::cherrypick_check(act, parent_act);
     }
 
-    auto* commit        = act->get_commit();
-    auto* parent_commit = action::ActionsManager::get_picked_parent_commit(act);
+    switch (conflict_status) {
+    // conflict::cherrypick_check does not return this value
+    case ConflictStatus::RESOLVED_CONFLICT:
+        UNEXPECTED();
 
-    auto&& [status, conflict] = conflict::cherrypick_check(commit, parent_commit);
-    switch (status) {
-    case conflict::ConflictStatus::ERR:
+    case ConflictStatus::ERR:
         utils::log_libgit_error();
+        return ConflictStatus::UNKNOWN;
+
+    case ConflictStatus::UNKNOWN:
+        return ConflictStatus::UNKNOWN;
+
+    case ConflictStatus::NO_CONFLICT: {
+        // create tree from index
+        git_oid oid;
+        if (git_index_write_tree_to(&oid, conflict_index.get(), m_repo) != 0) {
+            utils::log_libgit_error();
+            return ConflictStatus::UNKNOWN;
+        }
+        core::git::tree_t tree;
+
+        if (git_tree_lookup(&tree, m_repo, &oid) != 0) {
+            utils::log_libgit_error();
+            return ConflictStatus::UNKNOWN;
+        }
+
+        // update the action tree
+        act->set_tree(std::move(tree), Action::ConflictStatus::NO_CONFLICT);
         return ConflictStatus::NO_CONFLICT;
-    case conflict::ConflictStatus::NO_CONFLICT:
-        return ConflictStatus::NO_CONFLICT;
-    case conflict::ConflictStatus::HAS_CONFLICT:
+    }
+    case ConflictStatus::HAS_CONFLICT:
         break;
     }
 
-    m_conflict_index = std::move(conflict);
+    // update conflict
+    m_conflict_index = std::move(conflict_index);
+    m_cherrypick     = act;
 
-    m_conflict_parent_tree.destroy();
-    if (git_commit_tree(&m_conflict_parent_tree, parent_commit) != 0) {
-        m_conflict_parent_tree = nullptr;
-    }
-
+    // prepare conflict widget
     m_conflict_widget->clearConflicts();
     m_conflict_paths.clear();
     m_conflict_entries.clear();
-
-    m_cherrypick = act;
 
     bool iterator_status = conflict::iterate(m_conflict_index.get(), [this](conflict::entry_data_t entry) -> bool {
         const char* path = entry.their->path;
@@ -330,13 +366,19 @@ RebaseViewWidget::ConflictStatus RebaseViewWidget::updateConflictAction(Action* 
 
     if (!iterator_status) {
         utils::log_libgit_error();
+        act->set_tree_status(Action::ConflictStatus::UNKNOWN);
+        return ConflictStatus::UNKNOWN;
     }
 
-    if (m_conflict_widget->isEmpty()) {
-        return ConflictStatus::RESOLVED;
-    } else {
-        return ConflictStatus::NOT_RESOLVED;
+    // check if all conflicts was resolved
+    if (!m_conflict_widget->isEmpty()) {
+        act->set_tree_status(Action::ConflictStatus::HAS_CONFLICT);
+        return ConflictStatus::HAS_CONFLICT;
     }
+
+    // TODO: create tree from resolved conflict
+    act->set_tree_status(Action::ConflictStatus::HAS_CONFLICT);
+    return ConflictStatus::HAS_CONFLICT;
 }
 
 void RebaseViewWidget::moveAction(int from, int to) {
@@ -344,7 +386,11 @@ void RebaseViewWidget::moveAction(int from, int to) {
 
     LOG_INFO("Moving action: from {} to {}", from, to);
 
-    m_actions.move(from, to);
+    Action* update_start = m_actions.move(from, to);
+
+    updateConflictList(update_start);
+
+    updateGraph();
 }
 
 void RebaseViewWidget::showCommit(Node* prev, Node* next) {
@@ -547,12 +593,10 @@ void RebaseViewWidget::updateActions() {
 void RebaseViewWidget::updateGraph() {
     LOG_INFO("Updating old graph");
 
-    const int last_selected_index = m_last_selected_index;
-
+    int last_selected_index = m_last_selected_index;
     prepareGraph();
 
-    auto* list = m_list_actions;
-
+    auto* list  = m_list_actions;
     m_last_node = m_root_node;
 
     for (std::int32_t i = 0; i < list->count(); ++i) {
@@ -560,25 +604,21 @@ void RebaseViewWidget::updateGraph() {
         auto* item     = dynamic_cast<ListItem*>(raw_item);
         assert(item != nullptr);
 
-        item->setConflict(false);
-
+        item->setConflict(ListItem::ConflictStatus::NO_CONFLICT);
         Action& act = item->getCommitAction();
 
         switch (act.get_type()) {
-        case ActionType::DROP: {
+        case ActionType::DROP:
             item->setNode(m_last_node);
             break;
-        }
+
         case ActionType::FIXUP:
-        case ActionType::SQUASH: {
-            Node* old = findOldCommit(act.get_oid());
-            if (old != nullptr) {
-                updateNode(item, m_last_node, m_last_node, old);
-            }
+        case ActionType::SQUASH:
+            item->setConflict(act.get_tree_status());
+            m_last_node->updateConflict(act.get_tree_status());
 
             item->setNode(m_last_node);
             break;
-        }
 
         case ActionType::PICK:
         case ActionType::REWORD:
@@ -590,7 +630,8 @@ void RebaseViewWidget::updateGraph() {
 
             item->setNode(new_node);
 
-            updateNode(item, new_node, m_last_node, new_node);
+            item->setConflict(act.get_tree_status());
+            new_node->setConflict(act.get_tree_status());
 
             m_last_node = new_node;
             break;
@@ -613,7 +654,7 @@ void RebaseViewWidget::updateGraph() {
         }
     }
 
-    updateConflict(node);
+    showConflict(node);
     m_commit_view->update(node);
 }
 
@@ -627,39 +668,13 @@ Node* RebaseViewWidget::findOldCommit(const git_oid& oid) {
     return m_old_commits_graph->find([&](const Node* node) { return git_oid_equal(node->getCommitId(), &oid) != 0; });
 }
 
-void RebaseViewWidget::updateNode(ListItem* item, Node* node, Node* parent, Node* current) {
-    using core::conflict::ConflictStatus;
-    using core::git::index_t;
-
-    auto* parent_commit = parent->getCommit();
-    auto* commit        = current->getCommit();
-
-    auto&& [status, conflict] = core::conflict::cherrypick_check(commit, parent_commit);
-
-    item->setConflict(false);
-
-    bool not_resolved = !m_conflict_manager.is_resolved(conflict);
-
-    switch (status) {
-    case ConflictStatus::ERR:
-        core::utils::log_libgit_error();
-        return;
-    case ConflictStatus::NO_CONFLICT:
-        return;
-    case ConflictStatus::HAS_CONFLICT:
-        item->setConflict(not_resolved);
-        node->setConflict(not_resolved);
-        break;
-    }
-}
-
 void RebaseViewWidget::prepareItem(ListItem* item, Action& action) {
     QString item_text;
     item_text += " [";
     item_text += QString::fromStdString(core::git::format_oid_to_str<7>(&action.get_oid()));
     item_text += "]: ";
 
-    item->setConflict(false);
+    item->setConflict(updateConflictAction(&action));
 
     switch (action.get_type()) {
     case ActionType::DROP: {
@@ -678,7 +693,8 @@ void RebaseViewWidget::prepareItem(ListItem* item, Action& action) {
     case ActionType::SQUASH: {
         Node* old = findOldCommit(action.get_oid());
         if (old != nullptr) {
-            updateNode(item, m_last_node, m_last_node, old);
+            m_last_node->updateConflict(action.get_tree_status());
+
             item_text += git_commit_summary(old->getCommit());
         } else {
             item_text += git_commit_summary(action.get_commit());
@@ -704,8 +720,7 @@ void RebaseViewWidget::prepareItem(ListItem* item, Action& action) {
         new_node->setAction(&action);
 
         item->setNode(new_node);
-
-        updateNode(item, new_node, m_last_node, new_node);
+        new_node->setConflict(action.get_tree_status());
 
         m_last_node = new_node;
         break;

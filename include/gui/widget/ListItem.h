@@ -1,6 +1,7 @@
 #pragma once
 
 #include "action/Action.h"
+#include "core/conflict/conflict.h"
 #include "core/state/Command.h"
 #include "gui/color.h"
 #include "gui/widget/graph/Node.h"
@@ -36,6 +37,8 @@ public:
         ActionType::EDIT,
     });
 
+    using ConflictStatus = core::conflict::ConflictStatus;
+
     static constexpr int indexOf(ActionType type) {
         for (int i = 0; i < static_cast<int>(items.size()); ++i) {
             if (items[i] == type) {
@@ -62,7 +65,7 @@ public:
 
     [[nodiscard]] int getRow() const { return m_row; }
 
-    void setConflict(bool has);
+    void setConflict(ConflictStatus status);
 
     void setActionType(ActionType type) {
         LOG_INFO(
