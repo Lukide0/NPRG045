@@ -88,7 +88,7 @@ void DiffWidget::update(Action* action) {
     diff_result_t res;
     if (parent == nullptr) {
         git_commit* root_commit = action::ActionsManager::get().get_root_commit();
-        res                     = core::git::prepare_resolution_diff(root_commit, action->get_commit());
+        res                     = core::git::prepare_diff(root_commit, action->get_commit());
     } else {
         switch (parent->get_tree_status()) {
         case ConflictStatus::UNKNOWN:

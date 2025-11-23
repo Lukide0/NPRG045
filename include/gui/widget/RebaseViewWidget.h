@@ -76,7 +76,6 @@ private:
     ConflictWidget* m_conflict_widget;
 
     QPushButton* m_resolve_conflicts_btn;
-    QPushButton* m_mark_resolved_btn;
 
     int m_last_selected_index = -1;
     bool m_ignore_move        = false;
@@ -110,8 +109,6 @@ private:
 
     Node* findOldCommit(const git_oid& oid);
 
-    // void updateNode(ListItem* item, Node* node, Node* current, Node* changes);
-
     void showCommit(Node* prev, Node* next);
 
     void prepareGraph();
@@ -134,6 +131,6 @@ private:
 
     void checkoutAndResolve();
 
-    void markResolved();
+    bool markResolved();
 };
 }

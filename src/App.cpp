@@ -446,8 +446,8 @@ bool App::loadSaveFile() {
         conflict_manager.add_resolution(entry, blob);
     }
 
-    for (auto&& [conflict, tree] : save_data->conflict_commits) {
-        conflict_manager.add_commits_resolution(conflict, std::move(tree));
+    for (auto&& [conflict, tree] : save_data->conflict_trees) {
+        conflict_manager.add_trees_resolution(conflict, std::move(tree));
     }
 
     core::state::CommandHistory::Clear();

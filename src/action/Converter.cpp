@@ -24,31 +24,55 @@ struct ActionInfo {
     std::istringstream new_msg;
 };
 
-std::pair<ActionInfo, bool>
-get_action_info(Action& act, action::ActionsManager& manager, core::conflict::ConflictManager& conflict_manager) {
+struct ConverterContext {
+    git_commit* root;
+    git_commit* last_commit;
+    git_repository* repo;
+    Action* last_action = nullptr;
+};
+
+std::pair<ActionInfo, bool> get_action_info(
+    ConverterContext& ctx,
+    Action& act,
+    action::ActionsManager& manager,
+    core::conflict::ConflictManager& conflict_manager
+) {
     using namespace core;
 
     ActionInfo info;
 
-    auto* parent_commit = action::ActionsManager::get_picked_parent_commit(&act);
-    auto* commit        = act.get_commit();
+    git_commit* parent_commit = ctx.last_commit;
+    git_commit* commit        = act.get_commit();
+
+    git_tree* resolution_tree = nullptr;
+    if (ctx.last_action != nullptr && ctx.last_action->get_tree() != nullptr) {
+
+        resolution_tree = conflict_manager.get_trees_resolution(ctx.last_action->get_tree(), commit);
+
+    } else {
+
+        git::tree_t root_tree;
+        assert(ctx.last_commit == ctx.root);
+
+        if (git_commit_tree(&root_tree, ctx.last_commit) != 0) {
+            return std::make_pair<ActionInfo, bool>(std::move(info), false);
+        }
+
+        resolution_tree = conflict_manager.get_trees_resolution(root_tree, commit);
+    }
 
     info.msg = git_commit_summary(commit);
 
-    auto* repo = git_commit_owner(commit);
-
-    auto* resolution = conflict_manager.get_commits_resolution(parent_commit, commit);
-
     // conflict resolution
-    if (resolution != nullptr) {
+    if (resolution_tree != nullptr) {
 
         git_oid oid;
-        const auto* sig_author = git_commit_author(commit);
-
-        // TODO: Change committer
+        const auto* sig_author    = git_commit_author(commit);
         const auto* sig_committer = git_commit_committer(commit);
 
-        if (!git::create_commit(&oid, repo, sig_author, sig_committer, info.msg.c_str(), resolution, parent_commit)) {
+        if (!git::create_commit(
+                &oid, ctx.repo, sig_author, sig_committer, info.msg.c_str(), resolution_tree, parent_commit
+            )) {
             logging::Log::error("Failed to create commit for tree");
             // NOTE: The oid is nullptr
             return std::make_pair<ActionInfo, bool>(std::move(info), false);
@@ -60,10 +84,13 @@ get_action_info(Action& act, action::ActionsManager& manager, core::conflict::Co
     }
 
     if (act.has_msg()) {
-        auto msg_id = act.get_msg_id().value();
+        auto msg_id      = act.get_msg_id().value();
+        std::string& msg = manager.get_msg(msg_id);
 
-        auto& msg = manager.get_msg(msg_id);
-        // TODO: Check if msg is empty
+        if (msg.empty()) {
+            return std::make_pair<ActionInfo, bool>(std::move(info), false);
+        }
+
         info.new_msg.str(msg);
     }
 
@@ -101,10 +128,19 @@ void fixup_to_todo(std::ostream& output, ActionInfo& info) {
 bool Converter::actions_to_todo(
     std::ostream& output, ActionsManager& manager, core::conflict::ConflictManager& conflict_manager
 ) {
+    ConverterContext ctx;
+    ctx.root = manager.get_root_commit();
+
+    assert(ctx.root != nullptr);
+
+    ctx.last_commit = ctx.root;
+    ctx.repo        = git_commit_owner(ctx.root);
 
     for (auto& act : manager) {
+        auto&& [info, status] = get_action_info(ctx, act, manager, conflict_manager);
 
-        auto&& [info, status] = get_action_info(act, manager, conflict_manager);
+        ctx.last_action = &act;
+
         if (!status) {
             return false;
         }

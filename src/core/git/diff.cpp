@@ -85,36 +85,14 @@ diff_result_t prepare_resolution_diff(git_tree* old_tree, git_commit* new_commit
         return res;
     }
 
-    // TODO: check if there is resultion tree
+    auto& manager             = conflict::ConflictManager::get();
+    git_tree* resolution_tree = manager.get_trees_resolution(old_tree, new_commit);
 
-    return prepare_diff(old_tree, new_tree, repo, opts);
-}
-
-diff_result_t prepare_resolution_diff(git_commit* old_commit, git_commit* new_commit, const git_diff_options* opts) {
-    if (old_commit == nullptr || new_commit == nullptr) {
-        return prepare_diff(old_commit, new_commit, opts);
+    if (resolution_tree == nullptr) {
+        return prepare_diff(old_tree, new_tree, repo, opts);
     }
 
-    diff_result_t res;
-    auto& manager = conflict::ConflictManager::get();
-
-    auto* tree = manager.get_commits_resolution(old_commit, new_commit);
-    git::tree_t parent_tree;
-
-    git_repository* repo;
-
-    if (tree == nullptr) {
-        return prepare_diff(old_commit, new_commit, opts);
-    }
-
-    if (git_commit_tree(&parent_tree, old_commit) != 0) {
-        res.state = diff_result_t::FAILED_TO_RETRIEVE_TREE;
-        return res;
-    }
-
-    repo = git_tree_owner(parent_tree.get());
-
-    return prepare_diff(parent_tree.get(), tree, repo, opts);
+    return prepare_diff(old_tree, resolution_tree, repo, opts);
 }
 
 diff_result_t prepare_diff(git_tree* old_tree, git_tree* new_tree, git_repository* repo, const git_diff_options* opts) {

@@ -25,4 +25,8 @@ target_sources(${PROJECT_NAME} PRIVATE
 
         ${INCLUDE_PATH}/gui/widget/DiffEditor.h
         ${INCLUDE_PATH}/gui/widget/DiffFile.h
+
+        ConflictDialog.cpp
+        ${INCLUDE_PATH}/gui/widget/ConflictDialog.h
+
 )
