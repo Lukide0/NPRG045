@@ -2,6 +2,7 @@
 #include "gui/widget/SettingsDialog.h"
 #include "App.h"
 #include "gui/style/StyleManager.h"
+#include "gui/widget/ShortcutEditor.h"
 
 #include <qcolor.h>
 #include <QColorDialog>
@@ -29,8 +30,43 @@ void SettingsDialog::updateButton(QPushButton* btn, const QColor& color) {
 }
 
 void SettingsDialog::setup() {
+
+    m_tabs = new QTabWidget();
+
+    setupColors();
+    setupShortcuts();
+
+    m_layout->addWidget(m_tabs);
+    m_layout->addStretch();
+
+    m_button_layout = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel | QDialogButtonBox::Apply);
+    m_apply_button  = m_button_layout->button(QDialogButtonBox::Apply);
+
+    QPushButton* ok_btn = m_button_layout->button(QDialogButtonBox::Ok);
+    ok_btn->setText("Apply and close");
+
+    connect(m_button_layout->button(QDialogButtonBox::Ok), &QPushButton::clicked, this, &SettingsDialog::onApply);
+    connect(m_apply_button, &QPushButton::clicked, this, &SettingsDialog::onApply);
+    connect(m_button_layout->button(QDialogButtonBox::Cancel), &QPushButton::clicked, this, &SettingsDialog::onCancel);
+    connect(m_button_layout, &QDialogButtonBox::accepted, this, &QDialog::accept);
+
+    m_layout->addWidget(m_button_layout);
+}
+
+void SettingsDialog::setupShortcuts() {
+
+    auto* editor = new ShortcutEditor();
+    m_tabs->addTab(editor, "Keyboard shortcuts");
+}
+
+void SettingsDialog::setupColors() {
     using style::ConflictStyle;
     using style::DiffStyle;
+
+    auto* tab          = new QWidget();
+    auto* color_layout = new QVBoxLayout(tab);
+
+    m_tabs->addTab(tab, "Colors");
 
     // diff colors
     {
@@ -49,7 +85,7 @@ void SettingsDialog::setup() {
         diff_colors_layout->addRow("Deletion:", diff_deletion);
         diff_colors_layout->addRow("Addition:", diff_addition);
 
-        m_layout->addWidget(diff_colors_group);
+        color_layout->addWidget(diff_colors_group);
     }
 
     // conflict colors
@@ -69,25 +105,8 @@ void SettingsDialog::setup() {
         conflict_colors_layout->addRow("Resolved:", conflict_resolved);
         conflict_colors_layout->addRow("Unknown:", conflict_unknown);
 
-        m_layout->addWidget(conflict_colors_group);
+        color_layout->addWidget(conflict_colors_group);
     }
-
-    // buttons
-
-    m_layout->addStretch();
-
-    m_button_box   = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel | QDialogButtonBox::Apply);
-    m_apply_button = m_button_box->button(QDialogButtonBox::Apply);
-
-    QPushButton* ok_btn = m_button_box->button(QDialogButtonBox::Ok);
-    ok_btn->setText("Apply and close");
-
-    connect(m_button_box->button(QDialogButtonBox::Ok), &QPushButton::clicked, this, &SettingsDialog::onApply);
-    connect(m_apply_button, &QPushButton::clicked, this, &SettingsDialog::onApply);
-    connect(m_button_box->button(QDialogButtonBox::Cancel), &QPushButton::clicked, this, &SettingsDialog::onCancel);
-    connect(m_button_box, &QDialogButtonBox::accepted, this, &QDialog::accept);
-
-    m_layout->addWidget(m_button_box);
 }
 
 void SettingsDialog::loadSettings() {
@@ -95,6 +114,8 @@ void SettingsDialog::loadSettings() {
 
     auto& style_manager = style::StyleManager::get();
     style_manager.load_styles(settings);
+
+    App::loadShortcuts(settings);
 }
 
 void SettingsDialog::saveSettings() {
@@ -102,6 +123,8 @@ void SettingsDialog::saveSettings() {
 
     auto& style_manager = style::StyleManager::get();
     style_manager.save_styles(settings);
+
+    App::saveShortcuts(settings);
 
     // write to disk
     settings.sync();

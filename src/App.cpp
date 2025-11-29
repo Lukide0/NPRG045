@@ -51,11 +51,45 @@ gui::widget::RebaseViewWidget* App::getRebaseViewWidget() { return g_app->m_reba
 
 const std::string& App::getRepoPath() { return g_app->m_repo_path; }
 
+QMap<QString, App::ShortcutAction>& App::getShortcuts() { return g_app->m_shortcuts; }
+
+void App::loadShortcuts(QSettings& settings) {
+    auto& shortcuts = getShortcuts();
+
+    settings.beginGroup("Shortcuts");
+    {
+        for (auto it = shortcuts.begin(); it != shortcuts.end(); ++it) {
+            QString str = settings.value(it.key(), it->default_shortcut.toString()).toString();
+            it->action->setShortcut(QKeySequence(str));
+        }
+    }
+    settings.endGroup();
+}
+
+void App::saveShortcuts(QSettings& settings) {
+    auto& shortcuts = getShortcuts();
+
+    settings.beginGroup("Shortcuts");
+    {
+        for (auto it = shortcuts.begin(); it != shortcuts.end(); ++it) {
+            settings.setValue(it.key(), it->action->shortcut().toString());
+        }
+    }
+    settings.endGroup();
+}
+
+void App::registerAction(const QString& action_id, QAction* action, const QString& description) {
+    ShortcutAction act;
+    act.action           = action;
+    act.description      = description;
+    act.default_shortcut = action->shortcut();
+
+    g_app->m_shortcuts[action_id] = act;
+}
+
 App::App() {
 
     g_app = this;
-
-    using core::state::CommandHistory;
 
     git_libgit2_init();
 
@@ -70,7 +104,15 @@ App::App() {
     palette.setColor(QPalette::Window, Qt::white);
     setPalette(palette);
 
-    // TOP BAR ------------------------------------------------------------
+    setup();
+    setupShortcuts();
+}
+
+void App::setupShortcuts() { }
+
+void App::setup() {
+    using core::state::CommandHistory;
+
     auto* menu = new QMenuBar(this);
     setMenuBar(menu);
 

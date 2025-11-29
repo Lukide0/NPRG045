@@ -24,6 +24,9 @@ target_sources(${PROJECT_NAME} PRIVATE
         SettingsDialog.cpp
         ${INCLUDE_PATH}/gui/widget/SettingsDialog.h
 
+        ShortcutEditor.cpp
+        ${INCLUDE_PATH}/gui/widget/ShortcutEditor.h
+
         ${INCLUDE_PATH}/gui/widget/DiffEditor.h
         ${INCLUDE_PATH}/gui/widget/DiffFile.h
 

@@ -1,12 +1,10 @@
 #pragma once
 
-#include "gui/style/ConflictStyle.h"
-#include "gui/style/DiffStyle.h"
-
 #include <QColorDialog>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QPushButton>
+#include <QTabWidget>
 #include <QVBoxLayout>
 
 namespace gui::widget {
@@ -22,10 +20,13 @@ private slots:
 
 private:
     QVBoxLayout* m_layout;
-    QDialogButtonBox* m_button_box;
+    QTabWidget* m_tabs;
+    QDialogButtonBox* m_button_layout;
     QPushButton* m_apply_button;
 
     void setup();
+    void setupColors();
+    void setupShortcuts();
 
     void loadSettings();
     void saveSettings();
