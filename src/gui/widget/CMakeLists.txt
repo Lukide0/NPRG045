@@ -13,6 +13,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 
         graph/Graph.cpp
         graph/Node.cpp
+        ${INCLUDE_PATH}/gui/widget/graph/Node.h
 
         WelcomeWidget.cpp
         ${INCLUDE_PATH}/gui/widget/WelcomeWidget.h

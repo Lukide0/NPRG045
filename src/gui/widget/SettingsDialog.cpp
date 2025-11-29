@@ -1,5 +1,6 @@
 
 #include "gui/widget/SettingsDialog.h"
+#include "App.h"
 #include "gui/style/StyleManager.h"
 
 #include <qcolor.h>
@@ -17,54 +18,30 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     setModal(true);
     setMinimumWidth(500);
 
+    m_layout = new QVBoxLayout(this);
     setup();
 }
 
-void update_button(QPushButton* btn, const QColor& color) {
+void SettingsDialog::updateButton(QPushButton* btn, const QColor& color) {
     QPalette p = btn->palette();
     p.setColor(QPalette::ButtonText, color);
     btn->setPalette(p);
 }
 
 void SettingsDialog::setup() {
+    using style::ConflictStyle;
     using style::DiffStyle;
-
-    m_layout = new QVBoxLayout(this);
 
     // diff colors
     {
         auto* diff_colors_group  = new QGroupBox("Diff Colors");
         auto* diff_colors_layout = new QFormLayout(diff_colors_group);
 
-        auto create_color_picker = [&](const QString& text, DiffStyle::Style style) -> QPushButton* {
-            QColor color = DiffStyle::get_color(style);
-
-            auto* btn = new QPushButton(text);
-            btn->setCursor(Qt::PointingHandCursor);
-            btn->setMaximumWidth(100);
-
-            update_button(btn, color);
-
-            connect(btn, &QPushButton::clicked, this, [btn, this, color, style]() {
-                QColor new_color = QColorDialog::getColor(color, this, "Select color");
-                if (!new_color.isValid()) {
-                    return;
-                }
-
-                DiffStyle::set_color(style, new_color);
-                update_button(btn, new_color);
-
-                emit diffStyleChanged(style);
-            });
-
-            return btn;
-        };
-
         // clang-format off
-        auto* diff_normal   = create_color_picker("Normal line", DiffStyle::NORMAL);
-        auto* diff_info     = create_color_picker("@@ Header @@", DiffStyle::INFO);
-        auto* diff_deletion = create_color_picker("- Deletion", DiffStyle::DELETION);
-        auto* diff_addition = create_color_picker("+ Addition", DiffStyle::ADDITION);
+        auto* diff_normal   = create_color_picker<DiffStyle>("Normal line", DiffStyle::NORMAL);
+        auto* diff_info     = create_color_picker<DiffStyle>("@@ Header @@", DiffStyle::INFO);
+        auto* diff_deletion = create_color_picker<DiffStyle>("- Deletion", DiffStyle::DELETION);
+        auto* diff_addition = create_color_picker<DiffStyle>("+ Addition", DiffStyle::ADDITION);
         // clang-format on
 
         diff_colors_layout->addRow("Normal:", diff_normal);
@@ -75,19 +52,36 @@ void SettingsDialog::setup() {
         m_layout->addWidget(diff_colors_group);
     }
 
+    // conflict colors
+    {
+        auto* conflict_colors_group  = new QGroupBox("Conflict Colors");
+        auto* conflict_colors_layout = new QFormLayout(conflict_colors_group);
+
+        // clang-format off
+        auto* conflict_normal   = create_color_picker<ConflictStyle>("Normal", ConflictStyle::NORMAL);
+        auto* conflict_conflict = create_color_picker<ConflictStyle>("Conflict", ConflictStyle::CONFLICT);
+        auto* conflict_resolved = create_color_picker<ConflictStyle>("Resolved conflict", ConflictStyle::RESOLVED_CONFLICT);
+        auto* conflict_unknown  = create_color_picker<ConflictStyle>("Unknown", ConflictStyle::UNKNOWN);
+        // clang-format on
+
+        conflict_colors_layout->addRow("Normal:", conflict_normal);
+        conflict_colors_layout->addRow("Conflict:", conflict_conflict);
+        conflict_colors_layout->addRow("Resolved:", conflict_resolved);
+        conflict_colors_layout->addRow("Unknown:", conflict_unknown);
+
+        m_layout->addWidget(conflict_colors_group);
+    }
+
     // buttons
 
     m_layout->addStretch();
 
-    m_button_box = new QDialogButtonBox(
-        QDialogButtonBox::Reset | QDialogButtonBox::Ok | QDialogButtonBox::Cancel | QDialogButtonBox::Apply
-    );
+    m_button_box   = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel | QDialogButtonBox::Apply);
     m_apply_button = m_button_box->button(QDialogButtonBox::Apply);
 
     QPushButton* ok_btn = m_button_box->button(QDialogButtonBox::Ok);
     ok_btn->setText("Apply and close");
 
-    connect(m_button_box->button(QDialogButtonBox::Reset), &QPushButton::clicked, this, &SettingsDialog::resetSettings);
     connect(m_button_box->button(QDialogButtonBox::Ok), &QPushButton::clicked, this, &SettingsDialog::onApply);
     connect(m_apply_button, &QPushButton::clicked, this, &SettingsDialog::onApply);
     connect(m_button_box->button(QDialogButtonBox::Cancel), &QPushButton::clicked, this, &SettingsDialog::onCancel);
@@ -96,15 +90,29 @@ void SettingsDialog::setup() {
     m_layout->addWidget(m_button_box);
 }
 
-void SettingsDialog::loadSettings() { }
+void SettingsDialog::loadSettings() {
+    QSettings settings = App::getSettings();
 
-void SettingsDialog::saveSettings() { }
+    auto& style_manager = style::StyleManager::get();
+    style_manager.load_styles(settings);
+}
 
-void SettingsDialog::applySettings() { }
+void SettingsDialog::saveSettings() {
+    QSettings settings = App::getSettings();
 
-void SettingsDialog::resetSettings() {
-    loadSettings();
-    applySettings();
+    auto& style_manager = style::StyleManager::get();
+    style_manager.save_styles(settings);
+
+    // write to disk
+    settings.sync();
+}
+
+void SettingsDialog::applySettings() {
+    auto& style_manager = style::StyleManager::get();
+
+    // update styles
+    style_manager.diff_style().emit_changed();
+    style_manager.conflict_style().emit_changed();
 }
 
 void SettingsDialog::onApply() {
@@ -117,7 +125,5 @@ void SettingsDialog::onCancel() {
     applySettings();
     reject();
 }
-
-void SettingsDialog::onChange() { applySettings(); }
 
 }

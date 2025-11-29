@@ -10,21 +10,6 @@ namespace gui {
 
 using core::git::diff_line_t;
 
-QColor convert_to_color(ColorType type) {
-    switch (type) {
-    case ColorType::NORMAL:
-        return {};
-    case ColorType::ADDITION:
-        return { 6, 214, 160 };
-    case ColorType::DELETION:
-        return { 239, 91, 111 };
-    case ColorType::INFO:
-        return { 44, 7, 156 };
-    }
-
-    UNEXPECTED("Invalid color type");
-}
-
 style::DiffStyle::Style convert_to_diff_color(diff_line_t::Type type) {
     switch (type) {
     case diff_line_t::Type::CONTEXT:

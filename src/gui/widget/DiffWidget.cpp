@@ -191,7 +191,6 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
     file_diff->setHeader(header);
 
     std::vector<section_t> sections;
-
     for (const auto& hunk : diff.hunks) {
         addHunkDiff(hunk, sections);
     }
@@ -202,7 +201,6 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
         QTextEdit::ExtraSelection text_section;
         text_section.cursor = QTextCursor(section.block);
         text_section.cursor.clearSelection();
-
         text_section.format.setForeground(style::DiffStyle::get_color(section.type));
 
         if (section.type == section_t::Type::INFO) {
@@ -210,7 +208,6 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
         }
 
         text_section.format.setProperty(QTextFormat::FullWidthSelection, true);
-
         text_sections.append(text_section);
     }
 
@@ -219,7 +216,6 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
     file_diff->updateEditorHeight();
 
     m_scroll_layout->addWidget(file_diff);
-
     m_files.push_back(file_diff);
 
     m_curr_editor->enableContextMenu(m_action != nullptr);

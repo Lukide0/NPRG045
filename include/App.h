@@ -22,6 +22,7 @@
 #include <QMainWindow>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QSettings>
 #include <QString>
 
 class App : public QMainWindow {
@@ -41,6 +42,8 @@ public:
     static void updateActions();
     static gui::widget::RebaseViewWidget* getRebaseViewWidget();
     static const std::string& getRepoPath();
+
+    static QSettings getSettings() { return QSettings("gitshuffle"); }
 
 protected:
     void closeEvent(QCloseEvent* event) override;

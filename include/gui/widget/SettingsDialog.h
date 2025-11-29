@@ -1,9 +1,12 @@
 #pragma once
 
+#include "gui/style/ConflictStyle.h"
 #include "gui/style/DiffStyle.h"
 
+#include <QColorDialog>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QPushButton>
 #include <QVBoxLayout>
 
 namespace gui::widget {
@@ -13,26 +16,62 @@ class SettingsDialog : public QDialog {
 public:
     explicit SettingsDialog(QWidget* parent = nullptr);
 
-signals:
-    void diffStyleChanged(style::DiffStyle::Style style);
-
 private slots:
     void onApply();
     void onCancel();
 
-    void onChange();
-
 private:
+    QVBoxLayout* m_layout;
+    QDialogButtonBox* m_button_box;
+    QPushButton* m_apply_button;
+
     void setup();
 
     void loadSettings();
     void saveSettings();
     void applySettings();
-    void resetSettings();
 
-    QVBoxLayout* m_layout;
-    QDialogButtonBox* m_button_box;
-    QPushButton* m_apply_button;
+    static void updateButton(QPushButton* btn, const QColor& color);
+
+    template <typename T> QLayout* create_color_picker(const QString& text, T::Style style) {
+        QColor color = T::get_color(style);
+
+        auto* layout = new QHBoxLayout();
+
+        auto* change_btn = new QPushButton(text);
+        change_btn->setCursor(Qt::PointingHandCursor);
+        change_btn->setMaximumWidth(100);
+
+        auto* load_default_btn = new QPushButton("Reset to default");
+
+        updateButton(change_btn, color);
+
+        layout->addWidget(change_btn);
+        layout->addWidget(load_default_btn);
+
+        connect(change_btn, &QPushButton::clicked, this, [this, change_btn, color, style]() {
+            QColor new_color = QColorDialog::getColor(color, this, "Select color");
+            if (!new_color.isValid()) {
+                return;
+            }
+
+            T::set_color(style, new_color);
+            updateButton(change_btn, new_color);
+
+            T::emit_changed_signal();
+        });
+
+        connect(load_default_btn, &QPushButton::clicked, this, [this, change_btn, style]() {
+            QColor default_color = T::get_default_color(style);
+
+            T::set_color(style, default_color);
+            updateButton(change_btn, default_color);
+
+            T::emit_changed_signal();
+        });
+
+        return layout;
+    }
 };
 
 }

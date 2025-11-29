@@ -94,7 +94,7 @@ protected:
 private:
     Node* m_node = nullptr;
     action::Action& m_action;
-    QColor m_color;
+    core::conflict::ConflictStatus m_conflict;
 
     QColor m_original_highlight;
 

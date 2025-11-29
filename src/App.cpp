@@ -6,6 +6,7 @@
 #include "core/state/CommandHistory.h"
 #include "core/state/State.h"
 #include "core/utils/optional_uint.h"
+#include "gui/style/StyleManager.h"
 #include "gui/widget/RebaseViewWidget.h"
 #include "gui/widget/SettingsDialog.h"
 #include "logging/Log.h"
@@ -57,6 +58,13 @@ App::App() {
     using core::state::CommandHistory;
 
     git_libgit2_init();
+
+    // load styles
+    {
+        auto& manager = gui::style::StyleManager::get();
+        auto settings = App::getSettings();
+        manager.load_styles(settings);
+    }
 
     QPalette palette;
     palette.setColor(QPalette::Window, Qt::white);

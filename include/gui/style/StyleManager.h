@@ -9,6 +9,9 @@ class StyleManager {
 public:
     static StyleManager& get();
 
+    void load_styles(QSettings& settings);
+    void save_styles(QSettings& settings) const;
+
     static DiffStyle& get_diff_style() { return get().m_diff_style; }
 
     static ConflictStyle& get_conflict_style() { return get().m_conflict_style; }

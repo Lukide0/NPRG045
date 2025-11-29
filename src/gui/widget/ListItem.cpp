@@ -4,6 +4,7 @@
 #include "core/git/parser.h"
 #include "core/state/CommandHistory.h"
 #include "gui/style/ConflictStyle.h"
+#include "gui/style/StyleManager.h"
 #include "gui/widget/RebaseViewWidget.h"
 #include "logging/Log.h"
 
@@ -74,10 +75,16 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
 
         App::updateGraph();
     });
+
+    connect(&style::StyleManager::get_conflict_style(), &style::ConflictStyle::changed, this, [this]() {
+        this->setConflict(m_conflict);
+    });
 }
 
 void ListItem::setConflict(ConflictStatus status) {
     using ConflictColor = style::ConflictStyle::Style;
+
+    m_conflict = status;
 
     QColor color;
 

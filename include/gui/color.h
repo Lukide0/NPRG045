@@ -17,7 +17,6 @@ enum class ColorType {
 QColor get_highlight_color();
 style::DiffStyle::Style convert_to_diff_color(core::git::diff_line_t::Type type);
 
-QColor convert_to_color(ColorType type);
 char convert_to_symbol(core::git::diff_line_t::Type type);
 
 }

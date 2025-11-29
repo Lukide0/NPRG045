@@ -16,7 +16,8 @@ namespace gui::widget {
 
 class GraphWidget;
 
-class Node : public QGraphicsItem {
+class Node : public QGraphicsObject {
+    Q_OBJECT
 public:
     static constexpr qreal MIN_WIDTH = 300;
     static constexpr qreal HEIGHT    = 20;
@@ -24,11 +25,7 @@ public:
     using ConflictStatus = core::conflict::ConflictStatus;
     using Action         = action::Action;
 
-    Node(GraphWidget* graph)
-        : m_graph(graph) {
-        setFlags(QGraphicsItem::ItemIsSelectable | QGraphicsItem::ItemIsFocusable);
-    }
-
+    Node(GraphWidget* graph);
     ~Node() override = default;
 
     static constexpr int Type = UserType + 1;

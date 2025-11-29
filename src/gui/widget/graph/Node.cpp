@@ -2,6 +2,7 @@
 #include "action/ActionManager.h"
 #include "gui/color.h"
 #include "gui/style/ConflictStyle.h"
+#include "gui/style/StyleManager.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -20,6 +21,15 @@
 #include <QWidget>
 
 namespace gui::widget {
+
+Node::Node(GraphWidget* graph)
+    : m_graph(graph) {
+    setFlags(QGraphicsItem::ItemIsSelectable | QGraphicsItem::ItemIsFocusable);
+
+    connect(&style::StyleManager::get_conflict_style(), &style::ConflictStyle::changed, this, [this]() {
+        update();
+    });
+}
 
 void Node::updateConflict(ConflictStatus conflict) {
     switch (m_conflict) {
