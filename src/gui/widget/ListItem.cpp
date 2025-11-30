@@ -135,13 +135,14 @@ void ListItemMoveCommand::move(int from, int to) {
 
     auto* model = m_parent->model();
 
+    int new_row = to;
     if (from <= to) {
-        to += 1;
+        new_row += 1;
     }
 
     m_rebase->ignoreMoveSignal(true);
 
-    model->moveRow(QModelIndex(), from, QModelIndex(), to);
+    model->moveRow(QModelIndex(), from, QModelIndex(), new_row);
 
     m_rebase->ignoreMoveSignal(false);
 
