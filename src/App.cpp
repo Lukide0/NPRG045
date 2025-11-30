@@ -93,10 +93,12 @@ App::App() {
 
     git_libgit2_init();
 
+    QSettings settings = App::getSettings();
+    LOG_INFO("User settings: {}", settings.fileName().toStdString());
+
     // load styles
     {
         auto& manager = gui::style::StyleManager::get();
-        auto settings = App::getSettings();
         manager.load_styles(settings);
     }
 
@@ -106,9 +108,37 @@ App::App() {
 
     setup();
     setupShortcuts();
+
+    App::loadShortcuts(settings);
 }
 
-void App::setupShortcuts() { }
+void App::setupShortcuts() {
+    auto create_shortcut = [this](
+                               const QString& id,
+                               QWidget* parent,
+                               const QString& desc,
+                               Qt::ShortcutContext ctx = Qt::ShortcutContext::WindowShortcut
+                           ) -> QAction* {
+        auto* action = new QAction(this);
+        action->setShortcutContext(ctx);
+        parent->addAction(action);
+
+        registerAction(id, action, desc);
+
+        return action;
+    };
+
+    {
+        QListWidget* actions_list = m_rebase_view->getList();
+        auto* actions_move_up     = create_shortcut("actions.move_up", actions_list, "Move focused action up");
+        auto* actions_move_down   = create_shortcut("actions.move_down", actions_list, "Move focused action down");
+        auto* actions_change      = create_shortcut("actions.change_type", actions_list, "Change focused action type");
+
+        connect(actions_move_up, &QAction::triggered, this, [this]() { m_rebase_view->moveActionUp(); });
+        connect(actions_move_down, &QAction::triggered, this, [this]() { m_rebase_view->moveActionDown(); });
+        connect(actions_change, &QAction::triggered, this, [this]() { m_rebase_view->changeActionType(); });
+    }
+}
 
 void App::setup() {
     using core::state::CommandHistory;
@@ -356,7 +386,7 @@ void App::openRepoCLI(const std::string& path) {
 }
 
 bool App::openRepo(const std::string& path) {
-    LOG_INFO("Openning repo '{}'", path);
+    LOG_INFO("Openning repo: {}", path);
 
     m_rebase_view->hide();
     core::state::CommandHistory::Clear();

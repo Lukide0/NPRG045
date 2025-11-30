@@ -49,7 +49,7 @@ public:
     static gui::widget::RebaseViewWidget* getRebaseViewWidget();
     static const std::string& getRepoPath();
 
-    static QSettings getSettings() { return QSettings("gitshuffle"); }
+    static QSettings getSettings() { return { QSettings::IniFormat, QSettings::UserScope, "gitshuffle" }; }
 
     static QMap<QString, ShortcutAction>& getShortcuts();
 

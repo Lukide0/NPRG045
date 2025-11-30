@@ -178,8 +178,6 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
             );
 
             this->moveAction(source_row, destination_row);
-
-            m_last_selected_index = destination_row;
         }
     );
 }
@@ -188,7 +186,6 @@ void RebaseViewWidget::changeItemSelection() {
     QListWidget* list = m_list_actions;
     auto selected     = list->selectedItems();
     if (selected.size() != 1) {
-        m_last_selected_index = -1;
         m_commit_view->update(nullptr);
         showConflict(nullptr);
         return;
@@ -199,8 +196,6 @@ void RebaseViewWidget::changeItemSelection() {
     if (list_item == nullptr) {
         return;
     }
-
-    m_last_selected_index = list_item->getRow();
 
     m_commit_view->update(list_item->getNode());
     showConflict(list_item->getNode());
@@ -255,7 +250,6 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
     if (act == nullptr) {
         return ConflictStatus::NO_CONFLICT;
     }
-
     // clear the resulting tree
     act->clear_tree();
 
@@ -398,10 +392,64 @@ void RebaseViewWidget::moveAction(int from, int to) {
     LOG_INFO("Moving action: from {} to {}", from, to);
 
     Action* update_start = m_actions.move(from, to);
-
     updateConflictList(update_start);
 
     updateGraph();
+}
+
+void RebaseViewWidget::moveSelectedAction(bool down) {
+    using core::state::CommandHistory;
+
+    const int items_count = m_list_actions->count();
+    int current           = m_list_actions->currentRow();
+
+    if (current < 0) {
+        if (items_count > 0) {
+            m_list_actions->setCurrentRow(0);
+        }
+        return;
+    }
+
+    QAbstractItemModel* model = m_list_actions->model();
+
+    int destination = (down) ? current + 2 : current - 1;
+
+    // invalid destination
+    if (destination < 0 || destination > items_count) {
+        return;
+    }
+
+    if (model->moveRows(QModelIndex(), current, 1, QModelIndex(), destination)) {
+        int row = (down) ? current + 1 : current - 1;
+        m_list_actions->setCurrentRow(row);
+    }
+}
+
+void RebaseViewWidget::changeActionType() {
+    using core::state::CommandHistory;
+
+    int current = m_list_actions->currentRow();
+    if (current < 0) {
+        return;
+    }
+
+    auto* item = getListItem(current);
+    if (item == nullptr) {
+        return;
+    }
+
+    ActionType type = item->getCommitAction().get_type();
+    int index       = ListItem::indexOf(type);
+    assert(index >= 0);
+
+    int new_index       = (index + 1) % ListItem::items.size();
+    ActionType new_type = ListItem::items[new_index];
+
+    auto* cmd = new ListItemChangedCommand(m_list_actions, current, type, new_type);
+
+    CommandHistory::Add(std::unique_ptr<ListItemChangedCommand>(cmd));
+
+    cmd->execute();
 }
 
 void RebaseViewWidget::showCommit(Node* prev, Node* next) {
@@ -560,7 +608,6 @@ void RebaseViewWidget::prepareActions() {
     prepareGraph();
     updateConflictList(nullptr);
 
-    m_last_selected_index = -1;
     m_list_actions->clear();
 
     auto* list = m_list_actions;
@@ -579,8 +626,6 @@ void RebaseViewWidget::prepareActions() {
 
 void RebaseViewWidget::prepareGraph() {
     m_new_commits_graph->clear();
-
-    m_last_selected_index = -1;
 
     auto* last      = m_new_commits_graph->addNode(0);
     auto& last_node = m_graph.first_node();
@@ -603,21 +648,20 @@ void RebaseViewWidget::updateActions() {
 }
 
 void RebaseViewWidget::updateGraph() {
-    LOG_INFO("Updating old graph");
+    LOG_INFO("Updating graph");
 
-    int last_selected_index = m_last_selected_index;
+    int last_selected_index = m_list_actions->currentRow();
     prepareGraph();
 
     auto* list  = m_list_actions;
     m_last_node = m_root_node;
 
     for (std::int32_t i = 0; i < list->count(); ++i) {
-        auto* raw_item = list->itemWidget(list->item(i));
-        auto* item     = dynamic_cast<ListItem*>(raw_item);
+        auto* item = getListItem(i);
         assert(item != nullptr);
 
-        item->setConflict(ListItem::ConflictStatus::NO_CONFLICT);
         Action& act = item->getCommitAction();
+        item->setConflict(act.get_tree_status());
 
         switch (act.get_type()) {
         case ActionType::DROP:
@@ -626,7 +670,6 @@ void RebaseViewWidget::updateGraph() {
 
         case ActionType::FIXUP:
         case ActionType::SQUASH:
-            item->setConflict(act.get_tree_status());
             m_last_node->updateConflict(act.get_tree_status());
 
             item->setNode(m_last_node);
@@ -642,7 +685,6 @@ void RebaseViewWidget::updateGraph() {
 
             item->setNode(new_node);
 
-            item->setConflict(act.get_tree_status());
             new_node->setConflict(act.get_tree_status());
 
             m_last_node = new_node;
@@ -660,10 +702,6 @@ void RebaseViewWidget::updateGraph() {
     Node* node = nullptr;
     if (item != nullptr) {
         node = item->getNode();
-
-        if (node != nullptr) {
-            m_last_selected_index = last_selected_index;
-        }
     }
 
     showConflict(node);

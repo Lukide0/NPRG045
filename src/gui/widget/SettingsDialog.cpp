@@ -116,6 +116,7 @@ void SettingsDialog::loadSettings() {
     style_manager.load_styles(settings);
 
     App::loadShortcuts(settings);
+    LOG_INFO("Loading settings");
 }
 
 void SettingsDialog::saveSettings() {
@@ -128,6 +129,8 @@ void SettingsDialog::saveSettings() {
 
     // write to disk
     settings.sync();
+
+    LOG_INFO("Saving settings");
 }
 
 void SettingsDialog::applySettings() {

@@ -73,13 +73,11 @@ public:
             action::Action::type_to_str(m_action.get_type()),
             action::Action::type_to_str(type)
         );
-
-        m_action.set_type(type);
-
         auto index = indexOf(type);
         assert(index != -1);
 
         m_combo->setCurrentIndex(index);
+        m_action.set_type(type);
     }
 
     void setActionTypeNoSignal(ActionType type) {

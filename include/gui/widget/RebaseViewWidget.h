@@ -64,6 +64,17 @@ public:
 
     void ignoreMoveSignal(bool enable) { m_ignore_move = enable; }
 
+    QListWidget* getList() { return m_list_actions; }
+
+public:
+    void moveActionDown() { moveSelectedAction(true); }
+
+    void moveActionUp() { moveSelectedAction(false); }
+
+    void moveSelectedAction(bool down);
+
+    void changeActionType();
+
 private:
     /* UI */
     GraphWidget* m_old_commits_graph;
@@ -77,8 +88,7 @@ private:
 
     QPushButton* m_resolve_conflicts_btn;
 
-    int m_last_selected_index = -1;
-    bool m_ignore_move        = false;
+    bool m_ignore_move = false;
 
     Node* m_last_node = nullptr;
 
