@@ -310,6 +310,7 @@ void DiffWidget::splitCommitEvent() {
             const DiffEditor* editor = file->getEditor();
 
             if (!editor->selectedLineOrFile()) {
+                splitter.not_selected_file();
                 continue;
             }
 

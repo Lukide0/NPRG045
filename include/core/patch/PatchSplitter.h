@@ -23,6 +23,10 @@ public:
     void process(const git::diff_line_t& line, const git::diff_hunk_t& hunk, bool selected);
     void file_end();
 
+    void not_selected_file() {
+        m_patch_selection = static_cast<FileState>(m_patch_selection | FileState::NONE_SELECTED);
+    }
+
     bool is_whole_patch() const {
         return m_patch_selection == FileState::ALL_SELECTED || m_patch_selection == FileState::NONE_SELECTED;
     }
