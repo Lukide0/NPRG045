@@ -120,7 +120,7 @@ bool split(git::commit_t& out_first, git::commit_t& out_second, Action* act, git
     git_repository* repo = git_commit_owner(commit);
 
     Action* parent_act        = act->get_prev();
-    git_commit* parent_commit = action::ActionsManager::get_parent_commit(parent_act);
+    git_commit* parent_commit = action::ActionsManager::get_parent_commit(act);
     assert(parent_commit != nullptr);
 
     if (parent_act == nullptr) {
