@@ -57,7 +57,10 @@ private:
     void createFileDiff(const core::git::diff_files_t& diff);
     void addHunkDiff(const core::git::diff_hunk_t& hunk, std::vector<section_t>& sections);
     void addLineDiff(
-        const core::git::diff_hunk_t& hunk, const core::git::diff_line_t& line, std::vector<section_t>& sections
+        QTextCursor& cursor,
+        const core::git::diff_hunk_t& hunk,
+        const core::git::diff_line_t& line,
+        std::vector<section_t>& sections
     );
 
     void splitCommitEvent();

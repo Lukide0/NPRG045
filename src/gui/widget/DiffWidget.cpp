@@ -7,7 +7,6 @@
 #include "core/patch/PatchSplitter.h"
 #include "core/patch/split.h"
 #include "core/state/CommandHistory.h"
-#include "core/utils/todo.h"
 #include "gui/clear_layout.h"
 #include "gui/color.h"
 #include "gui/widget/DiffEditor.h"
@@ -187,14 +186,12 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
     }
 
     m_curr_editor->setExtraSelections(text_sections);
-
-    file_diff->updateEditorHeight();
-
     m_scroll_layout->addWidget(file_diff);
 
     m_files.push_back(file_diff);
-
     m_curr_editor->enableContextMenu(m_action != nullptr);
+
+    file_diff->updateEditorHeight();
 
     connect(m_curr_editor, &DiffEditor::extendContextMenu, this, [this](QMenu* menu) {
         menu->addSeparator();
@@ -206,6 +203,8 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
 
 void DiffWidget::addHunkDiff(const diff_hunk_t& hunk, std::vector<section_t>& sections) {
 
+    m_curr_editor->setUpdatesEnabled(false);
+
     QString hunk_info = QString::fromStdString(
         std::format(
             "@@ -{},{} +{},{} @@ {}",
@@ -216,40 +215,36 @@ void DiffWidget::addHunkDiff(const diff_hunk_t& hunk, std::vector<section_t>& se
             hunk.header_context
         )
     );
-
-    m_curr_editor->appendPlainText(hunk_info);
-
     auto* document = m_curr_editor->document();
     QTextCursor cursor(document);
+
+    cursor.beginEditBlock();
     cursor.movePosition(QTextCursor::MoveOperation::End);
+    cursor.insertText(hunk_info);
 
-    QTextBlock block = cursor.block();
+    sections.emplace_back(section_t::Type::INFO, cursor.block());
 
-    sections.push_back(
-        {
-            .type  = section_t::Type::INFO,
-            .block = block,
-        }
-    );
+    cursor.insertText("\n");
 
     for (const auto& line : hunk.lines) {
-        addLineDiff(hunk, line, sections);
+        addLineDiff(cursor, hunk, line, sections);
     }
+
+    cursor.endEditBlock();
+    m_curr_editor->setUpdatesEnabled(true);
+    m_curr_editor->viewport()->update();
 }
 
-void DiffWidget::addLineDiff(const diff_hunk_t& hunk, const diff_line_t& line, std::vector<section_t>& sections) {
-    std::string new_content = line.content;
-    new_content             = ' ' + new_content;
+void DiffWidget::addLineDiff(
+    QTextCursor& cursor, const diff_hunk_t& hunk, const diff_line_t& line, std::vector<section_t>& sections
+) {
+    QString new_content = QString::fromStdString(line.content);
+    new_content.prepend(' ');
 
-    m_curr_editor->appendPlainText(QString::fromStdString(new_content));
-
-    auto* document = m_curr_editor->document();
-
-    QTextCursor cursor(document);
-    cursor.movePosition(QTextCursor::MoveOperation::End);
-
+    cursor.insertText(new_content);
     QTextBlock block = cursor.block();
     block.setUserData(new DiffEditorLineData(line, hunk));
+    cursor.insertText("\n");
 
     section_t::Type type;
     switch (line.type) {
@@ -266,12 +261,7 @@ void DiffWidget::addLineDiff(const diff_hunk_t& hunk, const diff_line_t& line, s
         break;
     }
 
-    sections.push_back(
-        {
-            .type  = type,
-            .block = block,
-        }
-    );
+    sections.emplace_back(type, block);
 }
 
 void DiffWidget::splitCommitEvent() {
