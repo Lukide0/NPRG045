@@ -60,15 +60,22 @@ public:
 
     const auto& getActionsManager() const { return m_actions; }
 
+    auto& getActionsManager() { return m_actions; }
+
     void ignoreMoveSignal(bool enable) { m_ignore_move = enable; }
 
-private:
-    enum class ConflictStatus {
-        NO_CONFLICT,
-        RESOLVED,
-        NOT_RESOLVED,
-    };
+    QListWidget* getList() { return m_list_actions; }
 
+public:
+    void moveActionDown() { moveSelectedAction(true); }
+
+    void moveActionUp() { moveSelectedAction(false); }
+
+    void moveSelectedAction(bool down);
+
+    void changeActionType();
+
+private:
     /* UI */
     GraphWidget* m_old_commits_graph;
     GraphWidget* m_new_commits_graph;
@@ -80,10 +87,8 @@ private:
     ConflictWidget* m_conflict_widget;
 
     QPushButton* m_resolve_conflicts_btn;
-    QPushButton* m_mark_resolved_btn;
 
-    int m_last_selected_index = -1;
-    bool m_ignore_move        = false;
+    bool m_ignore_move = false;
 
     Node* m_last_node = nullptr;
 
@@ -103,7 +108,6 @@ private:
         action::Action* parent_action;
     } m_resolving;
 
-    core::git::tree_t m_conflict_parent_tree;
     core::git::index_t m_conflict_index;
 
     std::vector<std::string> m_conflict_paths;
@@ -114,8 +118,6 @@ private:
     void prepareActions();
 
     Node* findOldCommit(const git_oid& oid);
-
-    void updateNode(ListItem* item, Node* node, Node* current, Node* changes);
 
     void showCommit(Node* prev, Node* next);
 
@@ -131,13 +133,14 @@ private:
     }
 
     void changeItemSelection();
+    void showConflict(Node* node);
 
-    void updateConflict(Node* node);
+    void updateConflictList(action::Action* start);
 
-    ConflictStatus updateConflictAction(action::Action* act);
+    ListItem::ConflictStatus updateConflictAction(action::Action* act);
 
     void checkoutAndResolve();
 
-    void markResolved();
+    bool markResolved();
 };
 }

@@ -28,16 +28,16 @@ struct ConflictEntry {
     }
 };
 
-struct ConflictCommits {
-    std::string parent_id;
-    std::string child_id;
+struct ConflictTrees {
+    std::string parent_tree_id;
+    std::string commit_id;
 
-    bool operator<(const ConflictCommits& other) const {
-        if (parent_id != other.parent_id) {
-            return parent_id < other.parent_id;
+    bool operator<(const ConflictTrees& other) const {
+        if (parent_tree_id != other.parent_tree_id) {
+            return parent_tree_id < other.parent_tree_id;
         }
 
-        return child_id < other.child_id;
+        return commit_id < other.commit_id;
     }
 };
 
@@ -58,18 +58,25 @@ public:
         git_index* index
     );
 
+    bool apply_resolutions_no_write(
+        std::span<const ConflictEntry> entries,
+        std::span<const std::string> paths,
+        git_repository* repo,
+        git_index* index
+    );
+
     bool apply_resolution(const std::string& path, const ConflictEntry& entry, git_repository* repo, git_index* index);
 
     void add_resolution(const ConflictEntry& entry, std::string id);
 
-    void add_commits_resolution(const ConflictCommits& conflict, core::git::tree_t&& resolution);
+    void add_trees_resolution(const ConflictTrees& conflict, core::git::tree_t&& resolution);
 
-    git_tree* get_commits_resolution(const ConflictCommits& conflict);
-    git_tree* get_commits_resolution(const git_commit* old_commit, const git_commit* new_commit);
+    git_tree* get_trees_resolution(const ConflictTrees& conflict);
+    git_tree* get_trees_resolution(const git_tree* old_tree, const git_commit* new_commit);
 
     [[nodiscard]] const auto& get_conflicts() const { return m_conflicts; }
 
-    [[nodiscard]] const auto& get_commits_conflicts() const { return m_commits; }
+    [[nodiscard]] const auto& get_tree_conflicts() const { return m_trees; }
 
     void clear() { m_conflicts.clear(); }
 
@@ -81,7 +88,7 @@ public:
 private:
     std::map<ConflictEntry, std::string> m_conflicts;
 
-    std::map<ConflictCommits, core::git::tree_t> m_commits;
+    std::map<ConflictTrees, core::git::tree_t> m_trees;
 };
 
 }

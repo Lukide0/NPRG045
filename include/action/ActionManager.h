@@ -2,6 +2,7 @@
 
 #include "Action.h"
 #include "core/git/types.h"
+#include "core/utils/unexpected.h"
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -115,9 +116,9 @@ public:
         return commits;
     }
 
-    void move(std::uint32_t from, std::uint32_t to) {
+    Action* move(std::uint32_t from, std::uint32_t to) {
         if (from == to) {
-            return;
+            return m_tail;
         }
 
         auto* from_ptr = get_action(from);
@@ -147,6 +148,8 @@ public:
                 m_head = to_ptr;
             }
 
+            return from_prev;
+
         } else if (from == to + 1) {
             // prev <-> from
             from_ptr->set_prev_connection(to_prev);
@@ -165,6 +168,8 @@ public:
                 m_head = from_ptr;
             }
 
+            return to_prev;
+
         } else if (to < from) {
             // from <-> to
             from_ptr->set_next_connection(to_ptr);
@@ -182,6 +187,8 @@ public:
                 m_head = from_ptr;
             }
 
+            return to_prev;
+
         } else if (to > from) {
             // to <-> from
             from_ptr->set_prev_connection(to_ptr);
@@ -198,7 +205,12 @@ public:
             if (m_head == from_ptr) {
                 m_head = from_next;
             }
+
+            return from_prev;
         }
+
+        // unreachable
+        UNEXPECTED();
     }
 
     void clear() {

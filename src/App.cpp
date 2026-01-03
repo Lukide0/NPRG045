@@ -6,7 +6,9 @@
 #include "core/state/CommandHistory.h"
 #include "core/state/State.h"
 #include "core/utils/optional_uint.h"
+#include "gui/style/StyleManager.h"
 #include "gui/widget/RebaseViewWidget.h"
+#include "gui/widget/SettingsDialog.h"
 #include "logging/Log.h"
 
 #include <cassert>
@@ -49,19 +51,98 @@ gui::widget::RebaseViewWidget* App::getRebaseViewWidget() { return g_app->m_reba
 
 const std::string& App::getRepoPath() { return g_app->m_repo_path; }
 
+QMap<QString, App::ShortcutAction>& App::getShortcuts() { return g_app->m_shortcuts; }
+
+void App::loadShortcuts(QSettings& settings) {
+    auto& shortcuts = getShortcuts();
+
+    settings.beginGroup("Shortcuts");
+    {
+        for (auto it = shortcuts.begin(); it != shortcuts.end(); ++it) {
+            QString str = settings.value(it.key(), it->default_shortcut.toString()).toString();
+            it->action->setShortcut(QKeySequence(str));
+        }
+    }
+    settings.endGroup();
+}
+
+void App::saveShortcuts(QSettings& settings) {
+    auto& shortcuts = getShortcuts();
+
+    settings.beginGroup("Shortcuts");
+    {
+        for (auto it = shortcuts.begin(); it != shortcuts.end(); ++it) {
+            settings.setValue(it.key(), it->action->shortcut().toString());
+        }
+    }
+    settings.endGroup();
+}
+
+void App::registerAction(const QString& action_id, QAction* action, const QString& description) {
+    ShortcutAction act;
+    act.action           = action;
+    act.description      = description;
+    act.default_shortcut = action->shortcut();
+
+    g_app->m_shortcuts[action_id] = act;
+}
+
 App::App() {
 
     g_app = this;
 
-    using core::state::CommandHistory;
-
     git_libgit2_init();
+
+    QSettings settings = App::getSettings();
+    LOG_INFO("User settings: {}", settings.fileName().toStdString());
+
+    // load styles
+    {
+        auto& manager = gui::style::StyleManager::get();
+        manager.load_styles(settings);
+    }
 
     QPalette palette;
     palette.setColor(QPalette::Window, Qt::white);
     setPalette(palette);
 
-    // TOP BAR ------------------------------------------------------------
+    setup();
+    setupShortcuts();
+
+    App::loadShortcuts(settings);
+}
+
+void App::setupShortcuts() {
+    auto create_shortcut = [this](
+                               const QString& id,
+                               QWidget* parent,
+                               const QString& desc,
+                               Qt::ShortcutContext ctx = Qt::ShortcutContext::WindowShortcut
+                           ) -> QAction* {
+        auto* action = new QAction(this);
+        action->setShortcutContext(ctx);
+        parent->addAction(action);
+
+        registerAction(id, action, desc);
+
+        return action;
+    };
+
+    {
+        QListWidget* actions_list = m_rebase_view->getList();
+        auto* actions_move_up     = create_shortcut("actions.move_up", actions_list, "Move focused action up");
+        auto* actions_move_down   = create_shortcut("actions.move_down", actions_list, "Move focused action down");
+        auto* actions_change      = create_shortcut("actions.change_type", actions_list, "Change focused action type");
+
+        connect(actions_move_up, &QAction::triggered, this, [this]() { m_rebase_view->moveActionUp(); });
+        connect(actions_move_down, &QAction::triggered, this, [this]() { m_rebase_view->moveActionDown(); });
+        connect(actions_change, &QAction::triggered, this, [this]() { m_rebase_view->changeActionType(); });
+    }
+}
+
+void App::setup() {
+    using core::state::CommandHistory;
+
     auto* menu = new QMenuBar(this);
     setMenuBar(menu);
 
@@ -115,6 +196,12 @@ App::App() {
         auto* edit_todo_save = new QAction(QIcon::fromTheme("document-save-as"), "Save Todo");
         connect(edit_todo_save, &QAction::triggered, this, [this] { saveTodoFile(); });
 
+        auto* edit_preferences = new QAction("Preferences...", this);
+        connect(edit_preferences, &QAction::triggered, this, [this] {
+            gui::widget::SettingsDialog dialog(this);
+            dialog.exec();
+        });
+
         edit->addAction(edit_undo);
         edit->addAction(edit_redo);
         edit->addSeparator();
@@ -122,6 +209,8 @@ App::App() {
         edit->addAction(edit_save_as);
         edit->addAction(m_load_save);
         edit->addAction(edit_todo_save);
+        edit->addSeparator();
+        edit->addAction(edit_preferences);
 
         edit_undo->setShortcut(QKeySequence::Undo);
         edit_redo->setShortcut(QKeySequence::Redo);
@@ -297,7 +386,7 @@ void App::openRepoCLI(const std::string& path) {
 }
 
 bool App::openRepo(const std::string& path) {
-    LOG_INFO("Openning repo '{}'", path);
+    LOG_INFO("Openning repo: {}", path);
 
     m_rebase_view->hide();
     core::state::CommandHistory::Clear();
@@ -437,8 +526,8 @@ bool App::loadSaveFile() {
         conflict_manager.add_resolution(entry, blob);
     }
 
-    for (auto&& [conflict, tree] : save_data->conflict_commits) {
-        conflict_manager.add_commits_resolution(conflict, std::move(tree));
+    for (auto&& [conflict, tree] : save_data->conflict_trees) {
+        conflict_manager.add_trees_resolution(conflict, std::move(tree));
     }
 
     core::state::CommandHistory::Clear();

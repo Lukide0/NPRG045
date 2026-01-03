@@ -1,6 +1,7 @@
 #pragma once
 
 #include "action/Action.h"
+#include "core/conflict/conflict.h"
 #include "core/state/Command.h"
 #include "gui/color.h"
 #include "gui/widget/graph/Node.h"
@@ -36,6 +37,8 @@ public:
         ActionType::EDIT,
     });
 
+    using ConflictStatus = core::conflict::ConflictStatus;
+
     static constexpr int indexOf(ActionType type) {
         for (int i = 0; i < static_cast<int>(items.size()); ++i) {
             if (items[i] == type) {
@@ -62,7 +65,7 @@ public:
 
     [[nodiscard]] int getRow() const { return m_row; }
 
-    void setConflict(bool has);
+    void setConflict(ConflictStatus status);
 
     void setActionType(ActionType type) {
         LOG_INFO(
@@ -70,13 +73,11 @@ public:
             action::Action::type_to_str(m_action.get_type()),
             action::Action::type_to_str(type)
         );
-
-        m_action.set_type(type);
-
         auto index = indexOf(type);
         assert(index != -1);
 
         m_combo->setCurrentIndex(index);
+        m_action.set_type(type);
     }
 
     void setActionTypeNoSignal(ActionType type) {
@@ -91,7 +92,7 @@ protected:
 private:
     Node* m_node = nullptr;
     action::Action& m_action;
-    QColor m_color;
+    core::conflict::ConflictStatus m_conflict;
 
     QColor m_original_highlight;
 

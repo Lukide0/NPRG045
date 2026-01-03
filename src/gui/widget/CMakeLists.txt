@@ -13,6 +13,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 
         graph/Graph.cpp
         graph/Node.cpp
+        ${INCLUDE_PATH}/gui/widget/graph/Node.h
 
         WelcomeWidget.cpp
         ${INCLUDE_PATH}/gui/widget/WelcomeWidget.h
@@ -20,6 +21,16 @@ target_sources(${PROJECT_NAME} PRIVATE
         ScrollListWidget.cpp
         ${INCLUDE_PATH}/gui/widget/ScrollListWidget.h
 
+        SettingsDialog.cpp
+        ${INCLUDE_PATH}/gui/widget/SettingsDialog.h
+
+        ShortcutEditor.cpp
+        ${INCLUDE_PATH}/gui/widget/ShortcutEditor.h
+
         ${INCLUDE_PATH}/gui/widget/DiffEditor.h
         ${INCLUDE_PATH}/gui/widget/DiffFile.h
+
+        ConflictDialog.cpp
+        ${INCLUDE_PATH}/gui/widget/ConflictDialog.h
+
 )

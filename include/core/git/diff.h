@@ -122,7 +122,7 @@ prepare_diff(git_tree* old_tree, git_tree* new_tree, git_repository* repo, const
 diff_result_t prepare_diff(git_commit* old_commit, git_commit* new_commit, const git_diff_options* opts = nullptr);
 
 diff_result_t
-prepare_resolution_diff(git_commit* old_commit, git_commit* new_commit, const git_diff_options* opts = nullptr);
+prepare_resolution_diff(git_tree* old_tree, git_commit* new_commit, const git_diff_options* opts = nullptr);
 
 std::vector<diff_files_t> create_diff(git_diff* diff);
 

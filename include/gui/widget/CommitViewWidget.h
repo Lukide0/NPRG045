@@ -26,8 +26,7 @@ public:
     CommitViewWidget(DiffWidget* diff);
 
     void update(Node* node) {
-        m_node          = node;
-        m_parent_commit = nullptr;
+        m_node = node;
 
         if (node == nullptr) {
             m_action = nullptr;
@@ -38,15 +37,8 @@ public:
 
             if (m_action == nullptr) {
                 m_commit = node->getCommit();
-
-                auto* parent_node = node->getParentNode();
-                if (parent_node != nullptr) {
-                    m_parent_commit = parent_node->getCommit();
-                }
             } else {
-
-                m_commit        = m_action->get_commit();
-                m_parent_commit = action::ActionsManager::get_parent_commit(m_action);
+                m_commit = m_action->get_commit();
             }
         }
 
@@ -68,10 +60,9 @@ private:
 
     action::ActionsManager& m_manager;
     DiffWidget* m_diff;
-    Node* m_node                = nullptr;
-    action::Action* m_action    = nullptr;
-    git_commit* m_parent_commit = nullptr;
-    git_commit* m_commit        = nullptr;
+    Node* m_node             = nullptr;
+    action::Action* m_action = nullptr;
+    git_commit* m_commit     = nullptr;
 
     static QLabel* create_label(const QString& text) { return new QLabel(text); }
 
@@ -80,7 +71,7 @@ private:
 
     void update_widget() {
         createRows();
-        m_diff->update(m_commit, m_parent_commit, m_action);
+        m_diff->update(m_action);
 
         prepareDiff();
     }

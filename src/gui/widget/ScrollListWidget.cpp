@@ -22,12 +22,17 @@ void ScrollListWidget::dragMoveEvent(QDragMoveEvent* event) {
     const QRect widget_rect = rect();
     const QPoint pos        = event->position().toPoint();
 
+    int bottom_margin = SCROLL_MARGIN;
+    if (horizontalScrollBar()->isVisible()) {
+        bottom_margin += horizontalScrollBar()->height();
+    }
+
     if (pos.y() < SCROLL_MARGIN) {
         m_dir = ScrollDirection::UP;
         if (!m_timer->isActive()) {
             m_timer->start();
         }
-    } else if (pos.y() > widget_rect.height() - SCROLL_MARGIN) {
+    } else if (pos.y() > widget_rect.height() - bottom_margin) {
         m_dir = ScrollDirection::DOWN;
         if (!m_timer->isActive()) {
             m_timer->start();

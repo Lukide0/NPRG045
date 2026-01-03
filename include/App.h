@@ -22,10 +22,17 @@
 #include <QMainWindow>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QSettings>
 #include <QString>
 
 class App : public QMainWindow {
 public:
+    struct ShortcutAction {
+        QAction* action;
+        QString description;
+        QKeySequence default_shortcut;
+    };
+
     App();
     bool openRepoDialog();
     bool openRepo(const std::string& path);
@@ -41,6 +48,15 @@ public:
     static void updateActions();
     static gui::widget::RebaseViewWidget* getRebaseViewWidget();
     static const std::string& getRepoPath();
+
+    static QSettings getSettings() { return { QSettings::IniFormat, QSettings::UserScope, "gitshuffle" }; }
+
+    static QMap<QString, ShortcutAction>& getShortcuts();
+
+    static void registerAction(const QString& action_id, QAction* action, const QString& description);
+
+    static void loadShortcuts(QSettings& settings);
+    static void saveShortcuts(QSettings& settings);
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -67,6 +83,11 @@ private:
     git_repository* m_repo = nullptr;
 
     std::optional<QString> m_save_file;
+
+    QMap<QString, ShortcutAction> m_shortcuts;
+
+    void setup();
+    void setupShortcuts();
 
     bool showRebase();
     void hideOldCommits(bool state);

@@ -1,4 +1,5 @@
 #include "core/conflict/conflict.h"
+#include "action/Action.h"
 #include "core/conflict/conflict_iterator.h"
 #include "core/git/error.h"
 #include "core/git/types.h"
@@ -22,6 +23,77 @@ std::pair<ConflictStatus, git::index_t> cherrypick_check(git_commit* commit, git
     git_repository* repo = git_commit_owner(commit);
 
     if (git_cherrypick_commit(&index, repo, commit, parent_commit, 0, nullptr) != 0) {
+        return std::make_pair(ConflictStatus::ERR, std::move(index));
+    }
+
+    if (git_index_has_conflicts(index) != 0) {
+        return std::make_pair(ConflictStatus::HAS_CONFLICT, std::move(index));
+    } else {
+        return std::make_pair(ConflictStatus::NO_CONFLICT, std::move(index));
+    }
+}
+
+std::pair<ConflictStatus, git::index_t> cherrypick_check(action::Action* act, git_commit* parent_commit) {
+    git::index_t index;
+    git::tree_t tree;
+
+    switch (act->get_type()) {
+    case action::ActionType::PICK:
+    case action::ActionType::REWORD:
+    case action::ActionType::EDIT:
+    case action::ActionType::SQUASH:
+    case action::ActionType::FIXUP:
+        return cherrypick_check(act->get_commit(), parent_commit);
+
+    case action::ActionType::DROP:
+        break;
+    }
+
+    // use parent commit tree
+    if (git_index_new(&index) != 0 || git_commit_tree(&tree, parent_commit) != 0) {
+        return std::make_pair(ConflictStatus::ERR, std::move(index));
+    }
+
+    if (git_index_read_tree(index, tree) != 0) {
+        return std::make_pair(ConflictStatus::ERR, std::move(index));
+    }
+
+    return std::make_pair(ConflictStatus::NO_CONFLICT, std::move(index));
+}
+
+std::pair<ConflictStatus, git::index_t> cherrypick_check(action::Action* act, action::Action* parent_act) {
+    git::index_t index;
+
+    switch (parent_act->get_tree_status()) {
+    case ConflictStatus::UNKNOWN:
+    case ConflictStatus::ERR:
+    case ConflictStatus::HAS_CONFLICT:
+        return std::make_pair(ConflictStatus::UNKNOWN, std::move(index));
+    case ConflictStatus::NO_CONFLICT:
+    case ConflictStatus::RESOLVED_CONFLICT:
+        break;
+    }
+
+    git_tree* parent_tree = parent_act->get_tree();
+    core::git::tree_t act_tree;
+    core::git::tree_t ancestor_tree;
+
+    core::git::commit_t parent_commit;
+    git_repository* repo = git_commit_owner(act->get_commit());
+
+    if (git_commit_parent(&parent_commit, act->get_commit(), 0) != 0) {
+        return std::make_pair(ConflictStatus::ERR, std::move(index));
+    }
+
+    if (git_commit_tree(&ancestor_tree, parent_commit) != 0) {
+        return std::make_pair(ConflictStatus::ERR, std::move(index));
+    }
+
+    if (git_commit_tree(&act_tree, act->get_commit()) != 0) {
+        return std::make_pair(ConflictStatus::ERR, std::move(index));
+    }
+
+    if (git_merge_trees(&index, repo, ancestor_tree, parent_tree, act_tree, nullptr) != 0) {
         return std::make_pair(ConflictStatus::ERR, std::move(index));
     }
 

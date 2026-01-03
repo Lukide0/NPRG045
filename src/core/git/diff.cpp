@@ -64,31 +64,35 @@ private:
     }
 };
 
-diff_result_t prepare_resolution_diff(git_commit* old_commit, git_commit* new_commit, const git_diff_options* opts) {
-    if (old_commit == nullptr || new_commit == nullptr) {
-        return prepare_diff(old_commit, new_commit, opts);
+diff_result_t prepare_resolution_diff(git_tree* old_tree, git_commit* new_commit, const git_diff_options* opts) {
+    git_repository* repo = nullptr;
+    if (old_tree != nullptr) {
+        repo = git_tree_owner(old_tree);
     }
 
-    diff_result_t res;
-    auto& manager = conflict::ConflictManager::get();
-
-    auto* tree = manager.get_commits_resolution(old_commit, new_commit);
-    git::tree_t parent_tree;
-
-    git_repository* repo;
-
-    if (tree == nullptr) {
-        return prepare_diff(old_commit, new_commit, opts);
+    if (new_commit != nullptr && repo == nullptr) {
+        repo = git_commit_owner(new_commit);
     }
 
-    if (git_commit_tree(&parent_tree, old_commit) != 0) {
+    if (new_commit == nullptr) {
+        return prepare_diff(old_tree, nullptr, repo, opts);
+    }
+
+    tree_t new_tree;
+    if (git_commit_tree(&new_tree, new_commit) != 0) {
+        diff_result_t res;
         res.state = diff_result_t::FAILED_TO_RETRIEVE_TREE;
         return res;
     }
 
-    repo = git_tree_owner(parent_tree.get());
+    auto& manager             = conflict::ConflictManager::get();
+    git_tree* resolution_tree = manager.get_trees_resolution(old_tree, new_commit);
 
-    return prepare_diff(parent_tree.get(), tree, repo, opts);
+    if (resolution_tree == nullptr) {
+        return prepare_diff(old_tree, new_tree, repo, opts);
+    }
+
+    return prepare_diff(old_tree, resolution_tree, repo, opts);
 }
 
 diff_result_t prepare_diff(git_tree* old_tree, git_tree* new_tree, git_repository* repo, const git_diff_options* opts) {

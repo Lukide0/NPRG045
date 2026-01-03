@@ -4,6 +4,7 @@
 #include "action/ActionManager.h"
 #include "core/conflict/conflict.h"
 #include "core/conflict/conflict_iterator.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/commit.h"
 #include "core/git/error.h"
 #include "core/git/GitGraph.h"
@@ -13,8 +14,10 @@
 #include "core/state/CommandHistory.h"
 #include "core/utils/debug.h"
 #include "core/utils/todo.h"
+#include "core/utils/unexpected.h"
 #include "gui/color.h"
 #include "gui/widget/CommitViewWidget.h"
+#include "gui/widget/ConflictDialog.h"
 #include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Graph.h"
 #include "gui/widget/graph/Node.h"
@@ -120,16 +123,12 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
     // Buttons
     m_resolve_conflicts_btn = new QPushButton("Checkout and resolve conflicts");
-    m_mark_resolved_btn     = new QPushButton("Mark as resolved");
 
     connect(m_resolve_conflicts_btn, &QPushButton::pressed, this, [this]() { checkoutAndResolve(); });
-    connect(m_mark_resolved_btn, &QPushButton::pressed, this, [this]() { markResolved(); });
 
     auto* toolbar_layout = new QHBoxLayout();
     toolbar_layout->addWidget(m_resolve_conflicts_btn);
-    toolbar_layout->addWidget(m_mark_resolved_btn);
 
-    m_mark_resolved_btn->setEnabled(false);
     m_resolve_conflicts_btn->setEnabled(false);
 
     right_layout->addLayout(toolbar_layout);
@@ -179,10 +178,6 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
             );
 
             this->moveAction(source_row, destination_row);
-
-            m_last_selected_index = destination_row;
-
-            this->updateGraph();
         }
     );
 }
@@ -191,9 +186,8 @@ void RebaseViewWidget::changeItemSelection() {
     QListWidget* list = m_list_actions;
     auto selected     = list->selectedItems();
     if (selected.size() != 1) {
-        m_last_selected_index = -1;
         m_commit_view->update(nullptr);
-        updateConflict(nullptr);
+        showConflict(nullptr);
         return;
     }
 
@@ -203,16 +197,13 @@ void RebaseViewWidget::changeItemSelection() {
         return;
     }
 
-    m_last_selected_index = list_item->getRow();
-
     m_commit_view->update(list_item->getNode());
-
-    updateConflict(list_item->getNode());
+    showConflict(list_item->getNode());
 }
 
-void RebaseViewWidget::updateConflict(Node* node) {
+void RebaseViewWidget::showConflict(Node* node) {
+    using ConflictStatus = Action::ConflictStatus;
 
-    m_mark_resolved_btn->setEnabled(false);
     m_resolve_conflicts_btn->setEnabled(false);
 
     if (node == nullptr) {
@@ -221,101 +212,127 @@ void RebaseViewWidget::updateConflict(Node* node) {
     }
 
     Action* act                    = node->getAction();
-    const bool in_progress         = (act == m_resolving.action && act->get_prev() == m_resolving.parent_action);
-    ConflictStatus conflict_status = updateConflictAction(act);
+    ConflictStatus conflict_status = act->get_tree_status();
 
     switch (conflict_status) {
     case ConflictStatus::NO_CONFLICT:
+    case ConflictStatus::UNKNOWN:
+    case ConflictStatus::ERR:
         m_conflict_widget->hide();
         return;
-    case ConflictStatus::RESOLVED:
-    case ConflictStatus::NOT_RESOLVED:
+    case ConflictStatus::RESOLVED_CONFLICT:
+    case ConflictStatus::HAS_CONFLICT:
         break;
     }
 
     m_conflict_widget->show();
-
-    if (in_progress) {
-        // check if the HEAD is correct
-        auto* commit           = action::ActionsManager::get_picked_parent_commit(m_cherrypick);
-        const auto* commit_oid = git_commit_id(commit);
-
-        if (core::git::is_head(m_repo, commit_oid)) {
-            m_mark_resolved_btn->setEnabled(true);
-            return;
-        }
-    }
-
     m_resolve_conflicts_btn->setEnabled(true);
 }
 
-RebaseViewWidget::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
+void RebaseViewWidget::updateConflictList(Action* start) {
+    if (start == nullptr) {
+        start = getActionsManager().get_action(0);
+    } else {
+        start = start->get_next();
+    }
+
+    Action* act = start;
+
+    for (; act != nullptr; act = act->get_next()) {
+        updateConflictAction(act);
+    }
+}
+
+Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
     using namespace core;
+    using ConflictStatus = Action::ConflictStatus;
 
     if (act == nullptr) {
         return ConflictStatus::NO_CONFLICT;
     }
+    // clear the resulting tree
+    act->clear_tree();
 
-    switch (act->get_type()) {
-    case action::ActionType::DROP:
-        return ConflictStatus::NO_CONFLICT;
-    case action::ActionType::SQUASH:
-    case action::ActionType::FIXUP:
-    case action::ActionType::PICK:
-    case action::ActionType::REWORD:
-    case action::ActionType::EDIT:
-        break;
+    Action* parent_act = act->get_prev();
+
+    ConflictStatus conflict_status;
+    core::git::index_t conflict_index;
+
+    // first action
+    if (parent_act == nullptr) {
+        git_commit* root_commit                   = getActionsManager().get_root_commit();
+        std::tie(conflict_status, conflict_index) = conflict::cherrypick_check(act, root_commit);
+    } else {
+        std::tie(conflict_status, conflict_index) = conflict::cherrypick_check(act, parent_act);
     }
 
-    auto* commit        = act->get_commit();
-    auto* parent_commit = action::ActionsManager::get_picked_parent_commit(act);
+    switch (conflict_status) {
+    // conflict::cherrypick_check does not return this value
+    case ConflictStatus::RESOLVED_CONFLICT:
+        UNEXPECTED();
 
-    auto&& [status, conflict] = conflict::cherrypick_check(commit, parent_commit);
-    switch (status) {
-    case conflict::ConflictStatus::ERR:
+    case ConflictStatus::ERR:
         utils::log_libgit_error();
+        return ConflictStatus::UNKNOWN;
+
+    case ConflictStatus::UNKNOWN:
+        return ConflictStatus::UNKNOWN;
+
+    case ConflictStatus::NO_CONFLICT: {
+        // create tree from index
+        git_oid oid;
+        if (git_index_write_tree_to(&oid, conflict_index.get(), m_repo) != 0) {
+            utils::log_libgit_error();
+            return ConflictStatus::UNKNOWN;
+        }
+        core::git::tree_t tree;
+
+        if (git_tree_lookup(&tree, m_repo, &oid) != 0) {
+            utils::log_libgit_error();
+            return ConflictStatus::UNKNOWN;
+        }
+
+        // update the action tree
+        act->set_tree(std::move(tree), Action::ConflictStatus::NO_CONFLICT);
         return ConflictStatus::NO_CONFLICT;
-    case conflict::ConflictStatus::NO_CONFLICT:
-        return ConflictStatus::NO_CONFLICT;
-    case conflict::ConflictStatus::HAS_CONFLICT:
+    }
+    case ConflictStatus::HAS_CONFLICT:
         break;
     }
 
-    m_conflict_index = std::move(conflict);
+    // update conflict
+    m_conflict_index = std::move(conflict_index);
+    m_cherrypick     = act;
 
-    m_conflict_parent_tree.destroy();
-    if (git_commit_tree(&m_conflict_parent_tree, parent_commit) != 0) {
-        m_conflict_parent_tree = nullptr;
-    }
-
+    // prepare conflict widget
     m_conflict_widget->clearConflicts();
     m_conflict_paths.clear();
     m_conflict_entries.clear();
 
-    m_cherrypick = act;
-
     bool iterator_status = conflict::iterate(m_conflict_index.get(), [this](conflict::entry_data_t entry) -> bool {
-        const char* path = entry.their->path;
+        const char* path = nullptr;
 
         conflict::ConflictEntry conflict_entry;
-        if (entry.ancestor != nullptr) {
-            conflict_entry.ancestor_id = git_oid_tostr_s(&entry.ancestor->id);
+
+        if (entry.our != nullptr) {
+            conflict_entry.our_id = git_oid_tostr_s(&entry.our->id);
+            path                  = entry.our->path;
         }
 
         if (entry.their != nullptr) {
             conflict_entry.their_id = git_oid_tostr_s(&entry.their->id);
+
+            if (path == nullptr) {
+                path = entry.their->path;
+            }
         }
 
-        if (entry.our != nullptr) {
-            conflict_entry.our_id = git_oid_tostr_s(&entry.our->id);
-        }
+        if (entry.ancestor != nullptr) {
+            conflict_entry.ancestor_id = git_oid_tostr_s(&entry.ancestor->id);
 
-        if (path == nullptr) {
-            path = entry.our->path;
-        }
-
-        if (path == nullptr) {
-            path = entry.ancestor->path;
+            if (path == nullptr) {
+                path = entry.ancestor->path;
+            }
         }
 
         m_conflict_paths.emplace_back(path);
@@ -330,13 +347,43 @@ RebaseViewWidget::ConflictStatus RebaseViewWidget::updateConflictAction(Action* 
 
     if (!iterator_status) {
         utils::log_libgit_error();
+        act->set_tree_status(Action::ConflictStatus::UNKNOWN);
+        return ConflictStatus::UNKNOWN;
     }
 
-    if (m_conflict_widget->isEmpty()) {
-        return ConflictStatus::RESOLVED;
-    } else {
-        return ConflictStatus::NOT_RESOLVED;
+    // check if all conflicts was resolved
+    if (!m_conflict_widget->isEmpty()) {
+        act->set_tree_status(Action::ConflictStatus::HAS_CONFLICT);
+        return ConflictStatus::HAS_CONFLICT;
     }
+
+    if (!m_conflict_manager.apply_resolutions_no_write(
+            m_conflict_entries, m_conflict_paths, m_repo, m_conflict_index.get()
+        )) {
+        utils::log_libgit_error();
+        QMessageBox::critical(this, "Recorded resolution error", QString::fromStdString(git::get_last_error()));
+        act->set_tree_status(Action::ConflictStatus::ERR);
+        return ConflictStatus::UNKNOWN;
+    }
+
+    git_oid oid;
+    if (git_index_write_tree_to(&oid, m_conflict_index, m_repo) != 0) {
+        utils::log_libgit_error();
+        QMessageBox::critical(this, "Recorded resolution error", QString::fromStdString(git::get_last_error()));
+        act->set_tree_status(Action::ConflictStatus::ERR);
+        return ConflictStatus::UNKNOWN;
+    }
+
+    git::tree_t tree;
+    if (git_tree_lookup(&tree, m_repo, &oid) != 0) {
+        utils::log_libgit_error();
+        QMessageBox::critical(this, "Recorded resolution error", QString::fromStdString(git::get_last_error()));
+        act->set_tree_status(Action::ConflictStatus::ERR);
+        return ConflictStatus::UNKNOWN;
+    }
+
+    act->set_tree(std::move(tree), Action::ConflictStatus::RESOLVED_CONFLICT);
+    return ConflictStatus::RESOLVED_CONFLICT;
 }
 
 void RebaseViewWidget::moveAction(int from, int to) {
@@ -344,7 +391,65 @@ void RebaseViewWidget::moveAction(int from, int to) {
 
     LOG_INFO("Moving action: from {} to {}", from, to);
 
-    m_actions.move(from, to);
+    Action* update_start = m_actions.move(from, to);
+    updateConflictList(update_start);
+
+    updateGraph();
+}
+
+void RebaseViewWidget::moveSelectedAction(bool down) {
+    using core::state::CommandHistory;
+
+    const int items_count = m_list_actions->count();
+    int current           = m_list_actions->currentRow();
+
+    if (current < 0) {
+        if (items_count > 0) {
+            m_list_actions->setCurrentRow(0);
+        }
+        return;
+    }
+
+    QAbstractItemModel* model = m_list_actions->model();
+
+    int destination = (down) ? current + 2 : current - 1;
+
+    // invalid destination
+    if (destination < 0 || destination > items_count) {
+        return;
+    }
+
+    if (model->moveRows(QModelIndex(), current, 1, QModelIndex(), destination)) {
+        int row = (down) ? current + 1 : current - 1;
+        m_list_actions->setCurrentRow(row);
+    }
+}
+
+void RebaseViewWidget::changeActionType() {
+    using core::state::CommandHistory;
+
+    int current = m_list_actions->currentRow();
+    if (current < 0) {
+        return;
+    }
+
+    auto* item = getListItem(current);
+    if (item == nullptr) {
+        return;
+    }
+
+    ActionType type = item->getCommitAction().get_type();
+    int index       = ListItem::indexOf(type);
+    assert(index >= 0);
+
+    int new_index       = (index + 1) % ListItem::items.size();
+    ActionType new_type = ListItem::items[new_index];
+
+    auto* cmd = new ListItemChangedCommand(m_list_actions, current, type, new_type);
+
+    CommandHistory::Add(std::unique_ptr<ListItemChangedCommand>(cmd));
+
+    cmd->execute();
 }
 
 void RebaseViewWidget::showCommit(Node* prev, Node* next) {
@@ -501,8 +606,8 @@ RebaseViewWidget::update(git_repository* repo, const std::string& head, const st
 void RebaseViewWidget::prepareActions() {
 
     prepareGraph();
+    updateConflictList(nullptr);
 
-    m_last_selected_index = -1;
     m_list_actions->clear();
 
     auto* list = m_list_actions;
@@ -521,8 +626,6 @@ void RebaseViewWidget::prepareActions() {
 
 void RebaseViewWidget::prepareGraph() {
     m_new_commits_graph->clear();
-
-    m_last_selected_index = -1;
 
     auto* last      = m_new_commits_graph->addNode(0);
     auto& last_node = m_graph.first_node();
@@ -545,40 +648,32 @@ void RebaseViewWidget::updateActions() {
 }
 
 void RebaseViewWidget::updateGraph() {
-    LOG_INFO("Updating old graph");
+    LOG_INFO("Updating graph");
 
-    const int last_selected_index = m_last_selected_index;
-
+    int last_selected_index = m_list_actions->currentRow();
     prepareGraph();
 
-    auto* list = m_list_actions;
-
+    auto* list  = m_list_actions;
     m_last_node = m_root_node;
 
     for (std::int32_t i = 0; i < list->count(); ++i) {
-        auto* raw_item = list->itemWidget(list->item(i));
-        auto* item     = dynamic_cast<ListItem*>(raw_item);
+        auto* item = getListItem(i);
         assert(item != nullptr);
 
-        item->setConflict(false);
-
         Action& act = item->getCommitAction();
+        item->setConflict(act.get_tree_status());
 
         switch (act.get_type()) {
-        case ActionType::DROP: {
+        case ActionType::DROP:
             item->setNode(m_last_node);
             break;
-        }
+
         case ActionType::FIXUP:
-        case ActionType::SQUASH: {
-            Node* old = findOldCommit(act.get_oid());
-            if (old != nullptr) {
-                updateNode(item, m_last_node, m_last_node, old);
-            }
+        case ActionType::SQUASH:
+            m_last_node->updateConflict(act.get_tree_status());
 
             item->setNode(m_last_node);
             break;
-        }
 
         case ActionType::PICK:
         case ActionType::REWORD:
@@ -590,7 +685,7 @@ void RebaseViewWidget::updateGraph() {
 
             item->setNode(new_node);
 
-            updateNode(item, new_node, m_last_node, new_node);
+            new_node->setConflict(act.get_tree_status());
 
             m_last_node = new_node;
             break;
@@ -607,13 +702,9 @@ void RebaseViewWidget::updateGraph() {
     Node* node = nullptr;
     if (item != nullptr) {
         node = item->getNode();
-
-        if (node != nullptr) {
-            m_last_selected_index = last_selected_index;
-        }
     }
 
-    updateConflict(node);
+    showConflict(node);
     m_commit_view->update(node);
 }
 
@@ -627,39 +718,13 @@ Node* RebaseViewWidget::findOldCommit(const git_oid& oid) {
     return m_old_commits_graph->find([&](const Node* node) { return git_oid_equal(node->getCommitId(), &oid) != 0; });
 }
 
-void RebaseViewWidget::updateNode(ListItem* item, Node* node, Node* parent, Node* current) {
-    using core::conflict::ConflictStatus;
-    using core::git::index_t;
-
-    auto* parent_commit = parent->getCommit();
-    auto* commit        = current->getCommit();
-
-    auto&& [status, conflict] = core::conflict::cherrypick_check(commit, parent_commit);
-
-    item->setConflict(false);
-
-    bool not_resolved = !m_conflict_manager.is_resolved(conflict);
-
-    switch (status) {
-    case ConflictStatus::ERR:
-        core::utils::log_libgit_error();
-        return;
-    case ConflictStatus::NO_CONFLICT:
-        return;
-    case ConflictStatus::HAS_CONFLICT:
-        item->setConflict(not_resolved);
-        node->setConflict(not_resolved);
-        break;
-    }
-}
-
 void RebaseViewWidget::prepareItem(ListItem* item, Action& action) {
     QString item_text;
     item_text += " [";
     item_text += QString::fromStdString(core::git::format_oid_to_str<7>(&action.get_oid()));
     item_text += "]: ";
 
-    item->setConflict(false);
+    item->setConflict(action.get_tree_status());
 
     switch (action.get_type()) {
     case ActionType::DROP: {
@@ -678,7 +743,8 @@ void RebaseViewWidget::prepareItem(ListItem* item, Action& action) {
     case ActionType::SQUASH: {
         Node* old = findOldCommit(action.get_oid());
         if (old != nullptr) {
-            updateNode(item, m_last_node, m_last_node, old);
+            m_last_node->updateConflict(action.get_tree_status());
+
             item_text += git_commit_summary(old->getCommit());
         } else {
             item_text += git_commit_summary(action.get_commit());
@@ -704,8 +770,7 @@ void RebaseViewWidget::prepareItem(ListItem* item, Action& action) {
         new_node->setAction(&action);
 
         item->setNode(new_node);
-
-        updateNode(item, new_node, m_last_node, new_node);
+        new_node->setConflict(action.get_tree_status());
 
         m_last_node = new_node;
         break;
@@ -743,24 +808,56 @@ void RebaseViewWidget::checkoutAndResolve() {
     m_resolving.action        = nullptr;
     m_resolving.parent_action = nullptr;
 
-    // save HEAD
     if (git_repository_head(&m_head, m_repo) != 0) {
         utils::log_libgit_error();
         QMessageBox::critical(this, "Repo head error", QString::fromStdString(git::get_last_error()));
         return;
     }
 
-    // 2. Checkout first commit
-    {
-        auto* commit = action::ActionsManager::get_picked_parent_commit(m_cherrypick);
+    LOG_INFO("Saving HEAD: '{}'", git_reference_name(m_head));
 
-        if (!git::set_repository_head_detached(m_repo, git_commit_id(commit))) {
+    // 2. Create temporary commit and checkout onto it
+    {
+        Action* parent_act      = m_cherrypick->get_prev();
+        git_oid const* tree_oid = nullptr;
+        if (parent_act == nullptr) {
+            tree_oid = git_commit_tree_id(m_actions.get_root_commit());
+        } else {
+            tree_oid = git_tree_id(parent_act->get_tree());
+        }
+
+        assert(tree_oid != nullptr);
+
+        git::tree_t tree;
+        if (git_tree_lookup(&tree, m_repo, tree_oid) != 0) {
+            utils::log_libgit_error();
+            QMessageBox::critical(this, "Failed to load tree", QString::fromStdString(git::get_last_error()));
+            return;
+        }
+
+        git::signature_t sig;
+        if (git_signature_default(&sig, m_repo) != 0) {
+            utils::log_libgit_error();
+            QMessageBox::critical(this, "Failed to load signature", QString::fromStdString(git::get_last_error()));
+            return;
+        }
+
+        git_oid commit_id;
+        if (git_commit_create(&commit_id, m_repo, nullptr, sig, sig, nullptr, "Tmp commit", tree, 0, nullptr) != 0) {
+            utils::log_libgit_error();
+            QMessageBox::critical(
+                this, "Failed to create temporary commit", QString::fromStdString(git::get_last_error())
+            );
+            return;
+        }
+
+        if (!git::set_repository_head_detached(m_repo, &commit_id)) {
             utils::log_libgit_error();
             QMessageBox::critical(this, "Repo head error", QString::fromStdString(git::get_last_error()));
             return;
         }
 
-        LOG_INFO("Checking out commit");
+        LOG_INFO("Checking out tree");
     }
 
     // 3. Checkout conflict
@@ -778,7 +875,6 @@ void RebaseViewWidget::checkoutAndResolve() {
         LOG_INFO("Checking out index with conflicts");
 
         m_resolve_conflicts_btn->setEnabled(false);
-        m_mark_resolved_btn->setEnabled(true);
     }
 
     // 4. Apply conflict resolutions
@@ -799,20 +895,51 @@ void RebaseViewWidget::checkoutAndResolve() {
 
     m_resolving.action        = m_cherrypick;
     m_resolving.parent_action = m_cherrypick->get_prev();
+
+    // 5. Create dialog to prevent user to modifing application state
+    {
+        ConflictDialog dialog(this);
+
+        dialog.exec();
+
+        while (dialog.resolved()) {
+
+            // check if the resolution can be applied
+            if (markResolved()) {
+                break;
+            }
+
+            dialog.exec();
+        }
+
+        // clean working directory
+        if (!dialog.resolved()) {
+            LOG_INFO("Restoring HEAD: '{}'", git_reference_name(m_head));
+
+            if (!git::set_repository_head(m_repo, m_head.get())) {
+                utils::log_libgit_error();
+                QMessageBox::critical(
+                    this, "Failed to clean working directory", QString::fromStdString(git::get_last_error())
+                );
+            }
+
+            m_resolve_conflicts_btn->setEnabled(true);
+        }
+    }
 }
 
-void RebaseViewWidget::markResolved() {
+bool RebaseViewWidget::markResolved() {
     using namespace core;
 
-    if (m_conflict_index.get() == nullptr) {
-        return;
+    if (m_conflict_index.get() == nullptr || m_resolving.action == nullptr) {
+        return false;
     }
 
     git::index_t repo_index;
     if (git_repository_index(&repo_index, m_repo) != 0) {
         utils::log_libgit_error();
         QMessageBox::critical(this, "Repo index", QString::fromStdString(git::get_last_error()));
-        return;
+        return false;
     }
 
     // 1. Add all modified files to the index and create new tree
@@ -821,34 +948,39 @@ void RebaseViewWidget::markResolved() {
     if (err.has_value()) {
         LOG_ERROR("{}", err.value());
         QMessageBox::critical(this, "Resolution error", QString::fromStdString(err.value()));
-        return;
+        return false;
     }
 
     git::tree_t tree;
     if (git_tree_lookup(&tree, m_repo, &tree_oid) != 0) {
         utils::log_libgit_error();
         QMessageBox::critical(this, "Tree error", QString::fromStdString(git::get_last_error()));
-        return;
+        return false;
     }
 
+    LOG_INFO("Restoring HEAD: '{}'", git_reference_name(m_head));
     // Change working tree
-    if (!git::set_repository_head(m_repo, m_head.get())) {
+    if (!git::set_repository_head(m_repo, m_head)) {
         utils::log_libgit_error();
         QMessageBox::critical(this, "Repo head error", QString::fromStdString(git::get_last_error()));
-        return;
+        return false;
     }
 
-    m_mark_resolved_btn->setEnabled(false);
+    conflict::ConflictTrees conflict;
 
-    auto* parent_commit = action::ActionsManager::get_picked_parent_commit(m_cherrypick);
+    git_oid const* tree_id;
+    if (m_cherrypick->get_prev() != nullptr) {
+        tree_id = git_tree_id(m_cherrypick->get_prev()->get_tree());
+    } else {
+        git_commit* root_commit = m_actions.get_root_commit();
+        tree_id                 = git_commit_tree_id(root_commit);
+    }
 
-    conflict::ConflictCommits conflict;
+    auto& conflict_manager  = conflict::ConflictManager::get();
+    conflict.commit_id      = git::format_oid_to_str<git::OID_SIZE>(&m_cherrypick->get_oid());
+    conflict.parent_tree_id = git::format_oid_to_str<git::OID_SIZE>(tree_id);
 
-    auto& conflict_manager = conflict::ConflictManager::get();
-    conflict.child_id      = git::format_oid_to_str<git::OID_SIZE>(&m_cherrypick->get_oid());
-    conflict.parent_id     = git::format_oid_to_str<git::OID_SIZE>(git_commit_id(parent_commit));
-
-    conflict_manager.add_commits_resolution(conflict, std::move(tree));
+    conflict_manager.add_trees_resolution(conflict, std::move(tree));
 
     LOG_INFO("Saving conflict resolution");
 
@@ -856,5 +988,7 @@ void RebaseViewWidget::markResolved() {
     m_resolving.parent_action = nullptr;
 
     updateActions();
+
+    return true;
 }
 }

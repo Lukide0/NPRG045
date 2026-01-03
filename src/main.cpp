@@ -3,12 +3,18 @@
 #include "logging/Log.h"
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QStyleHints>
 
 int main(int argc, char* argv[]) {
 
     QApplication app(argc, argv);
     QApplication::setApplicationName("git shuffle");
     QApplication::setApplicationVersion("0.1.0");
+
+    app.styleHints()->setColorScheme(Qt::ColorScheme::Light);
+    QApplication::setStyle("fusion");
+
+    QIcon::setThemeName("hicolor");
 
     QCommandLineParser parser;
     auto help = parser.addHelpOption();

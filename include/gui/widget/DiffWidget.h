@@ -5,6 +5,7 @@
 #include "core/git/types.h"
 #include "core/state/Command.h"
 #include "gui/color.h"
+#include "gui/style/DiffStyle.h"
 #include "gui/widget/DiffEditor.h"
 #include "gui/widget/DiffFile.h"
 
@@ -27,7 +28,7 @@ public:
     DiffWidget(QWidget* parent = nullptr);
     ~DiffWidget() override = default;
 
-    void update(git_commit* child, git_commit* parent, action::Action* act);
+    void update(action::Action* act);
 
     [[nodiscard]] const std::vector<core::git::diff_files_t>& getDiffs() const { return m_diffs; }
 
@@ -48,7 +49,7 @@ private:
     DiffEditor* m_curr_editor;
 
     struct section_t {
-        using Type = ColorType;
+        using Type = style::DiffStyle::Style;
 
         Type type;
         QTextBlock block;

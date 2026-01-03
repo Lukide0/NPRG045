@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/conflict/conflict.h"
 #include "core/git/types.h"
 #include "core/utils/optional_uint.h"
 #include "core/utils/todo.h"
@@ -24,6 +25,8 @@ enum class ActionType {
 
 class Action {
 public:
+    using ConflictStatus = core::conflict::ConflictStatus;
+
     Action(ActionType type, const git_oid& oid, git_repository* repo, optional_u31 msg_id = optional_u31::none())
         : m_msg_id(msg_id)
         , m_type(type) {
@@ -95,6 +98,24 @@ public:
         return false;
     }
 
+    void clear_tree() {
+        m_tree.destroy();
+        m_tree_conflict = ConflictStatus::UNKNOWN;
+    }
+
+    void set_tree(core::git::tree_t&& tree, ConflictStatus status) {
+        m_tree          = std::move(tree);
+        m_tree_conflict = status;
+    }
+
+    git_tree* get_tree() { return m_tree; }
+
+    void set_tree_status(ConflictStatus status) { m_tree_conflict = status; }
+
+    [[nodiscard]] ConflictStatus get_tree_status() const { return m_tree_conflict; }
+
+    [[nodiscard]] const git_tree* get_tree() const { return m_tree.get(); }
+
     [[nodiscard]] ActionType get_type() const { return m_type; }
 
     void set_type(ActionType type) { m_type = type; }
@@ -124,6 +145,10 @@ private:
     Action* m_next = nullptr;
     Action* m_prev = nullptr;
     core::git::commit_t m_commit;
+
+    core::git::tree_t m_tree;
+    ConflictStatus m_tree_conflict = ConflictStatus::UNKNOWN;
+
     optional_u31 m_msg_id;
     ActionType m_type;
 

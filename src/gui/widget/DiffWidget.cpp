@@ -8,7 +8,6 @@
 #include "core/patch/split.h"
 #include "core/state/CommandHistory.h"
 #include "gui/clear_layout.h"
-#include "gui/color.h"
 #include "gui/widget/DiffEditor.h"
 #include "gui/widget/DiffEditorLine.h"
 #include "gui/widget/DiffFile.h"
@@ -74,19 +73,40 @@ void DiffWidget::ensureEditorVisible(DiffFile* file) {
     bar->setValue(file->y());
 }
 
-void DiffWidget::update(git_commit* child, git_commit* parent, Action* action) {
+void DiffWidget::update(Action* action) {
+    using ConflictStatus = core::conflict::ConflictStatus;
+
     clear_layout(m_scroll_layout);
     m_files.clear();
     m_action = action;
 
-    git_commit* commit        = child;
-    git_commit* parent_commit = parent;
-
-    if (child == nullptr) {
+    if (action == nullptr) {
         return;
     }
+    Action* parent = action->get_prev();
 
-    diff_result_t res = core::git::prepare_resolution_diff(parent_commit, commit);
+    diff_result_t res;
+    if (parent == nullptr) {
+        git_commit* root_commit = action::ActionsManager::get().get_root_commit();
+        res                     = core::git::prepare_diff(root_commit, action->get_commit());
+    } else {
+        switch (parent->get_tree_status()) {
+        case ConflictStatus::UNKNOWN:
+        case ConflictStatus::ERR:
+            return;
+        case ConflictStatus::HAS_CONFLICT:
+        case ConflictStatus::NO_CONFLICT:
+        case ConflictStatus::RESOLVED_CONFLICT:
+            break;
+        }
+
+        if (parent->get_tree() == nullptr) {
+            return;
+        }
+
+        res = core::git::prepare_resolution_diff(parent->get_tree(), action->get_commit());
+    }
+
     switch (res.state) {
     case diff_result_t::FAILED_TO_RETRIEVE_TREE:
         QMessageBox::critical(this, "Commit diff error", "Failed to retrieve tree from commit");
@@ -114,10 +134,7 @@ void DiffWidget::update(git_commit* child, git_commit* parent, Action* action) {
     }
 }
 
-void DiffWidget::createFileDiff(const diff_files_t& diff) {
-    auto* file_diff = new DiffFile(diff);
-    m_curr_editor   = file_diff->getEditor();
-
+QString create_diff_header(const diff_files_t& diff) {
     QString header;
     switch (diff.state) {
     case diff_files_t::State::ADDED:
@@ -144,8 +161,21 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
         header += " -> ";
         header += QString::fromStdString(diff.new_file.path);
         break;
-    default: {
+    default:
+        return "";
+    }
+
+    return header;
+}
+
+void DiffWidget::createFileDiff(const diff_files_t& diff) {
+    auto* file_diff = new DiffFile(diff);
+    m_curr_editor   = file_diff->getEditor();
+
+    QString header = create_diff_header(diff);
+    if (header.isEmpty()) {
         const std::string& path = (!diff.old_file.path.empty()) ? diff.old_file.path : diff.new_file.path;
+
         LOG_ERROR("Unsupported file ({}) state: {}", path, static_cast<int>(diff.state));
         QMessageBox::critical(
             this,
@@ -156,13 +186,11 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
         );
         return;
     }
-    }
 
     file_diff->setDiff(core::git::diff_header(diff));
     file_diff->setHeader(header);
 
     std::vector<section_t> sections;
-
     for (const auto& hunk : diff.hunks) {
         addHunkDiff(hunk, sections);
     }
@@ -173,21 +201,18 @@ void DiffWidget::createFileDiff(const diff_files_t& diff) {
         QTextEdit::ExtraSelection text_section;
         text_section.cursor = QTextCursor(section.block);
         text_section.cursor.clearSelection();
-
-        text_section.format.setForeground(convert_to_color(section.type));
+        text_section.format.setForeground(style::DiffStyle::get_color(section.type));
 
         if (section.type == section_t::Type::INFO) {
             text_section.format.setFontWeight(QFont::Bold);
         }
 
         text_section.format.setProperty(QTextFormat::FullWidthSelection, true);
-
         text_sections.append(text_section);
     }
 
     m_curr_editor->setExtraSelections(text_sections);
     m_scroll_layout->addWidget(file_diff);
-
     m_files.push_back(file_diff);
     m_curr_editor->enableContextMenu(m_action != nullptr);
 
@@ -276,6 +301,7 @@ void DiffWidget::splitCommitEvent() {
             const DiffEditor* editor = file->getEditor();
 
             if (!editor->selectedLineOrFile()) {
+                splitter.not_selected_file();
                 continue;
             }
 
@@ -359,5 +385,4 @@ void CommitSplitCommand::undo() {
 
     App::updateActions();
 }
-
 }

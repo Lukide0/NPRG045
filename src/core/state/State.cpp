@@ -49,9 +49,8 @@ std::string load_message(const QDomElement& action) {
 
 void save_message(const QString& msg, QDomDocument& doc, QDomElement& action) {
 
-    // TODO: replace invalid characters ('<', '>', ...)
-
     auto lines = msg.split(QRegularExpression("\n|\r\n"), Qt::KeepEmptyParts);
+
     for (auto&& line : lines) {
         auto line_el = doc.createElement("line");
         line_el.appendChild(doc.createTextNode(line));
@@ -191,13 +190,13 @@ void save_conflicts(QDomElement& root, QDomDocument& doc) {
 
     QDomElement conflict_commits = doc.createElement(CONFLICT_COMMITS_NODE);
 
-    for (auto&& [conflict, tree] : manager.get_commits_conflicts()) {
+    for (auto&& [conflict, tree] : manager.get_tree_conflicts()) {
         QDomElement commits = doc.createElement(CONFLICT_COMMIT_NODE);
 
         const auto* tree_id = git_tree_id(tree.get());
 
-        commits.setAttribute("parent", QString::fromStdString(conflict.parent_id));
-        commits.setAttribute("child", QString::fromStdString(conflict.child_id));
+        commits.setAttribute("parent_tree", QString::fromStdString(conflict.parent_tree_id));
+        commits.setAttribute("commit", QString::fromStdString(conflict.commit_id));
         commits.setAttribute("tree", QString::fromStdString(git::format_oid_to_str<git::OID_SIZE>(tree_id)));
 
         conflict_commits.appendChild(commits);
@@ -238,9 +237,9 @@ void load_conflicts(QDomElement& root, SaveData& save_data, git_repository* repo
 
         QDomElement commits = node.toElement();
 
-        conflict::ConflictCommits entry;
-        entry.parent_id = commits.attribute("parent").toStdString();
-        entry.child_id  = commits.attribute("child").toStdString();
+        conflict::ConflictTrees entry;
+        entry.parent_tree_id = commits.attribute("parent_tree").toStdString();
+        entry.commit_id      = commits.attribute("commit").toStdString();
 
         auto tree_id = commits.attribute("tree").toStdString();
 
@@ -254,7 +253,7 @@ void load_conflicts(QDomElement& root, SaveData& save_data, git_repository* repo
             continue;
         }
 
-        save_data.conflict_commits.emplace_back(entry, std::move(tree));
+        save_data.conflict_trees.emplace_back(entry, std::move(tree));
     }
 }
 

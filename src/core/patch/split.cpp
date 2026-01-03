@@ -28,16 +28,17 @@ bool create_copy_commit(git_oid* oid, git_commit* commit, git_commit* parent, gi
 }
 
 bool create_copy_commit(
-    git_oid* oid, git::tree_t& out_tree, git_commit* commit, git_commit* parent, git_diff* diff, git_repository* repo
+    git_oid* oid,
+    git::tree_t& out_tree,
+    git_commit* commit,
+    git_commit* parent,
+    git_tree* parent_tree,
+    git_diff* diff,
+    git_repository* repo
 ) {
-    git::tree_t tree;
-    if (git_commit_tree(&tree, parent) != 0) {
-        LOG_ERROR("Failed to find commit tree");
-        return false;
-    }
 
     git::index_t index;
-    if (git_apply_to_tree(&index, repo, tree, diff, nullptr) != 0) {
+    if (git_apply_to_tree(&index, repo, parent_tree, diff, nullptr) != 0) {
         LOG_ERROR("Failed to apply diff");
         return false;
     }
@@ -58,12 +59,26 @@ bool create_copy_commit(
     return create_copy_commit(oid, commit, parent, out_tree, repo);
 }
 
-bool split(git::commit_t& out_first, git::commit_t& out_second, Action* act, git::diff_t& patch) {
-    auto* commit = act->get_commit();
-    auto* repo   = git_commit_owner(commit);
+bool create_copy_commit(
+    git_oid* oid, git::tree_t& out_tree, git_commit* commit, git_commit* parent, git_diff* diff, git_repository* repo
+) {
+    git::tree_t parent_tree;
+    if (git_commit_tree(&parent_tree, parent) != 0) {
+        LOG_ERROR("Failed to find commit tree");
+        return false;
+    }
 
-    git_commit* parent_commit = action::ActionsManager::get_parent_commit(act);
-    assert(parent_commit != nullptr);
+    return create_copy_commit(oid, out_tree, commit, parent, parent_tree, diff, repo);
+}
+
+bool split(
+    git::commit_t& out_first,
+    git::commit_t& out_second,
+    git_commit* commit,
+    git_commit* parent_commit,
+    git::diff_t& patch
+) {
+    git_repository* repo = git_commit_owner(commit);
 
     git::tree_t patch_tree;
     git_oid patch_commit_oid;
@@ -76,6 +91,56 @@ bool split(git::commit_t& out_first, git::commit_t& out_second, Action* act, git
 
     // 1. Create commit only from patch
     if (!create_copy_commit(&patch_commit_oid, patch_tree, commit, parent_commit, patch, repo)) {
+        LOG_ERROR("Failed to create commit");
+        return false;
+    }
+
+    if (git_commit_lookup(&out_first, repo, &patch_commit_oid) != 0) {
+        LOG_ERROR("Failed to find commit");
+        return false;
+    }
+
+    git_oid delta_commit_oid;
+    // 3. Create commit
+    if (!create_copy_commit(&delta_commit_oid, commit, out_first, commit_tree, repo)) {
+        LOG_ERROR("Failed to create copy commit");
+        return false;
+    }
+
+    if (git_commit_lookup(&out_second, repo, &delta_commit_oid) != 0) {
+        LOG_ERROR("Failed to find commit");
+        return false;
+    }
+
+    return true;
+}
+
+bool split(git::commit_t& out_first, git::commit_t& out_second, Action* act, git::diff_t& patch) {
+    git_commit* commit   = act->get_commit();
+    git_repository* repo = git_commit_owner(commit);
+
+    Action* parent_act        = act->get_prev();
+    git_commit* parent_commit = action::ActionsManager::get_parent_commit(act);
+    assert(parent_commit != nullptr);
+
+    if (parent_act == nullptr) {
+        // parent commit is root
+        return split(out_first, out_second, commit, parent_commit, patch);
+    }
+
+    git::tree_t commit_tree;
+    if (git_commit_tree(&commit_tree, commit) != 0) {
+        LOG_ERROR("Failed to find commit tree");
+        return false;
+    }
+
+    git_tree* parent_tree = parent_act->get_tree();
+
+    git::tree_t patch_tree;
+    git_oid patch_commit_oid;
+
+    // 1. Create commit only from patch
+    if (!create_copy_commit(&patch_commit_oid, patch_tree, commit, parent_commit, parent_tree, patch, repo)) {
         LOG_ERROR("Failed to create commit");
         return false;
     }
