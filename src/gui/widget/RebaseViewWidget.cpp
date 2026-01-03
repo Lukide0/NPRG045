@@ -452,6 +452,35 @@ void RebaseViewWidget::changeActionType() {
     cmd->execute();
 }
 
+void RebaseViewWidget::changeActionType(ActionType type) {
+    using core::state::CommandHistory;
+
+    int current = m_list_actions->currentRow();
+    if (current < 0) {
+        return;
+    }
+
+    auto* item = getListItem(current);
+    if (item == nullptr) {
+        return;
+    }
+
+    ActionType old_type = item->getCommitAction().get_type();
+    // no change
+    if (old_type == type) {
+        return;
+    }
+
+    int index = ListItem::indexOf(old_type);
+    assert(index >= 0);
+
+    auto* cmd = new ListItemChangedCommand(m_list_actions, current, old_type, type);
+
+    CommandHistory::Add(std::unique_ptr<ListItemChangedCommand>(cmd));
+
+    cmd->execute();
+}
+
 void RebaseViewWidget::showCommit(Node* prev, Node* next) {
     if (next == nullptr) {
         m_commit_view->update(nullptr);

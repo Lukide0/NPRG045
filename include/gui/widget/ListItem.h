@@ -28,16 +28,8 @@ class ListItem : public QWidget {
 public:
     using ActionType = action::ActionType;
 
-    static constexpr auto items = std::to_array<ActionType>({
-        ActionType::PICK,
-        ActionType::DROP,
-        ActionType::SQUASH,
-        ActionType::FIXUP,
-        ActionType::REWORD,
-        ActionType::EDIT,
-    });
-
-    using ConflictStatus = core::conflict::ConflictStatus;
+    static constexpr auto items = action::action_types;
+    using ConflictStatus        = core::conflict::ConflictStatus;
 
     static constexpr int indexOf(ActionType type) {
         for (int i = 0; i < static_cast<int>(items.size()); ++i) {
@@ -69,9 +61,7 @@ public:
 
     void setActionType(ActionType type) {
         LOG_INFO(
-            "Changing action type: from {} to {}",
-            action::Action::type_to_str(m_action.get_type()),
-            action::Action::type_to_str(type)
+            "Changing action type: from {} to {}", action::type_to_str(m_action.get_type()), action::type_to_str(type)
         );
         auto index = indexOf(type);
         assert(index != -1);

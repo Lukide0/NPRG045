@@ -75,6 +75,8 @@ public:
 
     void changeActionType();
 
+    void changeActionType(action::ActionType type);
+
 private:
     /* UI */
     GraphWidget* m_old_commits_graph;

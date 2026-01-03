@@ -33,7 +33,7 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
     m_combo = new QComboBox();
 
     for (auto&& item : items) {
-        m_combo->addItem(Action::type_to_str(item), static_cast<int>(item));
+        m_combo->addItem(action::type_to_str(item), static_cast<int>(item));
     }
 
     m_text = new QLabel();
@@ -65,7 +65,7 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
             return;
         }
 
-        LOG_INFO("Changing action type: from {} to {}", Action::type_to_str(prev_type), Action::type_to_str(curr_type));
+        LOG_INFO("Changing action type: from {} to {}", action::type_to_str(prev_type), action::type_to_str(curr_type));
 
         m_action.set_type(curr_type);
 

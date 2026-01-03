@@ -23,6 +23,34 @@ enum class ActionType {
     EDIT,
 };
 
+constexpr auto action_types = std::to_array<ActionType>({
+    ActionType::PICK,
+    ActionType::DROP,
+    ActionType::SQUASH,
+    ActionType::FIXUP,
+    ActionType::REWORD,
+    ActionType::EDIT,
+});
+
+static constexpr const char* type_to_str(ActionType type) {
+    switch (type) {
+    case ActionType::PICK:
+        return "pick";
+    case ActionType::DROP:
+        return "drop";
+    case ActionType::SQUASH:
+        return "squash";
+    case ActionType::FIXUP:
+        return "fixup";
+    case ActionType::REWORD:
+        return "reword";
+    case ActionType::EDIT:
+        return "edit";
+    }
+
+    TODO("Unknown action type");
+}
+
 class Action {
 public:
     using ConflictStatus = core::conflict::ConflictStatus;
@@ -121,25 +149,6 @@ public:
     void set_type(ActionType type) { m_type = type; }
 
     void set_msg_id(optional_u31 msg_id) { m_msg_id = msg_id; }
-
-    static constexpr const char* type_to_str(ActionType type) {
-        switch (type) {
-        case ActionType::PICK:
-            return "pick";
-        case ActionType::DROP:
-            return "drop";
-        case ActionType::SQUASH:
-            return "squash";
-        case ActionType::FIXUP:
-            return "fixup";
-        case ActionType::REWORD:
-            return "reword";
-        case ActionType::EDIT:
-            return "edit";
-        }
-
-        TODO("Unknown action type");
-    }
 
 private:
     Action* m_next = nullptr;

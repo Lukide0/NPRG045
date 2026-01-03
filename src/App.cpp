@@ -1,5 +1,6 @@
 #include "App.h"
 
+#include "action/Action.h"
 #include "action/Converter.h"
 #include "core/git/parser.h"
 #include "core/git/paths.h"
@@ -134,9 +135,28 @@ void App::setupShortcuts() {
         auto* actions_move_down   = create_shortcut("actions.move_down", actions_list, "Move focused action down");
         auto* actions_change      = create_shortcut("actions.change_type", actions_list, "Change focused action type");
 
+        constexpr auto action_types = gui::widget::ListItem::items;
+
+        for (action::ActionType type : action_types) {
+            const char* name = action::type_to_str(type);
+            QString desc     = QString("Change focused action type to '%1'").arg(name);
+            QString id       = QString("actions.change_%1").arg(name);
+
+            auto* change_type = create_shortcut(id, actions_list, desc);
+
+            connect(change_type, &QAction::triggered, this, [this, type]() { m_rebase_view->changeActionType(type); });
+        }
+
+        auto* actions_change_pick
+            = create_shortcut("actions.change_pick", actions_list, "Change focused action type to 'pick'");
+
         connect(actions_move_up, &QAction::triggered, this, [this]() { m_rebase_view->moveActionUp(); });
         connect(actions_move_down, &QAction::triggered, this, [this]() { m_rebase_view->moveActionDown(); });
         connect(actions_change, &QAction::triggered, this, [this]() { m_rebase_view->changeActionType(); });
+
+        connect(actions_change_pick, &QAction::triggered, this, [this]() {
+            m_rebase_view->changeActionType(action::ActionType::PICK);
+        });
     }
 }
 
