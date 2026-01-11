@@ -1,33 +1,59 @@
 #include "gui/widget/ConflictWidget.h"
+#include "gui/widget/ConflictFile.h"
 
 #include <QHBoxLayout>
-#include <QWidget>
-#include <QListWidget>
 #include <QLabel>
+#include <QListWidget>
+#include <QWidget>
 
 namespace gui::widget {
 
 ConflictWidget::ConflictWidget(QWidget* parent)
     : QWidget(parent) {
 
-    m_layout = new QVBoxLayout();
-    m_files  = new QListWidget();
+    m_scrollarea = new QScrollArea(this);
+    m_scrollarea->setWidgetResizable(true);
+
+    auto* scroll_content = new QWidget();
+
+    m_files = new QVBoxLayout(scroll_content);
+    m_files->setSizeConstraint(QLayout::SetMinAndMaxSize);
+    m_files->setContentsMargins(0, 0, 0, 0);
+
+    m_scrollarea->setWidget(scroll_content);
 
     auto* header = new QLabel("Conflicts");
-    QFont font   = header->font();
+
+    QFont font = header->font();
     font.setBold(true);
     font.setPointSize(12);
 
     header->setFont(font);
 
-    m_layout->addWidget(header);
-    m_layout->addWidget(m_files, 1);
+    m_layout = new QVBoxLayout(this);
+    m_layout->setContentsMargins(0, 0, 0, 0);
 
+    m_layout->addWidget(header);
+    m_layout->addWidget(m_scrollarea);
     setLayout(m_layout);
 }
 
-void ConflictWidget::addConflictFile(const std::string& path) {
-    m_files->addItem(QString::fromStdString(path));
+void ConflictWidget::addConflictFile(const std::string& path, const std::string& diff_text) {
+    auto* file = new ConflictFile(QString::fromStdString(path));
+
+    file->setContent(QString::fromStdString(diff_text));
+
+    if (hasConflict()) {
+        auto* line = new QFrame();
+        line->setFrameShape(QFrame::HLine);
+        line->setLineWidth(1);
+        line->setMidLineWidth(0);
+        m_files->addWidget(line);
+    }
+
+    file->updateEditorHeight();
+
+    m_files->addWidget(file);
 }
 
 }

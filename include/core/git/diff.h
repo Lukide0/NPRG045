@@ -5,6 +5,7 @@
 #include <git2/diff.h>
 #include <git2/oid.h>
 #include <git2/types.h>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -134,5 +135,9 @@ inline diff_files_header_t diff_header(const diff_files_t& files) {
         .similarity = files.similarity,
     };
 }
+
+std::optional<std::string> create_conflict_diff(
+    git_repository* repo, const git_index_entry* ancestor, const git_index_entry* ours, const git_index_entry* theirs
+);
 
 }

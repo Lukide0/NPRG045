@@ -2,10 +2,15 @@
 #include "core/conflict/ConflictManager.h"
 #include "core/git/types.h"
 #include "core/utils/unexpected.h"
+
+#include <git2/buffer.h>
 #include <git2/commit.h>
 #include <git2/diff.h>
+#include <git2/patch.h>
 #include <git2/tree.h>
 #include <git2/types.h>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -282,6 +287,52 @@ int diff_line_callback(
     file_hunk.lines.push_back(diff);
 
     return 0;
+}
+
+std::optional<std::string> create_conflict_diff(
+    git_repository* repo, const git_index_entry* ancestor, const git_index_entry* ours, const git_index_entry* theirs
+) {
+    assert(repo != nullptr);
+
+    // handle deletion/addition of file
+    if (ours == nullptr || theirs == nullptr) {
+
+        std::string result;
+        if (ours == nullptr && theirs != nullptr) {
+            result = "<<<<<<< (deleted)\n";
+            result += "=======\n";
+            result += ">>>>>>> their\n";
+            result += "(File exists only in their commit)\n";
+
+        } else if (ours != nullptr && theirs == nullptr) {
+            result = "<<<<<<< ours\n";
+            result += "(File exists only in our commit)\n";
+            result += "=======\n";
+            result += ">>>>>>> (deleted)\n";
+        }
+
+        return result;
+    }
+
+    git_merge_file_result result;
+    git_merge_file_options opts = GIT_MERGE_FILE_OPTIONS_INIT;
+
+    opts.flags |= GIT_MERGE_FILE_STYLE_MERGE;
+
+    int err = git_merge_file_from_index(&result, repo, ancestor, ours, theirs, &opts);
+    if (err != 0) {
+        return std::nullopt;
+    }
+
+    if (result.ptr != nullptr && result.len > 0) {
+        std::string content(result.ptr, result.len);
+
+        git_merge_file_result_free(&result);
+        return content;
+    }
+
+    git_merge_file_result_free(&result);
+    return "";
 }
 
 }

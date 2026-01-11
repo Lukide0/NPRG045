@@ -2,6 +2,7 @@
 
 #include "gui/clear_layout.h"
 #include <QListWidget>
+#include <QScrollArea>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -11,15 +12,16 @@ class ConflictWidget : public QWidget {
 public:
     ConflictWidget(QWidget* parent = nullptr);
 
-    void addConflictFile(const std::string& path);
+    void addConflictFile(const std::string& path, const std::string& diff_text);
 
-    [[nodiscard]] bool isEmpty() const { return m_files->count() == 0; }
+    [[nodiscard]] bool hasConflict() const { return !m_files->isEmpty(); }
 
-    void clearConflicts() { m_files->clear(); }
+    void clearConflicts() { clear_layout(m_files); }
 
 private:
     QVBoxLayout* m_layout;
-    QListWidget* m_files;
+    QScrollArea* m_scrollarea;
+    QVBoxLayout* m_files;
 };
 
 }

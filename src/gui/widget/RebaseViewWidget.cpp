@@ -339,7 +339,18 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
         m_conflict_entries.push_back(conflict_entry);
 
         if (!m_conflict_manager.is_resolved(conflict_entry)) {
-            m_conflict_widget->addConflictFile(path);
+            auto conflict_diff = core::git::create_conflict_diff(m_repo, entry.ancestor, entry.our, entry.their);
+
+            if (!conflict_diff.has_value()) {
+                utils::log_libgit_error();
+                conflict_diff = std::format("Failed to construct diff. Reason: {}", git::get_last_error());
+            }
+
+            assert(conflict_diff.has_value());
+
+            LOG_INFO("Conflict in '{}'", path);
+
+            m_conflict_widget->addConflictFile(path, conflict_diff.value());
         }
 
         return true;
@@ -351,8 +362,8 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
         return ConflictStatus::UNKNOWN;
     }
 
-    // check if all conflicts was resolved
-    if (!m_conflict_widget->isEmpty()) {
+    // check if all conflicts were resolved
+    if (m_conflict_widget->hasConflict()) {
         act->set_tree_status(Action::ConflictStatus::HAS_CONFLICT);
         return ConflictStatus::HAS_CONFLICT;
     }

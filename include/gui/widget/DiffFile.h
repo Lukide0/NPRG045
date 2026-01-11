@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/git/diff.h"
+#include "gui/editor_height.h"
 #include "gui/widget/DiffEditor.h"
 #include <QLabel>
 #include <QString>
@@ -66,15 +67,7 @@ public:
 
     DiffEditor* getEditor() { return m_editor; }
 
-    void updateEditorHeight() {
-        auto* document    = m_editor->document();
-        auto lines        = document->lineCount() + 1;
-        auto line_spacing = m_editor->fontMetrics().lineSpacing();
-        auto margins      = m_editor->contentsMargins();
-        auto height       = (lines * line_spacing) + margins.top() + margins.bottom();
-
-        m_editor->setFixedHeight(height);
-    }
+    void updateEditorHeight() { update_editor_height(m_editor); }
 
 private:
     QVBoxLayout* m_layout;
