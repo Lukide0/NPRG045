@@ -341,16 +341,15 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
         if (!m_conflict_manager.is_resolved(conflict_entry)) {
             auto conflict_diff = core::git::create_conflict_diff(m_repo, entry.ancestor, entry.our, entry.their);
 
-            if (!conflict_diff.has_value()) {
-                utils::log_libgit_error();
-                conflict_diff = std::format("Failed to construct diff. Reason: {}", git::get_last_error());
-            }
-
-            assert(conflict_diff.has_value());
-
             LOG_INFO("Conflict in '{}'", path);
 
-            m_conflict_widget->addConflictFile(path, conflict_diff.value());
+            if (!conflict_diff.has_value()) {
+                utils::log_libgit_error();
+                std::string diff = std::format("Failed to construct diff. Reason: {}", git::get_last_error());
+                m_conflict_widget->addConflictFile(path, diff);
+            } else {
+                m_conflict_widget->addConflictFile(path, conflict_diff.value());
+            }
         }
 
         return true;

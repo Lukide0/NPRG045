@@ -5,6 +5,7 @@ target_sources(${PROJECT_NAME} PRIVATE
         CommitMessageWidget.cpp
 
         ConflictWidget.cpp
+        ${INCLUDE_PATH}/gui/widget/ConflictHighlighter.h
 
         DiffWidget.cpp
         DiffEditor.cpp

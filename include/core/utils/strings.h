@@ -21,6 +21,11 @@ namespace detail {
         constexpr str_array(std::array<char, Size> str)
             : m_str(str) { }
 
+        constexpr str_array(char c) {
+            m_str.fill(c);
+            m_str.back() = '\0';
+        }
+
         constexpr char operator[](std::size_t i) const { return m_str[i]; }
 
         [[nodiscard]] constexpr std::size_t size() const { return Size - 1; }
@@ -104,6 +109,7 @@ namespace detail {
     }
 }
 
-template <std::size_t Size> using comptime_str = detail::str_ref<Size>;
+template <std::size_t Size> using comptime_str       = detail::str_ref<Size>;
+template <std::size_t Size> using comptime_str_array = detail::str_array<Size>;
 
 }

@@ -1,5 +1,6 @@
 #include "gui/widget/ConflictWidget.h"
 #include "gui/widget/ConflictFile.h"
+#include "gui/widget/ConflictHighlighter.h"
 
 #include <QHBoxLayout>
 #include <QLabel>
@@ -51,9 +52,15 @@ void ConflictWidget::addConflictFile(const std::string& path, const std::string&
         m_files->addWidget(line);
     }
 
+    auto* _ = new ConflictHighlighter(file->getDocument());
+
     file->updateEditorHeight();
 
     m_files->addWidget(file);
+}
+
+void ConflictWidget::addConflictFile(const std::string& path, const core::git::conflict_diff_t& diff) {
+    addConflictFile(path, diff.diff);
 }
 
 }

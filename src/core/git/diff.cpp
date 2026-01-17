@@ -289,35 +289,39 @@ int diff_line_callback(
     return 0;
 }
 
-std::optional<std::string> create_conflict_diff(
+std::optional<conflict_diff_t> create_conflict_diff(
     git_repository* repo, const git_index_entry* ancestor, const git_index_entry* ours, const git_index_entry* theirs
 ) {
     assert(repo != nullptr);
 
     // handle deletion/addition of file
     if (ours == nullptr || theirs == nullptr) {
+        conflict_diff_t conflict;
+        conflict.deleted_file = true;
 
-        std::string result;
         if (ours == nullptr && theirs != nullptr) {
-            result = "<<<<<<< (deleted)\n";
-            result += "=======\n";
-            result += ">>>>>>> their\n";
-            result += "(File exists only in their commit)\n";
+            conflict.diff = "<<<<<<< (deleted)\n";
+            conflict.diff += "=======\n";
+            conflict.diff += "(File exists only in their commit)\n";
+            conflict.diff += ">>>>>>> their\n";
 
         } else if (ours != nullptr && theirs == nullptr) {
-            result = "<<<<<<< ours\n";
-            result += "(File exists only in our commit)\n";
-            result += "=======\n";
-            result += ">>>>>>> (deleted)\n";
+            conflict.diff = "<<<<<<< ours\n";
+            conflict.diff += "(File exists only in our commit)\n";
+            conflict.diff += "=======\n";
+            conflict.diff += ">>>>>>> (deleted)\n";
         }
 
-        return result;
+        return conflict;
     }
 
     git_merge_file_result result;
     git_merge_file_options opts = GIT_MERGE_FILE_OPTIONS_INIT;
 
     opts.flags |= GIT_MERGE_FILE_STYLE_MERGE;
+    opts.our_label      = "ours";
+    opts.ancestor_label = "base";
+    opts.their_label    = "theirs";
 
     int err = git_merge_file_from_index(&result, repo, ancestor, ours, theirs, &opts);
     if (err != 0) {
@@ -325,14 +329,17 @@ std::optional<std::string> create_conflict_diff(
     }
 
     if (result.ptr != nullptr && result.len > 0) {
-        std::string content(result.ptr, result.len);
+        conflict_diff_t conflict {
+            .diff { result.ptr, result.len },
+            .deleted_file = false,
+        };
 
         git_merge_file_result_free(&result);
-        return content;
+        return conflict;
     }
 
     git_merge_file_result_free(&result);
-    return "";
+    return std::nullopt;
 }
 
 }

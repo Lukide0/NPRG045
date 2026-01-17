@@ -117,6 +117,11 @@ struct diff_files_header_t {
     std::uint16_t similarity;
 };
 
+struct conflict_diff_t {
+    std::string diff;
+    bool deleted_file = false;
+};
+
 diff_result_t
 prepare_diff(git_tree* old_tree, git_tree* new_tree, git_repository* repo, const git_diff_options* opts = nullptr);
 
@@ -136,7 +141,7 @@ inline diff_files_header_t diff_header(const diff_files_t& files) {
     };
 }
 
-std::optional<std::string> create_conflict_diff(
+std::optional<conflict_diff_t> create_conflict_diff(
     git_repository* repo, const git_index_entry* ancestor, const git_index_entry* ours, const git_index_entry* theirs
 );
 

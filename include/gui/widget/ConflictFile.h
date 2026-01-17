@@ -37,6 +37,8 @@ public:
 
     void setContent(const QString& content) { m_editor->setPlainText(content); }
 
+    QTextDocument* getDocument() { return m_editor->document(); }
+
     void updateEditorHeight() { update_editor_height(m_editor); }
 
 private:

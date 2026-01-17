@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/git/diff.h"
 #include "gui/clear_layout.h"
 #include <QListWidget>
 #include <QScrollArea>
@@ -13,6 +14,7 @@ public:
     ConflictWidget(QWidget* parent = nullptr);
 
     void addConflictFile(const std::string& path, const std::string& diff_text);
+    void addConflictFile(const std::string& path, const core::git::conflict_diff_t& diff);
 
     [[nodiscard]] bool hasConflict() const { return !m_files->isEmpty(); }
 
