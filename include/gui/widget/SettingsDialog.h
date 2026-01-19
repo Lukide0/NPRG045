@@ -41,7 +41,7 @@ private:
 
         auto* change_btn = new QPushButton(text);
         change_btn->setCursor(Qt::PointingHandCursor);
-        change_btn->setMaximumWidth(100);
+        change_btn->setMaximumWidth(120);
 
         auto* load_default_btn = new QPushButton("Reset to default");
 
