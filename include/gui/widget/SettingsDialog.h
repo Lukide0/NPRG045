@@ -32,9 +32,11 @@ private:
     void saveSettings();
     void applySettings();
 
-    static void updateButton(QPushButton* btn, const QColor& color);
+    static void updateButton(QPushButton* btn, const QColor& color, QPalette::ColorRole role = QPalette::ButtonText);
 
-    template <typename T> QLayout* create_color_picker(const QString& text, T::Style style) {
+    template <typename T, bool Background = false> QLayout* create_color_picker(const QString& text, T::Style style) {
+        constexpr QPalette::ColorRole role = (Background) ? QPalette::Button : QPalette::ButtonText;
+
         QColor color = T::get_color(style);
 
         auto* layout = new QHBoxLayout();
@@ -45,7 +47,7 @@ private:
 
         auto* load_default_btn = new QPushButton("Reset to default");
 
-        updateButton(change_btn, color);
+        updateButton(change_btn, color, role);
 
         layout->addWidget(change_btn);
         layout->addWidget(load_default_btn);
@@ -57,7 +59,7 @@ private:
             }
 
             T::set_color(style, new_color);
-            updateButton(change_btn, new_color);
+            updateButton(change_btn, new_color, role);
 
             T::emit_changed_signal();
         });
@@ -66,7 +68,7 @@ private:
             QColor default_color = T::get_default_color(style);
 
             T::set_color(style, default_color);
-            updateButton(change_btn, default_color);
+            updateButton(change_btn, default_color, role);
 
             T::emit_changed_signal();
         });

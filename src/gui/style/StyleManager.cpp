@@ -12,11 +12,13 @@ StyleManager& StyleManager::get() {
 }
 
 void StyleManager::load_styles(QSettings& settings) {
+    m_global_style.load(settings);
     m_conflict_style.load(settings);
     m_diff_style.load(settings);
 }
 
 void StyleManager::save_styles(QSettings& settings) const {
+    m_global_style.save(settings);
     m_conflict_style.save(settings);
     m_diff_style.save(settings);
 }

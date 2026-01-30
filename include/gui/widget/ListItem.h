@@ -84,8 +84,6 @@ private:
     action::Action& m_action;
     core::conflict::ConflictStatus m_conflict;
 
-    QColor m_original_highlight;
-
     RebaseViewWidget* m_rebase;
     QListWidget* m_parent;
     int m_row;

@@ -12,10 +12,13 @@
 #include "core/git/parser.h"
 #include "core/git/types.h"
 #include "core/state/CommandHistory.h"
+#include "core/task/task.h"
 #include "core/utils/debug.h"
 #include "core/utils/todo.h"
 #include "core/utils/unexpected.h"
 #include "gui/color.h"
+#include "gui/style/GlobalStyle.h"
+#include "gui/style/StyleManager.h"
 #include "gui/widget/CommitViewWidget.h"
 #include "gui/widget/ConflictDialog.h"
 #include "gui/widget/DiffWidget.h"
@@ -76,6 +79,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     , m_graph(core::git::GitGraph<Node*>::empty())
     , m_actions(action::ActionsManager::get())
     , m_conflict_manager(core::conflict::ConflictManager::get()) {
+    using style::GlobalStyle;
 
     m_actions.clear();
 
@@ -144,9 +148,16 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     diff_commit_split->setStretchFactor(1, 0);
 
     auto palette = m_list_actions->palette();
-    palette.setColor(QPalette::Highlight, get_highlight_color());
-
+    palette.setColor(QPalette::Highlight, GlobalStyle::get_color(GlobalStyle::HIGHLIGHT));
     m_list_actions->setPalette(palette);
+
+    connect(&style::StyleManager::get_global_style(), &GlobalStyle::changed, this, [this]() {
+        auto p = m_list_actions->palette();
+        auto c = GlobalStyle::get_color(GlobalStyle::HIGHLIGHT);
+        LOG_INFO("Color: {}, {}, {}", c.red(), c.green(), c.blue());
+        p.setColor(QPalette::Highlight, GlobalStyle::get_color(GlobalStyle::HIGHLIGHT));
+        m_list_actions->setPalette(p);
+    });
 
     connect(m_list_actions, &QListWidget::itemSelectionChanged, this, [this]() { changeItemSelection(); });
 
@@ -759,10 +770,6 @@ Node* RebaseViewWidget::findOldCommit(const git_oid& oid) {
 
 void RebaseViewWidget::prepareItem(ListItem* item, Action& action) {
     QString item_text;
-    item_text += " [";
-    item_text += QString::fromStdString(core::git::format_oid_to_str<7>(&action.get_oid()));
-    item_text += "]: ";
-
     item->setConflict(action.get_tree_status());
 
     switch (action.get_type()) {
@@ -1030,4 +1037,5 @@ bool RebaseViewWidget::markResolved() {
 
     return true;
 }
+
 }

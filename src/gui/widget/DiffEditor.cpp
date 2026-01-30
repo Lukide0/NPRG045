@@ -43,9 +43,17 @@ DiffEditor::DiffEditor(const core::git::diff_files_t& diff, QWidget* parent)
     setReadOnly(true);
 
     auto pal = palette();
-    pal.setColor(QPalette::Highlight, get_highlight_color());
+    pal.setColor(QPalette::Highlight, style::GlobalStyle::get_color(style::GlobalStyle::HIGHLIGHT));
 
     setPalette(pal);
+
+    connect(&style::StyleManager::get_global_style(), &style::GlobalStyle::changed, this, [this]() {
+        auto p = this->palette();
+        p.setColor(QPalette::Highlight, style::GlobalStyle::get_color(style::GlobalStyle::HIGHLIGHT));
+        this->setPalette(p);
+
+        onSelectionChanged();
+    });
 }
 
 int DiffEditor::diffLineWidth() {

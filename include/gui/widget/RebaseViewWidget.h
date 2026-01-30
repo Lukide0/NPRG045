@@ -6,6 +6,7 @@
 #include "core/git/GitGraph.h"
 #include "core/git/parser.h"
 #include "core/git/types.h"
+#include "core/task/task.h"
 #include "gui/widget/CommitViewWidget.h"
 #include "gui/widget/ConflictWidget.h"
 #include "gui/widget/DiffWidget.h"
@@ -66,7 +67,6 @@ public:
 
     QListWidget* getList() { return m_list_actions; }
 
-public:
     void moveActionDown() { moveSelectedAction(true); }
 
     void moveActionUp() { moveSelectedAction(false); }
@@ -105,6 +105,7 @@ private:
 
     action::Action* m_cherrypick = nullptr;
 
+    /* Conflict */
     struct {
         action::Action* action;
         action::Action* parent_action;
@@ -115,6 +116,7 @@ private:
     std::vector<std::string> m_conflict_paths;
     std::vector<core::conflict::ConflictEntry> m_conflict_entries;
 
+private:
     void prepareItem(ListItem* item, action::Action& action);
 
     void prepareActions();

@@ -23,9 +23,9 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     setup();
 }
 
-void SettingsDialog::updateButton(QPushButton* btn, const QColor& color) {
+void SettingsDialog::updateButton(QPushButton* btn, const QColor& color, QPalette::ColorRole role) {
     QPalette p = btn->palette();
-    p.setColor(QPalette::ButtonText, color);
+    p.setColor(role, color);
     btn->setPalette(p);
 }
 
@@ -62,11 +62,23 @@ void SettingsDialog::setupShortcuts() {
 void SettingsDialog::setupColors() {
     using style::ConflictStyle;
     using style::DiffStyle;
+    using style::GlobalStyle;
 
     auto* tab          = new QWidget();
     auto* color_layout = new QVBoxLayout(tab);
 
     m_tabs->addTab(tab, "Colors");
+
+    // global colors
+    {
+        auto* global_colors_group  = new QGroupBox("Colors");
+        auto* global_colors_layout = new QFormLayout(global_colors_group);
+
+        auto* global_highlight = create_color_picker<GlobalStyle, true>("Text", GlobalStyle::HIGHLIGHT);
+
+        global_colors_layout->addRow("Highlight:", global_highlight);
+        color_layout->addWidget(global_colors_group);
+    }
 
     // diff colors
     {
@@ -139,6 +151,7 @@ void SettingsDialog::applySettings() {
     // update styles
     style_manager.diff_style().emit_changed();
     style_manager.conflict_style().emit_changed();
+    style_manager.global_style().emit_changed();
 }
 
 void SettingsDialog::onApply() {

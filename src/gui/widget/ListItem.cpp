@@ -46,9 +46,7 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
     m_layout->addWidget(m_combo);
     m_layout->addWidget(m_text, 1);
 
-    auto pal             = m_text->palette();
-    m_original_highlight = pal.color(QPalette::Text);
-
+    auto pal = m_text->palette();
     setLayout(m_layout);
 
     auto combo_index = indexOf(action.get_type());

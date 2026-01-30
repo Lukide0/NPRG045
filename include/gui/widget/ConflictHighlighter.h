@@ -2,6 +2,7 @@
 
 #include "core/utils/strings.h"
 #include "gui/style/ConflictStyle.h"
+#include "gui/style/StyleManager.h"
 #include "logging/Log.h"
 
 #include <git2/merge.h>
@@ -20,6 +21,10 @@ public:
         using Style = style::ConflictStyle::Style;
 
         m_style.setForeground(ConflictStyle::get_color(Style::CONFLICT));
+        connect(&style::StyleManager::get_conflict_style(), &style::ConflictStyle::changed, this, [this]() {
+            m_style.setForeground(ConflictStyle::get_color(Style::CONFLICT));
+            rehighlight();
+        });
     }
 
 private:

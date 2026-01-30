@@ -6,4 +6,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 
     ConflictStyle.cpp
     ${INCLUDE_PATH}/gui/style/ConflictStyle.h
+
+    GlobalStyle.cpp
+    ${INCLUDE_PATH}/gui/style/GlobalStyle.h
 )
