@@ -115,6 +115,7 @@ private:
 
     std::vector<std::string> m_conflict_paths;
     std::vector<core::conflict::ConflictEntry> m_conflict_entries;
+    std::vector<git_oid> m_conflict_files;
 
 private:
     void prepareItem(ListItem* item, action::Action& action);
@@ -140,6 +141,8 @@ private:
     void showConflict(Node* node);
 
     void updateConflictList(action::Action* start);
+
+    void updateConflictMarkers();
 
     ListItem::ConflictStatus updateConflictAction(action::Action* act);
 

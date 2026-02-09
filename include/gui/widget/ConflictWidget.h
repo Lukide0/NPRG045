@@ -16,11 +16,15 @@ public:
     void addConflictFile(const std::string& path, const std::string& diff_text);
     void addConflictFile(const std::string& path, const core::git::conflict_diff_t& diff);
 
-    [[nodiscard]] bool hasConflict() const { return !m_files->isEmpty(); }
+    [[nodiscard]] bool hasConflict() const { return m_conflicts != 0; }
 
-    void clearConflicts() { clear_layout(m_files); }
+    void clearConflicts() {
+        clear_layout(m_files);
+        m_conflicts = 0;
+    }
 
 private:
+    std::uint32_t m_conflicts = 0;
     QVBoxLayout* m_layout;
     QScrollArea* m_scrollarea;
     QVBoxLayout* m_files;

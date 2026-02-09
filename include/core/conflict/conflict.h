@@ -25,6 +25,22 @@ enum class ConflictStatus {
     RESOLVED_CONFLICT,
 };
 
+constexpr const char* conflict_to_string(ConflictStatus status) {
+    switch (status) {
+    case ConflictStatus::ERR:
+        return "Error";
+    case ConflictStatus::HAS_CONFLICT:
+        return "Has conflict";
+    case ConflictStatus::NO_CONFLICT:
+        return "No conflict";
+    case ConflictStatus::RESOLVED_CONFLICT:
+        return "Resolved conflict";
+    case ConflictStatus::UNKNOWN:
+    default:
+        return "Unknown";
+    }
+}
+
 struct ResolutionResult {
     std::optional<std::string> err;
     git_oid id;
@@ -42,6 +58,14 @@ ResolutionResult add_resolved_files(
     std::span<const std::string> paths,
     std::span<const ConflictEntry> entries,
     ConflictManager& manager
+);
+
+bool iterate_actions(
+    action::Action& conflict_action,
+    git_repository* repo,
+    std::span<const git_oid> files,
+    std::function<bool(bool, std::uint32_t, void*)> callback,
+    void* payload
 );
 
 }

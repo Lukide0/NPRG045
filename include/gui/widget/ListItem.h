@@ -3,7 +3,6 @@
 #include "action/Action.h"
 #include "core/conflict/conflict.h"
 #include "core/state/Command.h"
-#include "gui/color.h"
 #include "gui/widget/graph/Node.h"
 #include "logging/Log.h"
 
@@ -18,7 +17,6 @@
 
 #include <array>
 #include <cassert>
-#include <vector>
 
 namespace gui::widget {
 
@@ -76,6 +74,18 @@ public:
         m_combo->blockSignals(false);
     }
 
+    void showConflictMarker() { setConflictMarker(true); }
+
+    void hideConflictMarker() { setConflictMarker(false); }
+
+    void setConflictMarker(bool visible) {
+        if (visible) {
+            m_marker->show();
+        } else {
+            m_marker->hide();
+        }
+    }
+
 protected:
     void keyPressEvent(QKeyEvent* event) override;
 
@@ -89,9 +99,12 @@ private:
     int m_row;
 
     QLabel* m_text;
+    QLabel* m_marker;
     QHBoxLayout* m_layout;
 
     QComboBox* m_combo;
+
+    void updateMarkerColor();
 };
 
 class ListItemMoveCommand : public core::state::Command {

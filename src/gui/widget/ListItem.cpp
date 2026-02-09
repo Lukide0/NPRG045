@@ -36,6 +36,14 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
         m_combo->addItem(action::type_to_str(item), static_cast<int>(item));
     }
 
+    m_marker = new QLabel();
+    m_marker->setFixedSize(16, 16);
+    m_marker->setToolTip("This commit modifies conflicted file");
+    m_marker->setText("●");
+    m_marker->setContentsMargins(2, 0, 0, 0);
+
+    hideConflictMarker();
+
     m_text = new QLabel();
     m_text->setMargin(0);
     m_text->setContentsMargins(0, 0, 0, 0);
@@ -43,14 +51,21 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
     m_layout = new QHBoxLayout();
     m_layout->setSizeConstraint(QLayout::SetMinAndMaxSize);
     m_layout->setContentsMargins(2, 2, 2, 2);
+    m_layout->addWidget(m_marker);
     m_layout->addWidget(m_combo);
     m_layout->addWidget(m_text, 1);
 
-    auto pal = m_text->palette();
     setLayout(m_layout);
 
     auto combo_index = indexOf(action.get_type());
     m_combo->setCurrentIndex(combo_index);
+
+    // set default color
+    updateMarkerColor();
+
+    connect(&style::StyleManager::get_conflict_style(), &style::ConflictStyle::changed, this, [this]() {
+        updateMarkerColor();
+    });
 
     connect(m_combo, &QComboBox::currentIndexChanged, this, [this](int index) {
         assert(index != -1);
@@ -77,6 +92,12 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
     connect(&style::StyleManager::get_conflict_style(), &style::ConflictStyle::changed, this, [this]() {
         this->setConflict(m_conflict);
     });
+}
+
+void ListItem::updateMarkerColor() {
+    auto p = m_marker->palette();
+    p.setColor(QPalette::Text, style::ConflictStyle::get_color(style::ConflictStyle::CONFLICT));
+    m_marker->setPalette(p);
 }
 
 void ListItem::setConflict(ConflictStatus status) {

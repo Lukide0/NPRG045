@@ -240,16 +240,57 @@ void RebaseViewWidget::showConflict(Node* node) {
     m_resolve_conflicts_btn->setEnabled(true);
 }
 
+void RebaseViewWidget::updateConflictMarkers() {
+    if (m_cherrypick == nullptr || m_cherrypick->get_prev() == nullptr) {
+        return;
+    }
+
+    LOG_INFO("Updating conflict markers");
+
+    // clear markers
+    for (std::int32_t i = 0; i < m_list_actions->count(); ++i) {
+        auto* item = getListItem(i);
+        assert(item != nullptr);
+        item->hideConflictMarker();
+    }
+
+    core::conflict::iterate_actions(
+        *m_cherrypick,
+        m_repo,
+        m_conflict_files,
+        [this](bool conflict, std::uint32_t action_id, void*) -> bool {
+            if (conflict) {
+                auto* item = getListItem(action_id);
+                if (item != nullptr) {
+                    item->showConflictMarker();
+                }
+            }
+            return false;
+        },
+        nullptr
+    );
+}
+
 void RebaseViewWidget::updateConflictList(Action* start) {
+    using core::conflict::ConflictStatus;
+
     if (start == nullptr) {
         start = getActionsManager().get_action(0);
     } else {
-        start = start->get_next();
+        switch (start->get_tree_status()) {
+        case ConflictStatus::UNKNOWN:
+        case ConflictStatus::ERR:
+            start = getActionsManager().get_action(0);
+            break;
+
+        case ConflictStatus::HAS_CONFLICT:
+        case ConflictStatus::NO_CONFLICT:
+        case ConflictStatus::RESOLVED_CONFLICT:
+            break;
+        }
     }
 
-    Action* act = start;
-
-    for (; act != nullptr; act = act->get_next()) {
+    for (Action* act = start; act != nullptr; act = act->get_next()) {
         updateConflictAction(act);
     }
 }
@@ -319,8 +360,11 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
     m_conflict_widget->clearConflicts();
     m_conflict_paths.clear();
     m_conflict_entries.clear();
+    m_conflict_files.clear();
 
+    // clang-format off
     bool iterator_status = conflict::iterate(m_conflict_index.get(), [this](conflict::entry_data_t entry) -> bool {
+
         const char* path = nullptr;
 
         conflict::ConflictEntry conflict_entry;
@@ -332,6 +376,8 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
 
         if (entry.their != nullptr) {
             conflict_entry.their_id = git_oid_tostr_s(&entry.their->id);
+
+            m_conflict_files.push_back(entry.their->id);
 
             if (path == nullptr) {
                 path = entry.their->path;
@@ -365,6 +411,7 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
 
         return true;
     });
+    // clang-format on
 
     if (!iterator_status) {
         utils::log_libgit_error();
@@ -416,6 +463,7 @@ void RebaseViewWidget::moveAction(int from, int to) {
     updateConflictList(update_start);
 
     updateGraph();
+    updateConflictMarkers();
 }
 
 void RebaseViewWidget::moveSelectedAction(bool down) {
@@ -656,9 +704,10 @@ RebaseViewWidget::update(git_repository* repo, const std::string& head, const st
 void RebaseViewWidget::prepareActions() {
 
     prepareGraph();
-    updateConflictList(nullptr);
 
     m_list_actions->clear();
+
+    updateConflictList(nullptr);
 
     auto* list = m_list_actions;
     for (auto& action : m_actions) {
@@ -672,6 +721,8 @@ void RebaseViewWidget::prepareActions() {
         list->addItem(item);
         list->setItemWidget(item, action_item);
     }
+
+    updateConflictMarkers();
 }
 
 void RebaseViewWidget::prepareGraph() {

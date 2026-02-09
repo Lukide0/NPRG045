@@ -57,6 +57,7 @@ void ConflictWidget::addConflictFile(const std::string& path, const std::string&
     file->updateEditorHeight();
 
     m_files->addWidget(file);
+    m_conflicts += 1;
 }
 
 void ConflictWidget::addConflictFile(const std::string& path, const core::git::conflict_diff_t& diff) {

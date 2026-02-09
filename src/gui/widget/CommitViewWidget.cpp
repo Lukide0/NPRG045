@@ -118,7 +118,10 @@ void CommitViewWidget::createRows() {
     }
     auto time_str = ss.str();
 
-    m_info_layout->addRow("Hash:", new QLabel(hash.c_str()));
+    auto* label_hash = new QLabel(hash.c_str());
+    label_hash->setTextInteractionFlags(Qt::TextInteractionFlag::TextSelectableByMouse);
+
+    m_info_layout->addRow("Hash:", label_hash);
     m_info_layout->addRow("Author:", new QLabel(autor->name));
     m_info_layout->addRow("Date:", new QLabel(time_str.c_str()));
     m_info_layout->addRow("Message:", m_msg);

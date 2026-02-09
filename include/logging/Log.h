@@ -30,7 +30,7 @@ public:
     }
 
     static void warn(const std::string& msg, std::source_location location = std::source_location::current()) {
-        message(std::cerr, Type::ERR, msg, location);
+        message(std::cerr, Type::WARN, msg, location);
     }
 
 private:
