@@ -217,7 +217,7 @@ void RebaseViewWidget::showConflict(Node* node) {
 
     m_resolve_conflicts_btn->setEnabled(false);
 
-    if (node == nullptr) {
+    if (node == nullptr || node->getAction() == nullptr) {
         m_conflict_widget->hide();
         return;
     }
@@ -275,12 +275,12 @@ void RebaseViewWidget::updateConflictList(Action* start) {
     using core::conflict::ConflictStatus;
 
     if (start == nullptr) {
-        start = getActionsManager().get_action(0);
+        start = getActionsManager().get_first_action();
     } else {
         switch (start->get_tree_status()) {
         case ConflictStatus::UNKNOWN:
         case ConflictStatus::ERR:
-            start = getActionsManager().get_action(0);
+            start = getActionsManager().get_first_action();
             break;
 
         case ConflictStatus::HAS_CONFLICT:
@@ -733,6 +733,8 @@ void RebaseViewWidget::prepareGraph() {
     m_root_node     = last_node.data;
 
     last->setCommit(last_node.commit);
+    last->setAction(m_actions.get_first_action());
+
     m_actions.set_root_commit(last_node.commit);
 
     m_last_node = last;

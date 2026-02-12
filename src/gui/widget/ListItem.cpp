@@ -57,15 +57,20 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
 
     setLayout(m_layout);
 
-    auto combo_index = indexOf(action.get_type());
-    m_combo->setCurrentIndex(combo_index);
+    m_combo->setFocusPolicy(Qt::NoFocus);
+
+    {
+        m_combo->blockSignals(true);
+
+        auto combo_index = indexOf(action.get_type());
+        m_combo->setCurrentIndex(combo_index);
+        m_combo->blockSignals(false);
+    }
 
     // set default color
     updateMarkerColor();
 
-    connect(&style::StyleManager::get_conflict_style(), &style::ConflictStyle::changed, this, [this]() {
-        updateMarkerColor();
-    });
+    connect(m_combo, &QComboBox::activated, this, [this]() { this->setFocus(Qt::OtherFocusReason); });
 
     connect(m_combo, &QComboBox::currentIndexChanged, this, [this](int index) {
         assert(index != -1);
@@ -90,7 +95,8 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
     });
 
     connect(&style::StyleManager::get_conflict_style(), &style::ConflictStyle::changed, this, [this]() {
-        this->setConflict(m_conflict);
+        setConflict(m_conflict);
+        updateMarkerColor();
     });
 }
 

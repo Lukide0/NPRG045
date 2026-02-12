@@ -254,6 +254,8 @@ public:
 
     git_commit* get_root_commit() { return m_root_commit; }
 
+    Action* get_first_action() { return m_head; }
+
     void set_root_commit(git_commit* commit) { m_root_commit = commit; }
 
     static void swap_commits(Action* act, core::git::commit_t& commit) { std::swap(act->m_commit, commit); }
