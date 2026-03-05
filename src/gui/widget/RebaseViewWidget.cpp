@@ -12,7 +12,6 @@
 #include "core/git/parser.h"
 #include "core/git/types.h"
 #include "core/state/CommandHistory.h"
-#include "core/task/task.h"
 #include "core/utils/debug.h"
 #include "core/utils/todo.h"
 #include "core/utils/unexpected.h"

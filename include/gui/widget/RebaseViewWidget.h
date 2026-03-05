@@ -6,7 +6,6 @@
 #include "core/git/GitGraph.h"
 #include "core/git/parser.h"
 #include "core/git/types.h"
-#include "core/task/task.h"
 #include "gui/widget/CommitViewWidget.h"
 #include "gui/widget/ConflictWidget.h"
 #include "gui/widget/DiffWidget.h"
