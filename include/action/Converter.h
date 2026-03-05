@@ -10,8 +10,12 @@ class Converter {
 public:
     Converter() = delete;
 
-    static bool
-    actions_to_todo(std::ostream& output, ActionsManager& manager, core::conflict::ConflictManager& conflict_manager);
+    static bool actions_to_todo(
+        std::ostream& output,
+        ActionsManager& manager,
+        core::conflict::ConflictManager& conflict_manager,
+        bool insert_break = false
+    );
 };
 
 }

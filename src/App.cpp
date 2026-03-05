@@ -315,23 +315,33 @@ App::SaveStatus App::maybeSave() {
     }
 
     if (m_cli_start) {
-        auto ans = QMessageBox::warning(
-            this,
-            "Save Rebase Plan",
-            "Do you want to save your changes to the rebase plan? This file tells git how to replay your commits "
-            "during the rebase.",
-            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
-            QMessageBox::Save
-        );
+        QMessageBox msg(this);
+        msg.setWindowTitle("Execute Rebase Plan");
+        msg.setText("Do you want to execute your rebase plan?");
+        msg.setIcon(QMessageBox::Warning);
 
-        if (ans == QMessageBox::Save) {
+        auto* save_exec_btn = msg.addButton("Save && Execute", QMessageBox::AcceptRole);
+        auto* save_btn      = msg.addButton("Save", QMessageBox::ActionRole);
+        auto* discard_btn   = msg.addButton("Discard", QMessageBox::ActionRole);
+        auto* cancel_btn    = msg.addButton("Cancel", QMessageBox::RejectRole);
+
+        msg.setDefaultButton(save_exec_btn);
+        msg.exec();
+
+        auto* clicked = msg.clickedButton();
+
+        if (clicked == save_exec_btn) {
             if (!saveTodoFile()) {
                 status = SaveStatus::CANCEL;
             }
-        } else if (ans == QMessageBox::Cancel) {
-            status = SaveStatus::CANCEL;
-        } else if (ans == QMessageBox::Discard) {
+        } else if (clicked == save_btn) {
+            if (!saveTodoFile(true)) {
+                status = SaveStatus::CANCEL;
+            }
+        } else if (clicked == discard_btn) {
             status = SaveStatus::DISCARD;
+        } else if (clicked == cancel_btn || clicked == nullptr) {
+            status = SaveStatus::CANCEL;
         }
     }
 
@@ -563,7 +573,7 @@ bool App::loadSaveFile() {
     return true;
 }
 
-bool App::saveTodoFile() {
+bool App::saveTodoFile(bool insert_break) {
     std::string head;
     std::string onto;
 
@@ -613,7 +623,8 @@ bool App::saveTodoFile() {
     LOG_INFO("Saving todo file: {}", filepath);
 
     auto& manager = action::ActionsManager::get();
-    bool status   = action::Converter::actions_to_todo(todo_file, manager, core::conflict::ConflictManager::get());
+    bool status
+        = action::Converter::actions_to_todo(todo_file, manager, core::conflict::ConflictManager::get(), insert_break);
 
     if (!status) {
         QMessageBox::critical(this, "Save Error", "Failed to save rebase instructions.");

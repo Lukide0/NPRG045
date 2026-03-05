@@ -126,7 +126,7 @@ void fixup_to_todo(std::ostream& output, ActionInfo& info) {
 }
 
 bool Converter::actions_to_todo(
-    std::ostream& output, ActionsManager& manager, core::conflict::ConflictManager& conflict_manager
+    std::ostream& output, ActionsManager& manager, core::conflict::ConflictManager& conflict_manager, bool insert_break
 ) {
     ConverterContext ctx;
     ctx.root = manager.get_root_commit();
@@ -135,6 +135,10 @@ bool Converter::actions_to_todo(
 
     ctx.last_commit = ctx.root;
     ctx.repo        = git_commit_owner(ctx.root);
+
+    if (insert_break) {
+        output << "break\n";
+    }
 
     for (auto& act : manager) {
         auto&& [info, status] = get_action_info(ctx, act, manager, conflict_manager);

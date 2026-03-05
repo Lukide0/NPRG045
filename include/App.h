@@ -94,7 +94,7 @@ private:
     void hideResultCommits(bool state);
 
     bool loadSaveFile();
-    bool saveTodoFile();
+    bool saveTodoFile(bool insert_break = false);
     bool saveSaveFile(bool choose_file);
 
     SaveStatus maybeSave();
