@@ -3,7 +3,6 @@
 #include "core/utils/strings.h"
 #include "gui/style/ConflictStyle.h"
 #include "gui/style/StyleManager.h"
-#include "logging/Log.h"
 
 #include <git2/merge.h>
 #include <QSyntaxHighlighter>
@@ -41,7 +40,7 @@ private:
 
     void highlightBlock(const QString& text) override {
 
-        if (text.startsWith(START_BLOCK_MARKER.c_str())) {
+        if (text.startsWith(QString::fromUtf8(START_BLOCK_MARKER.ptr(), START_BLOCK_MARKER.size()))) {
             setFormat(0, text.length(), m_style);
             setCurrentBlockState(CONFLICT_BLOCK);
             return;
@@ -50,7 +49,7 @@ private:
         if (previousBlockState() == CONFLICT_BLOCK) {
             setFormat(0, text.length(), m_style);
 
-            if (text.startsWith(END_BLOCK_MARKER.c_str())) {
+            if (text.startsWith(QString::fromUtf8(END_BLOCK_MARKER.ptr(), END_BLOCK_MARKER.size()))) {
                 setCurrentBlockState(NORMAL_BLOCK);
             } else {
                 setCurrentBlockState(CONFLICT_BLOCK);
