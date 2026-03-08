@@ -240,10 +240,6 @@ void RebaseViewWidget::showConflict(Node* node) {
 }
 
 void RebaseViewWidget::updateConflictMarkers() {
-    if (m_cherrypick == nullptr || m_cherrypick->get_prev() == nullptr) {
-        return;
-    }
-
     LOG_INFO("Updating conflict markers");
 
     // clear markers
@@ -251,6 +247,10 @@ void RebaseViewWidget::updateConflictMarkers() {
         auto* item = getListItem(i);
         assert(item != nullptr);
         item->hideConflictMarker();
+    }
+
+    if (m_cherrypick == nullptr || m_cherrypick->get_prev() == nullptr) {
+        return;
     }
 
     core::conflict::iterate_actions(
@@ -288,6 +288,12 @@ void RebaseViewWidget::updateConflictList(Action* start) {
             break;
         }
     }
+
+    // prepare conflict widget
+    m_conflict_widget->clearConflicts();
+    m_conflict_paths.clear();
+    m_conflict_entries.clear();
+    m_conflict_files.clear();
 
     for (Action* act = start; act != nullptr; act = act->get_next()) {
         updateConflictAction(act);
@@ -355,7 +361,7 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
     m_conflict_index = std::move(conflict_index);
     m_cherrypick     = act;
 
-    // prepare conflict widget
+    // update conflict widget
     m_conflict_widget->clearConflicts();
     m_conflict_paths.clear();
     m_conflict_entries.clear();
