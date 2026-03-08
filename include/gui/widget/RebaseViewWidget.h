@@ -117,6 +117,8 @@ private:
     std::vector<git_oid> m_conflict_files;
 
 private:
+    std::optional<std::string> prepareGitGraph(git_repository* repo, const std::string& head, const std::string& onto);
+
     void prepareItem(ListItem* item, action::Action& action);
 
     void prepareActions();
