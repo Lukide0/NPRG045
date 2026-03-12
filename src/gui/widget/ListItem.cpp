@@ -191,6 +191,7 @@ void ListItemChangedCommand::set_type(ActionType type) {
     list_item->setActionTypeNoSignal(type);
 
     App::updateGraph();
+    App::updateActions();
 }
 
 }
