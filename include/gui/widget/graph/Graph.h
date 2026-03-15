@@ -13,23 +13,7 @@ namespace gui::widget {
 
 class GraphWidget : public QGraphicsView {
 public:
-    GraphWidget(QWidget* parent = nullptr)
-        : QGraphicsView(parent) {
-
-        auto* scene = new QGraphicsScene(this);
-        scene->setItemIndexMethod(QGraphicsScene::NoIndex);
-        scene->setSceneRect(0, 0, 100, 100);
-        setScene(scene);
-
-        setRenderHint(QPainter::RenderHint::Antialiasing);
-        setTransformationAnchor(AnchorUnderMouse);
-        setAlignment(Qt::AlignLeft | Qt::AlignTop);
-        setVerticalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOn);
-        setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
-
-        scale(qreal(0.95), qreal(0.95));
-        setViewportMargins(0, 0, 10, 0);
-    }
+    GraphWidget(QWidget* parent = nullptr);
 
     ~GraphWidget() override = default;
 

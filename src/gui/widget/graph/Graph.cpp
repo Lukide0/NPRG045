@@ -11,8 +11,31 @@
 
 namespace gui::widget {
 
+GraphWidget::GraphWidget(QWidget* parent)
+    : QGraphicsView(parent) {
+
+    auto* scene = new QGraphicsScene(this);
+    scene->setItemIndexMethod(QGraphicsScene::NoIndex);
+    scene->setSceneRect(0, 0, 100, 100);
+    setScene(scene);
+
+    setRenderHint(QPainter::RenderHint::Antialiasing);
+    setTransformationAnchor(AnchorUnderMouse);
+    setAlignment(Qt::AlignLeft | Qt::AlignTop);
+    setVerticalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOn);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
+
+    scale(qreal(0.95), qreal(0.95));
+    setViewportMargins(0, 0, 10, 0);
+}
+
 Node* GraphWidget::addNode(std::uint32_t y) {
     auto* node = new Node(this);
+
+    auto scene_rect  = mapToScene(viewport()->rect()).boundingRect();
+    auto scene_width = scene_rect.width();
+    node->setWidth(scene_width);
+
     scene()->addItem(node);
 
     auto node_height = node->boundingRect().height();
@@ -90,11 +113,12 @@ void GraphWidget::resizeEvent(QResizeEvent* event) {
     if (s == nullptr) {
         return;
     }
+    auto scene_rect  = mapToScene(viewport()->rect()).boundingRect();
+    auto scene_width = std::max(scene_rect.width(), Node::MIN_WIDTH);
 
-    auto view_left  = mapToScene(QPoint { 0, 0 }).x();
-    auto view_right = mapToScene(QPoint(viewport()->width(), 0)).x();
-
-    qreal scene_width = view_right - view_left;
+    auto rect = sceneRect();
+    rect.setWidth(scene_width);
+    setSceneRect(rect);
 
     for (auto* node : m_nodes) {
         node->setWidth(scene_width);

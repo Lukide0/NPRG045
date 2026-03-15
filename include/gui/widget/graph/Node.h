@@ -3,6 +3,7 @@
 #include "action/Action.h"
 #include "core/git/types.h"
 
+#include <algorithm>
 #include <git2/commit.h>
 #include <git2/types.h>
 
@@ -32,7 +33,7 @@ public:
 
     [[nodiscard]] int type() const override { return Type; }
 
-    void setWidth(qreal width) { m_width = std::max(MIN_WIDTH, width); }
+    void setWidth(qreal width);
 
     void setCommit(git_commit* commit) {
         auto id       = core::git::format_oid(commit);

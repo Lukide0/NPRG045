@@ -26,9 +26,7 @@ Node::Node(GraphWidget* graph)
     : m_graph(graph) {
     setFlags(QGraphicsItem::ItemIsSelectable | QGraphicsItem::ItemIsFocusable);
 
-    connect(&style::StyleManager::get_conflict_style(), &style::ConflictStyle::changed, this, [this]() {
-        update();
-    });
+    connect(&style::StyleManager::get_conflict_style(), &style::ConflictStyle::changed, this, [this]() { update(); });
 }
 
 void Node::updateConflict(ConflictStatus conflict) {
@@ -42,6 +40,12 @@ void Node::updateConflict(ConflictStatus conflict) {
         m_conflict = conflict;
         break;
     }
+}
+
+void Node::setWidth(qreal width) {
+    prepareGeometryChange();
+    m_width = std::max(MIN_WIDTH, width);
+    update();
 }
 
 QRectF Node::boundingRect() const { return { 0, 0, m_width, HEIGHT }; }
@@ -145,11 +149,11 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
 
     QString qmsg = QString::fromStdString(msg);
 
-    const qreal text_size = m_width - TEXT_OFFSET;
+    const qreal text_size = m_width - TEXT_OFFSET - PADDING;
 
     if (size > text_size) {
-        int new_size = static_cast<int>(text_size / avg_char_size);
-        new_size     = std::max(new_size - 6, 0);
+        int new_size = static_cast<int>((text_size + avg_char_size - 1) / avg_char_size);
+        new_size     = std::max(new_size - 3, 0);
         qmsg.resize(new_size);
         qmsg += "...";
     }
