@@ -46,6 +46,8 @@ public:
 
     static void updateGraph();
     static void updateActions();
+    static void updateConflicts(action::Action* start = nullptr);
+
     static gui::widget::RebaseViewWidget* getRebaseViewWidget();
     static const std::string& getRepoPath();
 

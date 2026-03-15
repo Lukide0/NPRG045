@@ -48,6 +48,8 @@ void App::updateGraph() { g_app->m_rebase_view->updateGraph(); }
 
 void App::updateActions() { g_app->m_rebase_view->updateActions(); }
 
+void App::updateConflicts(action::Action* start) { g_app->m_rebase_view->updateConflicts(start); }
+
 gui::widget::RebaseViewWidget* App::getRebaseViewWidget() { return g_app->m_rebase_view; }
 
 const std::string& App::getRepoPath() { return g_app->m_repo_path; }

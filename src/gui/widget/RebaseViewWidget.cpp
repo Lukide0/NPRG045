@@ -273,21 +273,31 @@ void RebaseViewWidget::updateConflictMarkers() {
 void RebaseViewWidget::updateConflictList(Action* start) {
     using core::conflict::ConflictStatus;
 
+    Action* parent = nullptr;
+
     if (start == nullptr) {
         start = getActionsManager().get_first_action();
     } else {
-        switch (start->get_tree_status()) {
-        case ConflictStatus::UNKNOWN:
-        case ConflictStatus::ERR:
-            start = getActionsManager().get_first_action();
-            break;
+        parent = action::ActionsManager::get_picked_parent(start);
 
-        case ConflictStatus::HAS_CONFLICT:
-        case ConflictStatus::NO_CONFLICT:
-        case ConflictStatus::RESOLVED_CONFLICT:
-            break;
+        if (parent != nullptr) {
+            switch (parent->get_tree_status()) {
+            // NOTE: no need for update
+            case ConflictStatus::UNKNOWN:
+            case ConflictStatus::ERR:
+            case ConflictStatus::HAS_CONFLICT:
+                return;
+
+            case ConflictStatus::NO_CONFLICT:
+            case ConflictStatus::RESOLVED_CONFLICT:
+                break;
+            }
+        } else {
+            start = getActionsManager().get_first_action();
         }
     }
+
+    LOG_INFO("Updating conflict list");
 
     // prepare conflict widget
     m_conflict_widget->clearConflicts();
@@ -296,21 +306,33 @@ void RebaseViewWidget::updateConflictList(Action* start) {
     m_conflict_files.clear();
 
     for (Action* act = start; act != nullptr; act = act->get_next()) {
-        updateConflictAction(act);
+        // clear the resulting tree
+        act->clear_tree();
+
+        act->set_tree_status(updateConflictAction(act, parent));
+
+        switch (act->get_type()) {
+        case action::ActionType::PICK:
+        case action::ActionType::SQUASH:
+        case action::ActionType::FIXUP:
+        case action::ActionType::REWORD:
+        case action::ActionType::EDIT:
+            parent = act;
+            break;
+
+        case action::ActionType::DROP:
+            break;
+        }
     }
 }
 
-Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
+Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Action* parent_act) {
     using namespace core;
     using ConflictStatus = Action::ConflictStatus;
 
     if (act == nullptr) {
         return ConflictStatus::NO_CONFLICT;
     }
-    // clear the resulting tree
-    act->clear_tree();
-
-    Action* parent_act = act->get_prev();
 
     ConflictStatus conflict_status;
     core::git::index_t conflict_index;
@@ -420,13 +442,11 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
 
     if (!iterator_status) {
         utils::log_libgit_error();
-        act->set_tree_status(Action::ConflictStatus::UNKNOWN);
         return ConflictStatus::UNKNOWN;
     }
 
     // check if all conflicts were resolved
     if (m_conflict_widget->hasConflict()) {
-        act->set_tree_status(Action::ConflictStatus::HAS_CONFLICT);
         return ConflictStatus::HAS_CONFLICT;
     }
 
@@ -435,7 +455,6 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
         )) {
         utils::log_libgit_error();
         QMessageBox::critical(this, "Recorded resolution error", QString::fromStdString(git::get_last_error()));
-        act->set_tree_status(Action::ConflictStatus::ERR);
         return ConflictStatus::UNKNOWN;
     }
 
@@ -443,18 +462,17 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act) {
     if (git_index_write_tree_to(&oid, m_conflict_index, m_repo) != 0) {
         utils::log_libgit_error();
         QMessageBox::critical(this, "Recorded resolution error", QString::fromStdString(git::get_last_error()));
-        act->set_tree_status(Action::ConflictStatus::ERR);
-        return ConflictStatus::UNKNOWN;
+        return ConflictStatus::ERR;
     }
 
     git::tree_t tree;
     if (git_tree_lookup(&tree, m_repo, &oid) != 0) {
         utils::log_libgit_error();
         QMessageBox::critical(this, "Recorded resolution error", QString::fromStdString(git::get_last_error()));
-        act->set_tree_status(Action::ConflictStatus::ERR);
-        return ConflictStatus::UNKNOWN;
+        return ConflictStatus::ERR;
     }
 
+    // update tree
     act->set_tree(std::move(tree), Action::ConflictStatus::RESOLVED_CONFLICT);
     return ConflictStatus::RESOLVED_CONFLICT;
 }
@@ -465,10 +483,11 @@ void RebaseViewWidget::moveAction(int from, int to) {
     LOG_INFO("Moving action: from {} to {}", from, to);
 
     Action* update_start = m_actions.move(from, to);
+
     updateConflictList(update_start);
+    updateConflictMarkers();
 
     updateGraph();
-    updateConflictMarkers();
 }
 
 void RebaseViewWidget::moveSelectedAction(bool down) {

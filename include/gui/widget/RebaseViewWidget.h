@@ -76,6 +76,11 @@ public:
 
     void changeActionType(action::ActionType type);
 
+    void updateConflicts(action::Action* start) {
+        updateConflictList(start);
+        updateConflictMarkers();
+    }
+
 private:
     /* UI */
     GraphWidget* m_old_commits_graph;
@@ -145,7 +150,7 @@ private:
 
     void updateConflictMarkers();
 
-    ListItem::ConflictStatus updateConflictAction(action::Action* act);
+    ListItem::ConflictStatus updateConflictAction(action::Action* act, action::Action* parent_act);
 
     void checkoutAndResolve();
 

@@ -91,6 +91,7 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
             std::make_unique<ListItemChangedCommand>(m_parent, m_row, prev_type, curr_type)
         );
 
+        App::updateConflicts(m_action.get_prev());
         App::updateGraph();
     });
 
@@ -190,8 +191,8 @@ void ListItemChangedCommand::set_type(ActionType type) {
 
     list_item->setActionTypeNoSignal(type);
 
+    App::updateConflicts(list_item->getCommitAction().get_prev());
     App::updateGraph();
-    App::updateActions();
 }
 
 }

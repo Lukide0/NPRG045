@@ -278,7 +278,7 @@ public:
         }
     }
 
-    static git_commit* get_picked_parent_commit(Action* act) {
+    static Action* get_picked_parent(Action* act) {
         if (act == nullptr) {
             return nullptr;
         }
@@ -293,13 +293,26 @@ public:
             case ActionType::PICK:
             case ActionType::REWORD:
             case ActionType::EDIT:
-                return parent->get_commit();
+                return parent;
             }
 
             parent = parent->get_prev();
         }
 
-        return get().get_root_commit();
+        return nullptr;
+    }
+
+    static git_commit* get_picked_parent_commit(Action* act) {
+        if (act == nullptr) {
+            return nullptr;
+        }
+
+        Action* parent = get_picked_parent(act);
+        if (parent == nullptr) {
+            return get().get_root_commit();
+        }
+
+        return parent->get_commit();
     }
 
     Action* get_action(std::uint32_t index) {

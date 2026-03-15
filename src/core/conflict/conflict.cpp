@@ -34,10 +34,23 @@ std::pair<ConflictStatus, git::index_t> cherrypick_check(git_commit* commit, git
     }
 }
 
-std::pair<ConflictStatus, git::index_t> cherrypick_check(action::Action* act, git_commit* parent_commit) {
+std::pair<ConflictStatus, git::index_t> cherrypick_check_drop(git_commit* parent_commit) {
     git::index_t index;
     git::tree_t tree;
 
+    // use parent commit tree
+    if (git_index_new(&index) != 0 || git_commit_tree(&tree, parent_commit) != 0) {
+        return std::make_pair(ConflictStatus::ERR, std::move(index));
+    }
+
+    if (git_index_read_tree(index, tree) != 0) {
+        return std::make_pair(ConflictStatus::ERR, std::move(index));
+    }
+
+    return std::make_pair(ConflictStatus::NO_CONFLICT, std::move(index));
+}
+
+std::pair<ConflictStatus, git::index_t> cherrypick_check(action::Action* act, git_commit* parent_commit) {
     switch (act->get_type()) {
     case action::ActionType::PICK:
     case action::ActionType::REWORD:
@@ -50,16 +63,7 @@ std::pair<ConflictStatus, git::index_t> cherrypick_check(action::Action* act, gi
         break;
     }
 
-    // use parent commit tree
-    if (git_index_new(&index) != 0 || git_commit_tree(&tree, parent_commit) != 0) {
-        return std::make_pair(ConflictStatus::ERR, std::move(index));
-    }
-
-    if (git_index_read_tree(index, tree) != 0) {
-        return std::make_pair(ConflictStatus::ERR, std::move(index));
-    }
-
-    return std::make_pair(ConflictStatus::NO_CONFLICT, std::move(index));
+    return cherrypick_check_drop(parent_commit);
 }
 
 std::pair<ConflictStatus, git::index_t> cherrypick_check(action::Action* act, action::Action* parent_act) {
@@ -76,6 +80,18 @@ std::pair<ConflictStatus, git::index_t> cherrypick_check(action::Action* act, ac
     }
 
     git_tree* parent_tree = parent_act->get_tree();
+
+    switch (act->get_type()) {
+    case action::ActionType::PICK:
+    case action::ActionType::SQUASH:
+    case action::ActionType::FIXUP:
+    case action::ActionType::REWORD:
+    case action::ActionType::EDIT:
+        break;
+    case action::ActionType::DROP:
+        return cherrypick_check_drop(parent_act->get_commit());
+    }
+
     core::git::tree_t act_tree;
     core::git::tree_t ancestor_tree;
 
