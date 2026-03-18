@@ -70,6 +70,8 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
     // set default color
     updateMarkerColor();
 
+    list->installEventFilter(this);
+
     connect(m_combo, &QComboBox::activated, this, [this]() { this->setFocus(Qt::OtherFocusReason); });
 
     connect(m_combo, &QComboBox::currentIndexChanged, this, [this](int index) {
@@ -135,16 +137,21 @@ void ListItem::setConflict(ConflictStatus status) {
     m_text->setPalette(p);
 }
 
-void ListItem::keyPressEvent(QKeyEvent* event) {
-    auto key = event->key();
+bool ListItem::eventFilter(QObject* obj, QEvent* event) {
+    if (event->type() == QEvent::KeyPress) {
+        auto* key_event = static_cast<QKeyEvent*>(event);
 
-    if (key == Qt::Key_Enter || key == Qt::Key_Return) {
-        m_combo->showPopup();
-        event->accept();
-        return;
+        if (m_parent->itemWidget(m_parent->currentItem()) == this) {
+            auto key = key_event->key();
+
+            if (key == Qt::Key_Enter || key == Qt::Key_Return) {
+                m_combo->showPopup();
+                return true;
+            }
+        }
     }
 
-    QWidget::keyPressEvent(event);
+    return QWidget::eventFilter(obj, event);
 }
 
 ListItemMoveCommand::ListItemMoveCommand(RebaseViewWidget* rebase, QListWidget* parent, int prev_row, int curr_row)
