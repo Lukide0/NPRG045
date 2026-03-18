@@ -36,11 +36,17 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
         m_combo->addItem(action::type_to_str(item), static_cast<int>(item));
     }
 
+    m_combo->setFixedHeight(22);
+
     m_marker = new QLabel();
     m_marker->setFixedSize(16, 16);
     m_marker->setToolTip("This commit modifies conflicted file");
     m_marker->setText("●");
     m_marker->setContentsMargins(2, 0, 0, 0);
+
+    QSizePolicy size_policy = m_marker->sizePolicy();
+    size_policy.setRetainSizeWhenHidden(true);
+    m_marker->setSizePolicy(size_policy);
 
     hideConflictMarker();
 
@@ -50,12 +56,15 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
 
     m_layout = new QHBoxLayout();
     m_layout->setSizeConstraint(QLayout::SetMinAndMaxSize);
-    m_layout->setContentsMargins(2, 2, 2, 2);
-    m_layout->addWidget(m_marker);
+    m_layout->setContentsMargins(0, 1, 0, 1);
+    m_layout->setSpacing(2);
+
     m_layout->addWidget(m_combo);
+    m_layout->addWidget(m_marker);
     m_layout->addWidget(m_text, 1);
 
     setLayout(m_layout);
+    setFixedHeight(22);
 
     m_combo->setFocusPolicy(Qt::NoFocus);
 
