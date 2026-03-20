@@ -9,8 +9,8 @@ A tool for editing Git history: conveniently reordering commits in a branch befo
 ./build.sh
 
 # Manual build
-mkdir build
-cd build
+git submodule update --init --recursive
+mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake --build .
 ```
