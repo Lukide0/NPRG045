@@ -15,10 +15,18 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake --build .
 ```
 
-## Requirements
+## Tools
 
-- CMake 3.25+
-- Qt6
+After building, the following scripts are generated in the build directory:
+
+- `tools/wrapper.sh` the rebase editor wrapper, intended to be used as `GIT_SEQUENCE_EDITOR`
+- `tools/git_env.sh` sets `GIT_SEQUENCE_EDITOR` to the wrapper in the current shell
+
+Alternatively, set the variable manually:
+
+```bash
+export GIT_SEQUENCE_EDITOR=/tools/wrapper.sh
+```
 
 ## Documentation
 

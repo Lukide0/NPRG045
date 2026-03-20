@@ -35,7 +35,5 @@ create_executable(${PROJECT_NAME}
         ${QT_XML}
 )
 
-# target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address)
-# target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address)
-
 add_subdirectory(src)
+add_subdirectory(tools)
