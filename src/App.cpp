@@ -297,25 +297,6 @@ App::SaveStatus App::maybeSave() {
 
     SaveStatus status = SaveStatus::SAVE;
 
-    if (!CommandHistory::IsSaved()) {
-        auto ans = QMessageBox::warning(
-            this,
-            "Unsaved changes",
-            "Do you want to save your changes?",
-            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
-            QMessageBox::Save
-        );
-
-        if (ans == QMessageBox::Save) {
-            if (!saveSaveFile(false)) {
-                status = SaveStatus::CANCEL;
-            }
-
-        } else if (ans == QMessageBox::Cancel) {
-            status = SaveStatus::CANCEL;
-        }
-    }
-
     if (m_cli_start) {
         QMessageBox msg(this);
         msg.setWindowTitle("Execute Rebase Plan");
@@ -343,6 +324,22 @@ App::SaveStatus App::maybeSave() {
         } else if (clicked == discard_btn) {
             status = SaveStatus::DISCARD;
         } else if (clicked == cancel_btn || clicked == nullptr) {
+            status = SaveStatus::CANCEL;
+        }
+    } else if (!CommandHistory::IsSaved()) {
+        auto ans = QMessageBox::warning(
+            this,
+            "Unsaved changes",
+            "Do you want to save your changes?",
+            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel,
+            QMessageBox::Save
+        );
+
+        if (ans == QMessageBox::Save) {
+            if (!saveSaveFile(false)) {
+                status = SaveStatus::CANCEL;
+            }
+        } else if (ans == QMessageBox::Cancel) {
             status = SaveStatus::CANCEL;
         }
     }
@@ -430,13 +427,22 @@ bool App::openRepo(const std::string& path) {
         QMessageBox::critical(this, "Repo Error", err->message);
         LOG_ERROR("Failed to open repo: {}", err->message);
 
+        m_welcome_widget->show();
         return false;
     }
 
     m_repo      = std::move(new_repo);
     m_repo_path = path;
 
-    return showRebase();
+    if (!showRebase()) {
+        m_welcome_widget->show();
+        return false;
+    }
+
+    m_rebase_view->show();
+    m_welcome_widget->hide();
+
+    return true;
 }
 
 bool App::showRebase() {
@@ -463,9 +469,6 @@ bool App::showRebase() {
         QMessageBox::critical(this, "Rebase Error", rebase_res.value().c_str());
         return false;
     }
-
-    m_rebase_view->show();
-    m_welcome_widget->hide();
 
     return true;
 }
