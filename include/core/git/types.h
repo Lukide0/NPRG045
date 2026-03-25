@@ -5,13 +5,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <git2/blob.h>
 #include <memory>
 #include <span>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
+#include <git2/blob.h>
 #include <git2/buffer.h>
 #include <git2/commit.h>
 #include <git2/diff.h>
@@ -21,12 +22,12 @@
 #include <git2/oid.h>
 #include <git2/patch.h>
 #include <git2/refs.h>
+#include <git2/repository.h>
 #include <git2/revparse.h>
 #include <git2/signature.h>
 #include <git2/status.h>
 #include <git2/tree.h>
 #include <git2/types.h>
-#include <vector>
 
 namespace core::git {
 
@@ -147,6 +148,7 @@ using status_list_t       = ptr_object_t<git_status_list, git_status_list_free>;
 using conflict_iterator_t = ptr_object_t<git_index_conflict_iterator, git_index_conflict_iterator_free>;
 using index_iterator_t    = ptr_object_t<git_index_iterator, git_index_iterator_free>;
 using blob_t              = ptr_object_t<git_blob, git_blob_free>;
+using repository_t        = ptr_object_t<git_repository, git_repository_free>;
 
 using buffer_t            = object_t<git_buf, git_buf_dispose>;
 using merge_file_result_t = weak_object_t<git_merge_file_result, git_merge_file_result_free>;

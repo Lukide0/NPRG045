@@ -1,4 +1,5 @@
 #include "gui/widget/WelcomeWidget.h"
+#include "core/git/types.h"
 #include <git2/repository.h>
 #include <git2/types.h>
 
@@ -55,15 +56,10 @@ void WelcomeWidget::setupUI() {
 }
 
 bool WelcomeWidget::isValidGitRepository(const QString& path) {
-    git_repository* repo = nullptr;
-    int error            = git_repository_open(&repo, path.toUtf8().constData());
+    core::git::repository_t repo;
+    int error = git_repository_open(&repo, path.toUtf8().constData());
 
-    if (repo != nullptr) {
-        git_repository_free(repo);
-        return (error == 0);
-    }
-
-    return false;
+    return (repo != nullptr) && (error == 0);
 }
 
 void WelcomeWidget::updateCurrentDirButton() {

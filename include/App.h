@@ -37,10 +37,7 @@ public:
     bool openRepoDialog();
     bool openRepo(const std::string& path);
 
-    ~App() override {
-        git_repository_free(m_repo);
-        git_libgit2_shutdown();
-    }
+    ~App() override { git_libgit2_shutdown(); }
 
     void openRepoCLI(const std::string& todo_file);
 
@@ -82,7 +79,7 @@ private:
     gui::widget::RebaseViewWidget* m_rebase_view;
     gui::widget::WelcomeWidget* m_welcome_widget;
 
-    git_repository* m_repo = nullptr;
+    core::git::repository_t m_repo;
 
     std::optional<QString> m_save_file;
 

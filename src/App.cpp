@@ -423,9 +423,8 @@ bool App::openRepo(const std::string& path) {
     m_rebase_view->hide();
     core::state::CommandHistory::Clear();
 
-    if (git_repository_open(&m_repo, path.c_str()) != 0) {
-        git_repository_free(m_repo);
-        m_repo = nullptr;
+    core::git::repository_t new_repo;
+    if (git_repository_open(&new_repo, path.c_str()) != 0) {
 
         const auto* err = git_error_last();
         QMessageBox::critical(this, "Repo Error", err->message);
@@ -434,6 +433,7 @@ bool App::openRepo(const std::string& path) {
         return false;
     }
 
+    m_repo      = std::move(new_repo);
     m_repo_path = path;
 
     return showRebase();
@@ -521,21 +521,17 @@ bool App::loadSaveFile() {
 
     LOG_INFO("Loading: {}", filepath.toStdString());
 
-    git_repository* repo;
+    core::git::repository_t repo;
     auto save_data = core::state::State::load(filepath.toStdU32String(), &repo);
     if (!save_data.has_value()) {
         QMessageBox::critical(this, "Load error", "Failed to load save file");
         return false;
     }
 
-    if (m_repo != repo) {
-        git_repository_free(m_repo);
-    }
-
     m_rebase_view->hide();
 
     m_save_file = filepath;
-    m_repo      = repo;
+    m_repo      = std::move(repo);
 
     m_rebase_head = save_data->head;
     m_rebase_onto = save_data->onto;
