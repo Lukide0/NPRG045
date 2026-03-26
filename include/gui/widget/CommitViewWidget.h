@@ -64,8 +64,6 @@ private:
     action::Action* m_action = nullptr;
     git_commit* m_commit     = nullptr;
 
-    static QLabel* create_label(const QString& text) { return new QLabel(text); }
-
     void createRows();
     void prepareDiff();
 

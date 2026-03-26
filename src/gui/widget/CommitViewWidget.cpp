@@ -9,6 +9,7 @@
 #include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Node.h"
 #include "gui/widget/NamedListWidget.h"
+#include "gui/widget/SLabel.h"
 
 #include <git2/commit.h>
 #include <git2/diff.h>
@@ -118,12 +119,11 @@ void CommitViewWidget::createRows() {
     }
     auto time_str = ss.str();
 
-    auto* label_hash = new QLabel(hash.c_str());
-    label_hash->setTextInteractionFlags(Qt::TextInteractionFlag::TextSelectableByMouse);
+    auto* label_hash = new SLabel(hash.c_str());
 
     m_info_layout->addRow("Hash:", label_hash);
-    m_info_layout->addRow("Author:", new QLabel(autor->name));
-    m_info_layout->addRow("Date:", new QLabel(time_str.c_str()));
+    m_info_layout->addRow("Author:", new SLabel(autor->name));
+    m_info_layout->addRow("Date:", new SLabel(time_str.c_str()));
     m_info_layout->addRow("Message:", m_msg);
 }
 
