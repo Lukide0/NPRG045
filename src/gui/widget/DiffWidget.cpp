@@ -73,11 +73,65 @@ void DiffWidget::ensureEditorVisible(DiffFile* file) {
     bar->setValue(file->y());
 }
 
-void DiffWidget::update(Action* action) {
-    using ConflictStatus = core::conflict::ConflictStatus;
-
+void DiffWidget::clear() {
     clear_layout(m_scroll_layout);
     m_files.clear();
+}
+
+void DiffWidget::update(git_commit* commit) {
+    clear();
+    m_action = nullptr;
+
+    if (commit == nullptr) {
+        return;
+    }
+
+    diff_result_t res;
+    core::git::commit_t parent_commit;
+    std::uint32_t parents = git_commit_parentcount(commit);
+
+    if (parents == 0) {
+        res = core::git::prepare_diff(nullptr, commit);
+    } else if (parents > 1 || git_commit_parent(&parent_commit, commit, 0) != 0) {
+        res.state = diff_result_t::FAILED_TO_CREATE_DIFF;
+    } else {
+        res = core::git::prepare_diff(parent_commit, commit);
+    }
+
+    update(res, false);
+}
+
+void DiffWidget::update(core::git::diff_result_t& res, bool editable) {
+    switch (res.state) {
+    case diff_result_t::FAILED_TO_RETRIEVE_TREE:
+        QMessageBox::critical(this, "Commit diff error", "Failed to retrieve tree from commit");
+        return;
+
+    case diff_result_t::FAILED_TO_CREATE_DIFF:
+        QMessageBox::critical(this, "Commit diff error", "Failed to create diff");
+        return;
+    case diff_result_t::OK:
+        break;
+    }
+
+    m_diffs = core::git::create_diff(res.diff);
+    for (std::size_t i = 0; i < m_diffs.size(); ++i) {
+        if (i != 0) {
+            auto* line = new QFrame(this);
+            line->setFrameShape(QFrame::HLine);
+            line->setFrameShadow(QFrame::Sunken);
+            line->setLineWidth(1);
+            m_scroll_layout->addWidget(line);
+        }
+
+        const auto& file_diff = m_diffs[i];
+        createFileDiff(file_diff, editable);
+    }
+}
+
+void DiffWidget::update(Action* action) {
+    using ConflictStatus = core::conflict::ConflictStatus;
+    clear();
     m_action = action;
 
     if (action == nullptr) {
@@ -107,31 +161,7 @@ void DiffWidget::update(Action* action) {
         res = core::git::prepare_resolution_diff(parent->get_tree(), action->get_commit());
     }
 
-    switch (res.state) {
-    case diff_result_t::FAILED_TO_RETRIEVE_TREE:
-        QMessageBox::critical(this, "Commit diff error", "Failed to retrieve tree from commit");
-        return;
-
-    case diff_result_t::FAILED_TO_CREATE_DIFF:
-        QMessageBox::critical(this, "Commit diff error", "Failed to create diff");
-        return;
-    case diff_result_t::OK:
-        break;
-    }
-
-    m_diffs = core::git::create_diff(res.diff);
-    for (std::size_t i = 0; i < m_diffs.size(); ++i) {
-        if (i != 0) {
-            auto* line = new QFrame(this);
-            line->setFrameShape(QFrame::HLine);
-            line->setFrameShadow(QFrame::Sunken);
-            line->setLineWidth(1);
-            m_scroll_layout->addWidget(line);
-        }
-
-        const auto& file_diff = m_diffs[i];
-        createFileDiff(file_diff);
-    }
+    update(res, true);
 }
 
 QString create_diff_header(const diff_files_t& diff) {
@@ -168,9 +198,10 @@ QString create_diff_header(const diff_files_t& diff) {
     return header;
 }
 
-void DiffWidget::createFileDiff(const diff_files_t& diff) {
+void DiffWidget::createFileDiff(const diff_files_t& diff, bool editable) {
     auto* file_diff = new DiffFile(diff);
     m_curr_editor   = file_diff->getEditor();
+    m_curr_editor->enableContextMenu(editable);
 
     QString header = create_diff_header(diff);
     if (header.isEmpty()) {

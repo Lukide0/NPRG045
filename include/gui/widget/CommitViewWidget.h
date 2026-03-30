@@ -25,32 +25,9 @@ class CommitViewWidget : public QWidget {
 public:
     CommitViewWidget(DiffWidget* diff);
 
-    void update(Node* node) {
-        m_node = node;
+    void update(Node* node);
 
-        if (node == nullptr) {
-            m_action = nullptr;
-            m_commit = nullptr;
-
-        } else {
-            m_action = node->getAction();
-
-            if (m_action == nullptr) {
-                m_commit = node->getCommit();
-            } else {
-                m_commit = m_action->get_commit();
-            }
-        }
-
-        update_widget();
-    }
-
-    void update() {
-        // NOTE: The node can be invalid here.
-        m_node = nullptr;
-
-        update_widget();
-    }
+    void update();
 
 private:
     QHBoxLayout* m_layout;
@@ -67,10 +44,8 @@ private:
     void createRows();
     void prepareDiff();
 
-    void update_widget() {
+    void updateInfo() {
         createRows();
-        m_diff->update(m_action);
-
         prepareDiff();
     }
 };

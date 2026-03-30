@@ -29,6 +29,9 @@ public:
     ~DiffWidget() override = default;
 
     void update(action::Action* act);
+    void update(git_commit* commit);
+
+    void clear();
 
     [[nodiscard]] const std::vector<core::git::diff_files_t>& getDiffs() const { return m_diffs; }
 
@@ -55,7 +58,9 @@ private:
         QTextBlock block;
     };
 
-    void createFileDiff(const core::git::diff_files_t& diff);
+    void update(core::git::diff_result_t& res, bool editable);
+
+    void createFileDiff(const core::git::diff_files_t& diff, bool editable);
     void addHunkDiff(const core::git::diff_hunk_t& hunk, std::vector<section_t>& sections);
     void addLineDiff(
         QTextCursor& cursor,

@@ -729,7 +729,6 @@ void RebaseViewWidget::prepareGraph() {
     m_root_node     = last_node.data;
 
     last->setCommit(last_node.commit);
-    last->setAction(m_actions.get_first_action());
 
     m_actions.set_root_commit(last_node.commit);
 

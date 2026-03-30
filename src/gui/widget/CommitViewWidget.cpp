@@ -181,4 +181,35 @@ void CommitViewWidget::prepareDiff() {
     }
 }
 
+void CommitViewWidget::update(Node* node) {
+    m_node = node;
+
+    if (node == nullptr) {
+        m_action = nullptr;
+        m_commit = nullptr;
+
+    } else {
+        m_action = node->getAction();
+
+        if (m_action == nullptr) {
+            m_commit = node->getCommit();
+            m_diff->update(m_commit);
+        } else {
+            m_commit = m_action->get_commit();
+            m_diff->update(m_action);
+        }
+    }
+
+    updateInfo();
+}
+
+void CommitViewWidget::update() {
+    // NOTE: The node can be invalid here.
+    m_node = nullptr;
+
+    m_diff->update(m_action);
+
+    updateInfo();
+}
+
 }
