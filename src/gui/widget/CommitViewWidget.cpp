@@ -112,7 +112,7 @@ void CommitViewWidget::createRows() {
         int offset_minutes = std::abs(commit_time_offset) % 60;
 
         // clang-format off
-        ss << std::put_time(timeInfo, "%Y-%m-%dT%H:%M:%S")
+        ss << std::put_time(timeInfo, "%Y-%m-%d %H:%M:%S")
            << ((commit_time_offset < 0) ? '-' : '+')
            << std::format("{:02}:{:02}", offset_hours, offset_minutes);
         // clang-format on
