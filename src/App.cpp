@@ -215,7 +215,7 @@ void App::setup() {
         m_load_save = new QAction(QIcon::fromTheme("edit-load"), "Load", this);
         connect(m_load_save, &QAction::triggered, this, [this] { loadSaveFile(); });
 
-        auto* edit_todo_save = new QAction(QIcon::fromTheme("document-save-as"), "Save Todo");
+        auto* edit_todo_save = new QAction(QIcon::fromTheme("document-save-as"), "Save Todo", this);
         connect(edit_todo_save, &QAction::triggered, this, [this] { saveTodoFile(); });
 
         auto* edit_preferences = new QAction("Preferences...", this);

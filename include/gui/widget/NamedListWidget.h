@@ -12,14 +12,16 @@ public:
     NamedListWidget(QWidget* parent = nullptr)
         : QWidget(parent) {
 
-        m_layout = new QVBoxLayout();
+        m_layout = new QVBoxLayout(this);
+        setLayout(m_layout);
+
         m_list   = new QListWidget();
         m_header = new QLabel();
+
         m_layout->addWidget(m_header);
         m_layout->addWidget(m_list);
         m_layout->setContentsMargins(0, 0, 0, 0);
 
-        setLayout(m_layout);
         setContentsMargins(0, 0, 0, 0);
 
         m_list->setSelectionMode(QAbstractItemView::SelectionMode::SingleSelection);
