@@ -94,16 +94,18 @@ std::pair<ConflictStatus, git::index_t> cherrypick_check(action::Action* act, ac
 
     core::git::tree_t act_tree;
     core::git::tree_t ancestor_tree;
+    core::git::commit_t ancestor_commit;
 
-    core::git::commit_t parent_commit;
     git_repository* repo = git_commit_owner(act->get_commit());
 
-    if (git_commit_parent(&parent_commit, act->get_commit(), 0) != 0) {
-        return std::make_pair(ConflictStatus::ERR, std::move(index));
-    }
+    if (git_commit_parentcount(act->get_commit()) == 1) {
+        if (git_commit_parent(&ancestor_commit, act->get_commit(), 0) != 0) {
+            return std::make_pair(ConflictStatus::ERR, std::move(index));
+        }
 
-    if (git_commit_tree(&ancestor_tree, parent_commit) != 0) {
-        return std::make_pair(ConflictStatus::ERR, std::move(index));
+        if (git_commit_tree(&ancestor_tree, ancestor_commit) != 0) {
+            return std::make_pair(ConflictStatus::ERR, std::move(index));
+        }
     }
 
     if (git_commit_tree(&act_tree, act->get_commit()) != 0) {
