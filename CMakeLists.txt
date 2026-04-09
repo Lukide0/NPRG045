@@ -35,5 +35,7 @@ create_executable(${PROJECT_NAME}
         ${QT_XML}
 )
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE SOURCE_ROOT="${CMAKE_SOURCE_DIR}/")
+
 add_subdirectory(src)
 add_subdirectory(tools)

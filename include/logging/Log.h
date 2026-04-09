@@ -18,6 +18,8 @@ constexpr Type operator|(Type a, Type b) { return static_cast<Type>(static_cast<
 
 class Log {
 public:
+    static void init();
+
     static void enable_debug(bool enable);
     static void set_filter(Type type);
 

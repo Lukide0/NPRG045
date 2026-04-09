@@ -11,7 +11,7 @@ int main(int argc, char* argv[]) {
     QApplication::setApplicationName("git shuffle");
     QApplication::setApplicationVersion("0.1.0");
 
-    app.styleHints()->setColorScheme(Qt::ColorScheme::Light);
+    QApplication::styleHints()->setColorScheme(Qt::ColorScheme::Light);
     QApplication::setStyle("fusion");
 
     QIcon::setThemeName("hicolor");
@@ -34,6 +34,8 @@ int main(int argc, char* argv[]) {
     if (parser.isSet(help)) {
         parser.showHelp(1);
     }
+
+    Log::init();
 
     if (parser.isSet(verbose)) {
         Log::set_filter(Type::INFO | Type::ERR | Type::WARN);
