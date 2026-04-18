@@ -1,4 +1,5 @@
 #include "core/git/diff.h"
+#include "action/Action.h"
 #include "core/conflict/ConflictManager.h"
 #include "core/git/types.h"
 #include "core/utils/unexpected.h"
@@ -95,6 +96,19 @@ diff_result_t prepare_resolution_diff(git_tree* old_tree, git_commit* new_commit
 
     if (resolution_tree == nullptr) {
         return prepare_diff(old_tree, new_tree, repo, opts);
+    }
+
+    return prepare_diff(old_tree, resolution_tree, repo, opts);
+}
+
+diff_result_t prepare_resolution_diff(
+    git_tree* old_tree, action::Action* new_tree, git_repository* repo, const git_diff_options* opts
+) {
+    auto& manager             = conflict::ConflictManager::get();
+    git_tree* resolution_tree = manager.get_trees_resolution(old_tree, new_tree->get_commit());
+
+    if (resolution_tree == nullptr) {
+        return prepare_diff(old_tree, new_tree->get_tree(), repo, opts);
     }
 
     return prepare_diff(old_tree, resolution_tree, repo, opts);
