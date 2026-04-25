@@ -27,6 +27,8 @@ Node::Node(GraphWidget* graph)
     setFlags(QGraphicsItem::ItemIsSelectable | QGraphicsItem::ItemIsFocusable);
 
     connect(&style::StyleManager::get_conflict_style(), &style::ConflictStyle::changed, this, [this]() { update(); });
+
+    connect(&style::StyleManager::get_global_style(), &style::GlobalStyle::changed, this, [this]() { update(); });
 }
 
 void Node::updateConflict(ConflictStatus conflict) {
@@ -69,8 +71,10 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
 
     constexpr int TEXT_OFFSET = HASH_BOX_SIZE + (2 * PADDING) + PADDING;
 
-    bool draw_box = true;
-    QColor color;
+    bool draw_box                = true;
+    const QColor highlight_color = style::GlobalStyle::get_color(style::GlobalStyle::HIGHLIGHT);
+    QColor color                 = highlight_color;
+
     switch (m_conflict) {
     case ConflictStatus::NO_CONFLICT:
         draw_box = false;
@@ -90,7 +94,9 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
         break;
     }
 
-    if (draw_box) {
+    const bool is_selected = hasFocus();
+
+    if (draw_box || is_selected) {
         auto brush = QBrush(color);
         painter->setBrush(brush);
         painter->setPen(Qt::PenStyle::NoPen);
@@ -106,15 +112,17 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
 
     auto text_opts = QTextOption(Qt::AlignLeft | Qt::AlignVCenter);
 
-    if (hasFocus()) {
-        pen_rect.setWidth(2);
-        font.setBold(true);
-    }
-
     painter->setFont(font);
     painter->setPen(pen_rect);
 
+    if (is_selected) {
+        painter->setBrush(highlight_color);
+    }
+
     painter->drawRect(PADDING, 0, HASH_BOX_SIZE, HEIGHT);
+
+    // reset brush
+    painter->setBrush(m_fill);
 
     std::string msg = m_commit_msg;
 

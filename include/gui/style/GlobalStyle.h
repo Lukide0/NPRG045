@@ -22,7 +22,7 @@ public:
     static_assert(STYLE_NAMES.size() == Style::_LENGTH);
 
     static constexpr std::array<QColor, Style::_LENGTH> default_colors {
-        QColor { 84, 106, 123 },
+        QColor { 150, 190, 220 },
     };
 
     void set(Style style, const QColor& color);
