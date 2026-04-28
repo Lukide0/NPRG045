@@ -118,7 +118,8 @@ void PatchSplitter::file_end() {
     m_file_patch.str("");
     m_file_patch.clear();
 
-    m_hunk = nullptr;
+    m_hunk        = nullptr;
+    m_hunk_offset = 0;
 }
 
 void PatchSplitter::process(const diff_line_t& line, const diff_hunk_t& hunk, bool selected) {
