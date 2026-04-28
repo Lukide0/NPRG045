@@ -39,14 +39,17 @@ void Log::init() {
         }
     }
 
-    g_log_file.setFileName(path);
+    if (QFile::exists(path)) {
+        QString old_file = path + ".old";
 
-    if (g_log_file.exists()) {
-        if (!QFile::rename(path, path + ".old")) {
+        QFile::remove(old_file);
+
+        if (!QFile::rename(path, old_file)) {
             std::cerr << "ERROR: Failed to move log file\n";
         }
     }
 
+    g_log_file.setFileName(path);
     if (!g_log_file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         std::cerr << "ERROR: Failed to open log file at " << path.toStdString() << '\n';
         return;
