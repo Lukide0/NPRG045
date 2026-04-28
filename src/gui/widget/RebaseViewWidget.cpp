@@ -697,6 +697,7 @@ RebaseViewWidget::update(git_repository* repo, const std::string& head, const st
 
 void RebaseViewWidget::prepareActions() {
 
+    int last_selected_index = m_list_actions->currentRow();
     prepareGraph();
 
     m_list_actions->clear();
@@ -717,6 +718,12 @@ void RebaseViewWidget::prepareActions() {
     }
 
     updateConflictMarkers();
+
+    if (last_selected_index == -1 || last_selected_index > m_list_actions->count()) {
+        return;
+    }
+
+    m_list_actions->setCurrentRow(last_selected_index);
 }
 
 void RebaseViewWidget::prepareGraph() {
