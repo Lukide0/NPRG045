@@ -172,7 +172,7 @@ std::optional<const char*> get_rebase_info(const std::string& repo, std::string&
         auto head_file = std::ifstream(repo + '/' + HEAD_FILE.c_str());
         auto onto_file = std::ifstream(repo + '/' + ONTO_FILE.c_str());
 
-        if (!head_file.good() || !onto_file) {
+        if (!head_file || !onto_file) {
             return "Cannot find git rebase files. Make sure you're in an active rebase operation.";
         }
         std::getline(head_file, out_head);

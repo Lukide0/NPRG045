@@ -3,6 +3,7 @@
 #include "action/ActionManager.h"
 #include "core/git/diff.h"
 #include "core/git/GitGraph.h"
+#include "core/git/types.h"
 #include "core/utils/unexpected.h"
 #include "gui/clear_layout.h"
 #include "gui/widget/CommitMessageWidget.h"
@@ -97,7 +98,7 @@ void CommitViewWidget::createRows() {
         m_msg->setAction(m_action);
     }
 
-    std::string hash = GitGraph<Node*>::get_commit_id(m_commit);
+    std::string hash = core::git::format_oid_to_str<GIT_OID_MAX_HEXSIZE>(git_commit_id(m_commit));
 
     const git_signature* autor   = git_commit_author(m_commit);
     const git_time_t commit_time = git_commit_time(m_commit);

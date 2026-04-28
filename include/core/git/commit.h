@@ -8,6 +8,20 @@
 
 namespace core::git {
 
+/**
+ * @brief Creates a new Git commit.
+ *
+ * @param out_oid Resulting commit OID.
+ * @param repo Git repository.
+ * @param author Author signature.
+ * @param committer Committer signature.
+ * @param msg Commit message.
+ * @param tree Tree object.
+ * @param parents Parent commits array.
+ * @param parent_count Number of parents.
+ *
+ * @return True if commit creation succeeded.
+ */
 bool create_commit(
     git_oid* out_oid,
     git_repository* repo,
@@ -19,6 +33,19 @@ bool create_commit(
     std::size_t parent_count
 );
 
+/**
+ * @brief Creates a new Git commit with a single parent.
+ *
+ * @param out_oid Resulting commit OID.
+ * @param repo Git repository.
+ * @param author Author signature.
+ * @param committer Committer signature.
+ * @param msg Commit message.
+ * @param tree Tree object.
+ * @param parent Parent commit.
+ *
+ * @return True if commit creation succeeded.
+ */
 bool create_commit(
     git_oid* out_oid,
     git_repository* repo,
@@ -29,6 +56,18 @@ bool create_commit(
     const git_commit* parent
 );
 
+/**
+ * @brief Modifies an existing commit.
+ *
+ * @param out_oid Resulting commit OID.
+ * @param commit Commit to modify.
+ * @param committer Committer signature.
+ * @param tree New tree object.
+ * @param parents Parent commits array.
+ * @param parent_count Number of parents.
+ *
+ * @return True if modification succeeded.
+ */
 bool modify_commit(
     git_oid* out_oid,
     const git_commit* commit,
@@ -38,6 +77,17 @@ bool modify_commit(
     std::size_t parent_count
 );
 
+/**
+ * @brief Modifies an existing commit with a single parent.
+ *
+ * @param out_oid Resulting commit OID.
+ * @param commit Commit to modify.
+ * @param committer Committer signature.
+ * @param tree New tree object.
+ * @param parent Parent commit.
+ *
+ * @return True if modification succeeded.
+ */
 bool modify_commit(
     git_oid* out_oid,
     const git_commit* commit,

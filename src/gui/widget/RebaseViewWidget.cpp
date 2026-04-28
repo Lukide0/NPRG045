@@ -152,8 +152,6 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
     connect(&style::StyleManager::get_global_style(), &GlobalStyle::changed, this, [this]() {
         auto p = m_list_actions->palette();
-        auto c = GlobalStyle::get_color(GlobalStyle::HIGHLIGHT);
-        LOG_INFO("Color: {}, {}, {}", c.red(), c.green(), c.blue());
         p.setColor(QPalette::Highlight, GlobalStyle::get_color(GlobalStyle::HIGHLIGHT));
         m_list_actions->setPalette(p);
     });

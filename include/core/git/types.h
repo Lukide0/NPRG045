@@ -31,10 +31,19 @@
 
 namespace core::git {
 
+/**
+ * @brief Size of a Git OID string representation.
+ */
 constexpr std::size_t OID_SIZE = 40;
 
 template <typename T> using destructor_t = void (*)(T*);
 
+/**
+ * @brief Smart pointer wrapper for Git objects with custom destructor.
+ *
+ * @tparam T Git object type.
+ * @tparam Destructor Free function for the Git object.
+ */
 template <typename T, destructor_t<T> Destructor> class ptr_object_t {
 public:
     ptr_object_t() = default;
@@ -90,6 +99,12 @@ private:
     T* m_obj = nullptr;
 };
 
+/**
+ * @brief Value-owning wrapper for Git-related objects.
+ *
+ * @tparam T Object type.
+ * @tparam Destructor Free function for the object.
+ */
 template <typename T, destructor_t<T> Destructor> class object_t {
 public:
     object_t(T&& obj)
@@ -114,29 +129,6 @@ private:
     T m_obj;
 };
 
-template <typename T, destructor_t<T> Destructor> class weak_object_t {
-public:
-    weak_object_t() = default;
-
-    weak_object_t(weak_object_t&& other) { std::swap(m_obj, other.m_obj); }
-
-    weak_object_t& operator=(weak_object_t&& other) {
-        std::swap(m_obj, other.m_obj);
-        return *this;
-    }
-
-    T* operator&() { return &m_obj; }
-
-    T& get() { return m_obj; }
-
-    const T& get() const { return m_obj; }
-
-    object_t<T, Destructor> to_object() { return object_t<T, Destructor>(std::move(m_obj)); }
-
-private:
-    T m_obj;
-};
-
 using commit_t            = ptr_object_t<git_commit, git_commit_free>;
 using index_t             = ptr_object_t<git_index, git_index_free>;
 using tree_t              = ptr_object_t<git_tree, git_tree_free>;
@@ -150,26 +142,11 @@ using index_iterator_t    = ptr_object_t<git_index_iterator, git_index_iterator_
 using blob_t              = ptr_object_t<git_blob, git_blob_free>;
 using repository_t        = ptr_object_t<git_repository, git_repository_free>;
 
-using buffer_t            = object_t<git_buf, git_buf_dispose>;
-using merge_file_result_t = weak_object_t<git_merge_file_result, git_merge_file_result_free>;
+using buffer_t = object_t<git_buf, git_buf_dispose>;
 
-struct commit_parents_t {
-    git_commit** parents = nullptr;
-    unsigned int count   = 0;
-
-    [[nodiscard]] const git_commit** get() const { return const_cast<const git_commit**>(parents); }
-
-    ~commit_parents_t() {
-        if (count > 0) {
-            for (std::size_t i = 0; i < count; ++i) {
-                git_commit_free(parents[i]);
-            }
-
-            delete[] parents;
-        }
-    }
-};
-
+/**
+ * @brief Converts a list of strings to a Git string array.
+ */
 class str_array {
 public:
     str_array(std::span<const std::string> strings)
@@ -201,6 +178,15 @@ private:
     std::size_t m_size;
 };
 
+/**
+ * @brief Looks up a commit from a hash.
+ *
+ * @param out_commit Resulting commit object.
+ * @param hash Revision string.
+ * @param repo Git repository.
+ *
+ * @return True if lookup succeeded.
+ */
 inline bool get_commit_from_hash(commit_t& out_commit, const char* hash, git_repository* repo) {
 
     git_object* obj = nullptr;
@@ -213,6 +199,15 @@ inline bool get_commit_from_hash(commit_t& out_commit, const char* hash, git_rep
     return true;
 }
 
+/**
+ * @brief Resolves a Git object ID from a hash.
+ *
+ * @param out_oid Output object ID.
+ * @param hash Revision string.
+ * @param repo Git repository.
+ *
+ * @return True if successful.
+ */
 inline bool get_oid_from_hash(git_oid& out_oid, const char* hash, git_repository* repo) {
     git_object* obj = nullptr;
 
@@ -225,36 +220,14 @@ inline bool get_oid_from_hash(git_oid& out_oid, const char* hash, git_repository
     return true;
 }
 
-inline bool get_last_commit(commit_t& out_commit, git_repository* repo) {
-    git_oid id;
-    return git_reference_name_to_id(&id, repo, "HEAD") == 0 && git_commit_lookup(&out_commit, repo, &id) == 0;
-}
-
-inline bool get_all_parents(commit_parents_t& parents, git_commit* commit) {
-    const auto parents_count = git_commit_parentcount(commit);
-
-    auto** parent_commits = new git_commit*[parents_count];
-
-    for (std::size_t i = 0; i < parents_count; ++i) {
-        if (git_commit_parent(&parent_commits[i], commit, i) != 0) {
-            delete[] parent_commits;
-            return false;
-        }
-    }
-
-    parents.parents = parent_commits;
-    parents.count   = parents_count;
-
-    return true;
-}
-
-inline bool check_commit(git_commit* a, git_commit* b) {
-    const auto* id_a = git_commit_id(a);
-    const auto* id_b = git_commit_id(b);
-
-    return git_oid_equal(id_a, id_b) != 0;
-}
-
+/**
+ * @brief Formats a Git OID into a short string.
+ *
+ * @tparam HashSize Length of hash prefix.
+ * @param id Object ID.
+ *
+ * @return Formatted OID string.
+ */
 template <std::uint8_t HashSize = 7> std::array<char, HashSize + 1> format_oid(const git_oid* id) {
     // NOTE: +1 is for '\0'
     std::array<char, HashSize + 1> buff;
@@ -263,27 +236,29 @@ template <std::uint8_t HashSize = 7> std::array<char, HashSize + 1> format_oid(c
     return buff;
 }
 
+/**
+ * @brief Formats a commit's OID into a short string.
+ *
+ * @tparam HashSize Length of hash prefix.
+ * @param commit Commit object.
+ *
+ * @return Formatted OID string.
+ */
 template <std::uint8_t HashSize = 7> std::array<char, HashSize + 1> format_oid(const git_commit* commit) {
     return format_oid<HashSize>(git_commit_id(commit));
 }
 
+/**
+ * @brief Converts a Git OID to string.
+ *
+ * @tparam HashSize Length of hash prefix.
+ * @param oid Object ID.
+ *
+ * @return String representation of OID.
+ */
 template <std::uint8_t HashSize = 7> std::string format_oid_to_str(const git_oid* oid) {
     auto arr = format_oid<HashSize>(oid);
     return std::string(arr.begin());
 }
 
-template <std::uint8_t HashSize = 7> std::string format_commit(git_commit* commit) {
-    std::string name;
-
-    const auto* id = git_commit_id(commit);
-    std::array<char, HashSize + 1> buff;
-
-    name += git_oid_tostr(buff.data(), buff.size(), id);
-    name += ": ";
-
-    const char* msg = git_commit_summary(commit);
-    name += msg;
-
-    return name;
-}
 }

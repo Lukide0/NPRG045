@@ -109,7 +109,18 @@ namespace detail {
     }
 }
 
-template <std::size_t Size> using comptime_str       = detail::str_ref<Size>;
+/**
+ * @brief Compile-time string view.
+ *
+ * @tparam Size String size.
+ */
+template <std::size_t Size> using comptime_str = detail::str_ref<Size>;
+
+/**
+ * @brief Compile-time fixed string array.
+ *
+ * @tparam Size String size.
+ */
 template <std::size_t Size> using comptime_str_array = detail::str_array<Size>;
 
 }

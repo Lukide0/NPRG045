@@ -9,6 +9,12 @@
 
 namespace core::git {
 
+/**
+ * @brief Sets the repository HEAD to a detached object and checks it out.
+ *
+ * @param repo Git repository.
+ * @param oid Object ID.
+ */
 inline bool set_repository_head_detached(git_repository* repo, const git_oid* oid) {
     if (git_repository_set_head_detached(repo, oid) != 0) {
         return false;
@@ -20,6 +26,12 @@ inline bool set_repository_head_detached(git_repository* repo, const git_oid* oi
     return git_checkout_head(repo, &opts) == 0;
 }
 
+/**
+ * @brief Sets the repository HEAD to a reference and checks it out.
+ *
+ * @param repo Git repository.
+ * @param ref Target reference.
+ */
 inline bool set_repository_head(git_repository* repo, const git_reference* ref) {
     const char* name = git_reference_name(ref);
 
@@ -33,6 +45,12 @@ inline bool set_repository_head(git_repository* repo, const git_reference* ref) 
     return git_checkout_head(repo, &opts) == 0;
 }
 
+/**
+ * @brief Checks whether a object is the current HEAD.
+ *
+ * @param repo Git repository.
+ * @param oid Object ID.
+ */
 inline bool is_head(git_repository* repo, const git_oid* oid) {
     reference_t head_ref;
 

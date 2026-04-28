@@ -7,6 +7,11 @@
 
 namespace core::utils {
 
+/**
+ * @brief Logs the last libgit2 error.
+ *
+ * @param loc Source location of the log call.
+ */
 inline void log_libgit_error(std::source_location loc = std::source_location::current()) {
     logging::Log::error(git::get_last_error(), loc);
 }

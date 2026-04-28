@@ -2,6 +2,9 @@
 
 namespace core::state {
 
+/**
+ * @brief Base interface for executable commands with undo support.
+ */
 class Command {
 public:
     virtual ~Command()     = default;

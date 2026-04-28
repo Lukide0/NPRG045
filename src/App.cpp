@@ -81,7 +81,7 @@ void App::saveShortcuts(QSettings& settings) {
     settings.endGroup();
 }
 
-void App::registerAction(const QString& action_id, QAction* action, const QString& description) {
+void App::registerShortcut(const QString& action_id, QAction* action, const QString& description) {
     ShortcutAction act;
     act.action           = action;
     act.description      = description;
@@ -126,7 +126,7 @@ void App::setupShortcuts() {
         action->setShortcutContext(ctx);
         parent->addAction(action);
 
-        registerAction(id, action, desc);
+        registerShortcut(id, action, desc);
 
         return action;
     };
@@ -434,7 +434,7 @@ bool App::openRepo(const std::string& path) {
     m_repo      = std::move(new_repo);
     m_repo_path = path;
 
-    if (!showRebase()) {
+    if (!loadRebase()) {
         m_welcome_widget->show();
         return false;
     }
@@ -445,7 +445,7 @@ bool App::openRepo(const std::string& path) {
     return true;
 }
 
-bool App::showRebase() {
+bool App::loadRebase() {
 
     auto err = core::git::get_rebase_info(m_repo_path, m_rebase_head, m_rebase_onto);
     if (err.has_value()) {
