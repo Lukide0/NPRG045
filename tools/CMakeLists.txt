@@ -11,3 +11,10 @@ configure_file(
     @ONLY
     USE_SOURCE_PERMISSIONS
 )
+
+configure_file(
+    rebase-run.in.sh
+    rebase-run.sh
+    @ONLY
+    USE_SOURCE_PERMISSIONS
+)
