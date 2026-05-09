@@ -57,7 +57,7 @@ inline LineResult parse_line(std::string_view line) {
     skip_whitespace(line);
 
     // comment
-    if (line.starts_with('#') || line.empty()) {
+    if (line.starts_with('#') || line.empty() || line.starts_with("noop"sv)) {
         return { .type = CmdType::NONE, .rest = line };
     } else if (full_match(line, "pick"sv, 'p')) {
         return { .type = CmdType::PICK, .rest = line };
