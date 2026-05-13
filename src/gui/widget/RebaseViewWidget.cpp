@@ -2,19 +2,15 @@
 
 #include "action/Action.h"
 #include "action/ActionManager.h"
-#include "core/conflict/conflict.h"
-#include "core/conflict/conflict_iterator.h"
-#include "core/conflict/ConflictManager.h"
-#include "core/git/commit.h"
-#include "core/git/error.h"
-#include "core/git/GitGraph.h"
-#include "core/git/head.h"
-#include "core/git/parser.h"
-#include "core/git/types.h"
-#include "core/state/CommandHistory.h"
-#include "core/utils/debug.h"
-#include "core/utils/todo.h"
-#include "core/utils/unexpected.h"
+#include "conflict/conflict.h"
+#include "conflict/conflict_iterator.h"
+#include "conflict/ConflictManager.h"
+#include "git/commit.h"
+#include "git/error.h"
+#include "git/GitGraph.h"
+#include "git/head.h"
+#include "git/parser.h"
+#include "git/types.h"
 #include "gui/color.h"
 #include "gui/style/GlobalStyle.h"
 #include "gui/style/StyleManager.h"
@@ -28,6 +24,10 @@
 #include "gui/widget/NamedListWidget.h"
 #include "gui/widget/ScrollListWidget.h"
 #include "logging/Log.h"
+#include "state/CommandHistory.h"
+#include "utils/debug.h"
+#include "utils/todo.h"
+#include "utils/unexpected.h"
 
 #include <cassert>
 #include <cstdint>
@@ -75,9 +75,9 @@ using action::ActionType;
 
 RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     : QWidget(parent)
-    , m_graph(core::git::GitGraph<Node*>::empty())
+    , m_graph(git::GitGraph<Node*>::empty())
     , m_actions(action::ActionsManager::get())
-    , m_conflict_manager(core::conflict::ConflictManager::get()) {
+    , m_conflict_manager(conflict::ConflictManager::get()) {
     using style::GlobalStyle;
 
     m_actions.clear();
@@ -181,7 +181,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
                 destination_row -= 1;
             }
 
-            core::state::CommandHistory::Add(
+            state::CommandHistory::Add(
                 std::make_unique<ListItemMoveCommand>(this, m_list_actions, source_row, destination_row)
             );
 
@@ -251,7 +251,7 @@ void RebaseViewWidget::updateConflictMarkers() {
         return;
     }
 
-    core::conflict::iterate_actions(
+    conflict::iterate_actions(
         *m_cherrypick,
         m_repo,
         m_conflict_files,
@@ -269,7 +269,7 @@ void RebaseViewWidget::updateConflictMarkers() {
 }
 
 void RebaseViewWidget::updateConflictList(Action* start) {
-    using core::conflict::ConflictStatus;
+    using conflict::ConflictStatus;
 
     Action* parent = nullptr;
 
@@ -325,7 +325,6 @@ void RebaseViewWidget::updateConflictList(Action* start) {
 }
 
 Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Action* parent_act) {
-    using namespace core;
     using ConflictStatus = Action::ConflictStatus;
 
     if (act == nullptr) {
@@ -333,7 +332,7 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Actio
     }
 
     ConflictStatus conflict_status;
-    core::git::index_t conflict_index;
+    git::index_t conflict_index;
 
     // first action
     if (parent_act == nullptr) {
@@ -362,7 +361,7 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Actio
             utils::log_libgit_error();
             return ConflictStatus::UNKNOWN;
         }
-        core::git::tree_t tree;
+        git::tree_t tree;
 
         if (git_tree_lookup(&tree, m_repo, &oid) != 0) {
             utils::log_libgit_error();
@@ -421,7 +420,7 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Actio
         m_conflict_entries.push_back(conflict_entry);
 
         if (!m_conflict_manager.is_resolved(conflict_entry)) {
-            auto conflict_diff = core::git::create_conflict_diff(m_repo, entry.ancestor, entry.our, entry.their);
+            auto conflict_diff = git::create_conflict_diff(m_repo, entry.ancestor, entry.our, entry.their);
 
             LOG_INFO("Conflict in '{}'", path);
 
@@ -489,7 +488,7 @@ void RebaseViewWidget::moveAction(int from, int to) {
 }
 
 void RebaseViewWidget::moveSelectedAction(bool down) {
-    using core::state::CommandHistory;
+    using state::CommandHistory;
 
     const int items_count = m_list_actions->count();
     int current           = m_list_actions->currentRow();
@@ -517,7 +516,7 @@ void RebaseViewWidget::moveSelectedAction(bool down) {
 }
 
 void RebaseViewWidget::changeActionType() {
-    using core::state::CommandHistory;
+    using state::CommandHistory;
 
     int current = m_list_actions->currentRow();
     if (current < 0) {
@@ -544,7 +543,7 @@ void RebaseViewWidget::changeActionType() {
 }
 
 void RebaseViewWidget::changeActionType(ActionType type) {
-    using core::state::CommandHistory;
+    using state::CommandHistory;
 
     int current = m_list_actions->currentRow();
     if (current < 0) {
@@ -587,7 +586,7 @@ void RebaseViewWidget::showCommit(Node* prev, Node* next) {
 
 std::optional<std::string>
 RebaseViewWidget::prepareGitGraph(git_repository* repo, const std::string& head, const std::string& onto) {
-    auto graph_opt = core::git::GitGraph<Node*>::create(head.c_str(), onto.c_str(), repo);
+    auto graph_opt = git::GitGraph<Node*>::create(head.c_str(), onto.c_str(), repo);
     if (!graph_opt.has_value()) {
         return "Could not find commits";
     }
@@ -597,7 +596,7 @@ RebaseViewWidget::prepareGitGraph(git_repository* repo, const std::string& head,
     std::uint32_t max_depth = m_graph.max_depth();
 
     Node* parent = nullptr;
-    m_graph.reverse_iterate([&](std::uint32_t depth, std::span<core::git::GitNode<Node*>> nodes) {
+    m_graph.reverse_iterate([&](std::uint32_t depth, std::span<git::GitNode<Node*>> nodes) {
         auto y = max_depth - depth;
 
         for (auto& node : nodes) {
@@ -617,9 +616,9 @@ std::optional<std::string> RebaseViewWidget::update(
     git_repository* repo,
     const std::string& head,
     const std::string& onto,
-    const std::vector<core::git::CommitAction>& actions
+    const std::vector<git::CommitAction>& actions
 ) {
-    using core::git::CmdType;
+    using git::CmdType;
 
     m_old_commits_graph->clear();
     m_actions.clear();
@@ -634,7 +633,7 @@ std::optional<std::string> RebaseViewWidget::update(
     for (auto&& action : actions) {
 
         git_oid id;
-        if (!core::git::get_oid_from_hash(id, action.hash.c_str(), m_repo)) {
+        if (!git::get_oid_from_hash(id, action.hash.c_str(), m_repo)) {
             return "Could not find commit";
         }
 
@@ -670,7 +669,7 @@ std::optional<std::string> RebaseViewWidget::update(
             return std::format(
                 "Advanced rebase command not supported '{}'. Only basic commit actions (pick, edit, squash, etc.) are "
                 "available.",
-                core::git::cmd_to_str(action.type)
+                git::cmd_to_str(action.type)
             );
         }
     }
@@ -812,7 +811,7 @@ void RebaseViewWidget::updateGraph() {
 }
 
 Node* RebaseViewWidget::findOldCommit(const git_oid& oid) {
-    core::git::commit_t commit;
+    git::commit_t commit;
 
     if (git_commit_lookup(&commit, m_repo, &oid) != 0) {
         return nullptr;
@@ -880,7 +879,6 @@ void RebaseViewWidget::prepareItem(ListItem* item, Action& action) {
 }
 
 void RebaseViewWidget::checkoutAndResolve() {
-    using namespace core;
 
     // 1. Check if working index is clean
     {
@@ -1028,7 +1026,6 @@ void RebaseViewWidget::checkoutAndResolve() {
 }
 
 bool RebaseViewWidget::markResolved() {
-    using namespace core;
 
     if (m_conflict_index.get() == nullptr || m_resolving.action == nullptr) {
         return false;

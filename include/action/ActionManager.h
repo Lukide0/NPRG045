@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Action.h"
-#include "core/git/types.h"
-#include "core/utils/unexpected.h"
+#include "git/types.h"
+#include "utils/unexpected.h"
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -106,12 +106,12 @@ public:
     /**
      * @brief Splits an action into two actions.
      */
-    core::git::commit_t split(Action* act, core::git::commit_t&& prev, core::git::commit_t&& next);
+    git::commit_t split(Action* act, git::commit_t&& prev, git::commit_t&& next);
 
     /**
      * @brief Merges an action with its next action.
      */
-    std::pair<core::git::commit_t, core::git::commit_t> merge_next(Action* act, core::git::commit_t&& commit);
+    std::pair<git::commit_t, git::commit_t> merge_next(Action* act, git::commit_t&& commit);
 
     /**
      * @brief Moves an action within the list.
@@ -179,7 +179,7 @@ public:
      * @param act Target action.
      * @param commit Commit to swap.
      */
-    static void swap_commits(Action* act, core::git::commit_t& commit) { std::swap(act->m_commit, commit); }
+    static void swap_commits(Action* act, git::commit_t& commit) { std::swap(act->m_commit, commit); }
 
     /**
      * @brief Gets global manager instance.

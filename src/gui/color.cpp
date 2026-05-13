@@ -1,14 +1,14 @@
 #include "gui/color.h"
-#include "core/git/diff.h"
-#include "core/utils/unexpected.h"
+#include "git/diff.h"
 #include "gui/style/DiffStyle.h"
 #include "gui/style/StyleManager.h"
+#include "utils/unexpected.h"
 
 #include <QColor>
 
 namespace gui {
 
-using core::git::diff_line_t;
+using git::diff_line_t;
 
 style::DiffStyle::Style convert_to_diff_color(diff_line_t::Type type) {
     switch (type) {

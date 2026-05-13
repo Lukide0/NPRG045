@@ -1,9 +1,9 @@
 #include "gui/widget/CommitMessageWidget.h"
 #include "action/Action.h"
 #include "action/ActionManager.h"
-#include "core/git/types.h"
-#include "core/utils/optional_uint.h"
+#include "git/types.h"
 #include "gui/file.h"
+#include "utils/optional_uint.h"
 
 #include <cstddef>
 #include <format>
@@ -142,7 +142,7 @@ void CommitMessageWidget::openInEditor() {
         return;
     }
 
-    auto filename = QString::fromStdString(core::git::format_oid_to_str(&m_action->get_oid()));
+    auto filename = QString::fromStdString(git::format_oid_to_str(&m_action->get_oid()));
 
     // already opened
     if (!m_filepath.isEmpty()) {

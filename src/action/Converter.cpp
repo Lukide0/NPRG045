@@ -1,7 +1,7 @@
 #include "action/Converter.h"
 #include "action/Action.h"
 #include "action/ActionManager.h"
-#include "core/git/commit.h"
+#include "git/commit.h"
 #include "logging/Log.h"
 
 #include <git2/commit.h>
@@ -32,12 +32,8 @@ struct ConverterContext {
 };
 
 std::pair<ActionInfo, bool> get_action_info(
-    ConverterContext& ctx,
-    Action& act,
-    action::ActionsManager& manager,
-    core::conflict::ConflictManager& conflict_manager
+    ConverterContext& ctx, Action& act, action::ActionsManager& manager, conflict::ConflictManager& conflict_manager
 ) {
-    using namespace core;
 
     ActionInfo info;
 
@@ -126,7 +122,7 @@ void fixup_to_todo(std::ostream& output, ActionInfo& info) {
 }
 
 bool Converter::actions_to_todo(
-    std::ostream& output, ActionsManager& manager, core::conflict::ConflictManager& conflict_manager, bool insert_break
+    std::ostream& output, ActionsManager& manager, conflict::ConflictManager& conflict_manager, bool insert_break
 ) {
     ConverterContext ctx;
     ctx.root = manager.get_root_commit();

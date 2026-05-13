@@ -1,5 +1,5 @@
 #include "gui/widget/DiffEditor.h"
-#include "core/git/diff.h"
+#include "git/diff.h"
 #include "gui/color.h"
 #include "gui/style/StyleManager.h"
 #include "gui/widget/DiffEditorLine.h"
@@ -21,9 +21,9 @@
 
 namespace gui::widget {
 
-using core::git::diff_line_t;
+using git::diff_line_t;
 
-DiffEditor::DiffEditor(const core::git::diff_files_t& diff, QWidget* parent)
+DiffEditor::DiffEditor(const git::diff_files_t& diff, QWidget* parent)
     : QPlainTextEdit(parent)
     , m_diff(diff) {
 
@@ -134,7 +134,7 @@ void DiffEditor::onSelectionChanged() {
 }
 
 bool DiffEditor::selectOnlyFile() const {
-    using State = core::git::diff_files_t::State;
+    using State = git::diff_files_t::State;
     switch (m_diff.state) {
     case State::DELETED:
     case State::RENAMED:
@@ -146,7 +146,7 @@ bool DiffEditor::selectOnlyFile() const {
 }
 
 void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
-    using State = core::git::diff_files_t::State;
+    using State = git::diff_files_t::State;
 
     bool show_context_menu = m_context_menu;
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/git/diff.h"
+#include "git/diff.h"
 #include "gui/widget/DiffEditor.h"
 #include <QSize>
 #include <QTextBlockUserData>
@@ -10,23 +10,23 @@ namespace gui::widget {
 
 class DiffEditorLineData : public QTextBlockUserData {
 public:
-    DiffEditorLineData(const core::git::diff_line_t& line, const core::git::diff_hunk_t& hunk)
+    DiffEditorLineData(const git::diff_line_t& line, const git::diff_hunk_t& hunk)
         : m_line(line)
         , m_hunk(hunk) { }
 
     ~DiffEditorLineData() override = default;
 
-    [[nodiscard]] const core::git::diff_line_t& get_line() const { return m_line; }
+    [[nodiscard]] const git::diff_line_t& get_line() const { return m_line; }
 
-    [[nodiscard]] const core::git::diff_hunk_t& get_hunk() const { return m_hunk; }
+    [[nodiscard]] const git::diff_hunk_t& get_hunk() const { return m_hunk; }
 
     [[nodiscard]] bool is_selected() const { return m_selected; }
 
     void set_select(bool enable) { m_selected = enable; }
 
 private:
-    const core::git::diff_line_t& m_line;
-    const core::git::diff_hunk_t& m_hunk;
+    const git::diff_line_t& m_line;
+    const git::diff_hunk_t& m_hunk;
     bool m_selected = false;
 };
 

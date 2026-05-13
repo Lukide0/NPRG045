@@ -1,13 +1,13 @@
 #pragma once
 
 #include "action/Action.h"
-#include "core/git/diff.h"
-#include "core/git/types.h"
-#include "core/state/Command.h"
+#include "git/diff.h"
+#include "git/types.h"
 #include "gui/color.h"
 #include "gui/style/DiffStyle.h"
 #include "gui/widget/DiffEditor.h"
 #include "gui/widget/DiffFile.h"
+#include "state/Command.h"
 
 #include <cstddef>
 #include <utility>
@@ -33,7 +33,7 @@ public:
 
     void clear();
 
-    [[nodiscard]] const std::vector<core::git::diff_files_t>& getDiffs() const { return m_diffs; }
+    [[nodiscard]] const std::vector<git::diff_files_t>& getDiffs() const { return m_diffs; }
 
     DiffFile* getDiffFile(std::size_t i) { return m_files[i]; }
 
@@ -42,7 +42,7 @@ public:
 private:
     action::Action* m_action = nullptr;
 
-    std::vector<core::git::diff_files_t> m_diffs;
+    std::vector<git::diff_files_t> m_diffs;
     std::vector<DiffFile*> m_files;
     QVBoxLayout* m_scroll_layout;
     QVBoxLayout* m_layout;
@@ -58,23 +58,23 @@ private:
         QTextBlock block;
     };
 
-    void update(core::git::diff_result_t& res, bool editable);
+    void update(git::diff_result_t& res, bool editable);
 
-    void createFileDiff(const core::git::diff_files_t& diff, bool editable);
-    void addHunkDiff(const core::git::diff_hunk_t& hunk, std::vector<section_t>& sections);
+    void createFileDiff(const git::diff_files_t& diff, bool editable);
+    void addHunkDiff(const git::diff_hunk_t& hunk, std::vector<section_t>& sections);
     void addLineDiff(
         QTextCursor& cursor,
-        const core::git::diff_hunk_t& hunk,
-        const core::git::diff_line_t& line,
+        const git::diff_hunk_t& hunk,
+        const git::diff_line_t& line,
         std::vector<section_t>& sections
     );
 
     void splitCommitEvent();
 };
 
-class CommitSplitCommand : public core::state::Command {
+class CommitSplitCommand : public state::Command {
 public:
-    CommitSplitCommand(std::size_t index, core::git::commit_t&& first, core::git::commit_t&& second)
+    CommitSplitCommand(std::size_t index, git::commit_t&& first, git::commit_t&& second)
         : m_index(index)
         , m_split(std::move(first), std::move(second)) { }
 
@@ -85,8 +85,8 @@ public:
 
 private:
     std::size_t m_index;
-    std::pair<core::git::commit_t, core::git::commit_t> m_split;
-    core::git::commit_t m_commit;
+    std::pair<git::commit_t, git::commit_t> m_split;
+    git::commit_t m_commit;
 };
 
 }

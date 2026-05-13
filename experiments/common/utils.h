@@ -4,7 +4,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <git2/commit.h>
 #include <git2/diff.h>
 #include <git2/index.h>
@@ -15,11 +14,6 @@
 #include <git2/signature.h>
 #include <git2/tree.h>
 #include <git2/types.h>
-#include <limits>
-#include <string>
-#include <string_view>
-#include <utility>
-#include <vector>
 
 struct git_commit_t {
     git_commit* commit = nullptr;
@@ -115,42 +109,4 @@ inline bool get_all_parents(git_commit_parents_t& parents, git_commit* commit) {
     parents.count   = parents_count;
 
     return true;
-}
-
-inline bool check_commit(git_commit* a, git_commit* b) {
-    const auto* id_a = git_commit_id(a);
-    const auto* id_b = git_commit_id(b);
-
-    return git_oid_equal(id_a, id_b) != 0;
-}
-
-template <std::uint8_t HashSize = 7> std::array<char, HashSize + 1> format_oid(const git_commit* commit) {
-    // NOTE: +1 is for '\0'
-    std::array<char, HashSize + 1> buff;
-    git_oid_tostr(buff.data(), buff.size(), git_commit_id(commit));
-
-    return buff;
-}
-
-template <std::uint8_t HashSize = 7> std::array<char, HashSize + 1> format_oid(const git_oid* id) {
-    // NOTE: +1 is for '\0'
-    std::array<char, HashSize + 1> buff;
-    git_oid_tostr(buff.data(), buff.size(), id);
-
-    return buff.data();
-}
-
-template <std::uint8_t HashSize = 7> std::string format_commit(git_commit* commit) {
-    std::string name;
-
-    const auto* id = git_commit_id(commit);
-    std::array<char, HashSize + 1> buff;
-
-    name += git_oid_tostr(buff.data(), buff.size(), id);
-    name += ": ";
-
-    const char* msg = git_commit_summary(commit);
-    name += msg;
-
-    return name;
 }

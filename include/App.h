@@ -150,7 +150,7 @@ private:
     gui::widget::RebaseViewWidget* m_rebase_view;
     gui::widget::WelcomeWidget* m_welcome_widget;
 
-    core::git::repository_t m_repo;
+    git::repository_t m_repo;
 
     std::optional<QString> m_save_file;
 

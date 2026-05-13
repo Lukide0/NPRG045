@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core/utils/strings.h"
 #include "gui/style/ConflictStyle.h"
 #include "gui/style/StyleManager.h"
+#include "utils/strings.h"
 
 #include <git2/merge.h>
 #include <QSyntaxHighlighter>
@@ -33,7 +33,7 @@ private:
     static constexpr int CONFLICT_BLOCK = 1;
 
     static constexpr std::size_t MARKER_SIZE = GIT_MERGE_CONFLICT_MARKER_SIZE;
-    using marker_t                           = core::utils::comptime_str_array<MARKER_SIZE + 1>;
+    using marker_t                           = utils::comptime_str_array<MARKER_SIZE + 1>;
 
     static constexpr auto START_BLOCK_MARKER = marker_t('<');
     static constexpr auto END_BLOCK_MARKER   = marker_t('>');

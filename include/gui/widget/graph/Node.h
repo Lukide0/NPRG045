@@ -1,7 +1,7 @@
 #pragma once
 
 #include "action/Action.h"
-#include "core/git/types.h"
+#include "git/types.h"
 
 #include <algorithm>
 #include <git2/commit.h>
@@ -23,7 +23,7 @@ public:
     static constexpr qreal MIN_WIDTH = 300;
     static constexpr qreal HEIGHT    = 20;
 
-    using ConflictStatus = core::conflict::ConflictStatus;
+    using ConflictStatus = conflict::ConflictStatus;
     using Action         = action::Action;
 
     Node(GraphWidget* graph);
@@ -36,7 +36,7 @@ public:
     void setWidth(qreal width);
 
     void setCommit(git_commit* commit) {
-        auto id       = core::git::format_oid(commit);
+        auto id       = git::format_oid(commit);
         m_commit      = commit;
         m_commit_hash = id.data();
         m_commit_msg  = git_commit_summary(commit);

@@ -1,16 +1,16 @@
 #include "gui/widget/CommitViewWidget.h"
 #include "action/Action.h"
 #include "action/ActionManager.h"
-#include "core/git/diff.h"
-#include "core/git/GitGraph.h"
-#include "core/git/types.h"
-#include "core/utils/unexpected.h"
+#include "git/diff.h"
+#include "git/GitGraph.h"
+#include "git/types.h"
 #include "gui/clear_layout.h"
 #include "gui/widget/CommitMessageWidget.h"
 #include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Node.h"
 #include "gui/widget/NamedListWidget.h"
 #include "gui/widget/SLabel.h"
+#include "utils/unexpected.h"
 
 #include <git2/commit.h>
 #include <git2/diff.h>
@@ -36,9 +36,9 @@
 namespace gui::widget {
 
 using action::Action;
-using core::git::diff_files_t;
-using core::git::diff_line_t;
-using core::git::GitGraph;
+using git::diff_files_t;
+using git::diff_line_t;
+using git::GitGraph;
 
 CommitViewWidget::CommitViewWidget(DiffWidget* diff)
     : m_manager(action::ActionsManager::get())
@@ -98,7 +98,7 @@ void CommitViewWidget::createRows() {
         m_msg->setAction(m_action);
     }
 
-    std::string hash = core::git::format_oid_to_str<GIT_OID_MAX_HEXSIZE>(git_commit_id(m_commit));
+    std::string hash = git::format_oid_to_str<GIT_OID_MAX_HEXSIZE>(git_commit_id(m_commit));
 
     const git_signature* autor   = git_commit_author(m_commit);
     const git_time_t commit_time = git_commit_time(m_commit);

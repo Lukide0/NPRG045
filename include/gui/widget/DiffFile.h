@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/git/diff.h"
+#include "git/diff.h"
 #include "gui/editor_height.h"
 #include "gui/widget/DiffEditor.h"
 #include <QLabel>
@@ -16,7 +16,7 @@ namespace gui::widget {
 class DiffFile : public QWidget {
     Q_OBJECT
 public:
-    DiffFile(const core::git::diff_files_t& diff, QWidget* parent = nullptr)
+    DiffFile(const git::diff_files_t& diff, QWidget* parent = nullptr)
         : QWidget(parent) {
         m_layout = new QVBoxLayout();
         m_layout->setContentsMargins(0, 0, 0, 0);
@@ -61,9 +61,9 @@ public:
 
     void setHeader(const QString& filepath) { m_label->setText("○ " + filepath); }
 
-    void setDiff(core::git::diff_files_header_t diff) { m_diff = std::move(diff); }
+    void setDiff(git::diff_files_header_t diff) { m_diff = std::move(diff); }
 
-    [[nodiscard]] const core::git::diff_files_header_t& getDiff() const { return m_diff; }
+    [[nodiscard]] const git::diff_files_header_t& getDiff() const { return m_diff; }
 
     DiffEditor* getEditor() { return m_editor; }
 
@@ -73,7 +73,7 @@ private:
     QVBoxLayout* m_layout;
     QLabel* m_label;
     DiffEditor* m_editor;
-    core::git::diff_files_header_t m_diff;
+    git::diff_files_header_t m_diff;
 };
 
 }

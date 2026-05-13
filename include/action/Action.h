@@ -1,9 +1,9 @@
 #pragma once
 
-#include "core/conflict/conflict.h"
-#include "core/git/types.h"
-#include "core/utils/optional_uint.h"
-#include "core/utils/todo.h"
+#include "conflict/conflict.h"
+#include "git/types.h"
+#include "utils/optional_uint.h"
+#include "utils/todo.h"
 #include <cassert>
 #include <git2/commit.h>
 #include <git2/oid.h>
@@ -62,7 +62,7 @@ static constexpr const char* type_to_str(ActionType type) {
  */
 class Action {
 public:
-    using ConflictStatus = core::conflict::ConflictStatus;
+    using ConflictStatus = conflict::ConflictStatus;
 
     /**
      * @brief Constructs an Action from a Git commit OID.
@@ -85,7 +85,7 @@ public:
      * @param commit Git commit object.
      * @param msg_id Optional message ID.
      */
-    Action(ActionType type, core::git::commit_t&& commit, optional_u31 msg_id = optional_u31::none())
+    Action(ActionType type, git::commit_t&& commit, optional_u31 msg_id = optional_u31::none())
         : m_commit(std::move(commit))
         , m_msg_id(msg_id)
         , m_type(type) { }
@@ -195,7 +195,7 @@ public:
      * @param tree Git tree object.
      * @param status Conflict status.
      */
-    void set_tree(core::git::tree_t&& tree, ConflictStatus status) {
+    void set_tree(git::tree_t&& tree, ConflictStatus status) {
         m_tree          = std::move(tree);
         m_tree_conflict = status;
     }
@@ -241,9 +241,9 @@ public:
 private:
     Action* m_next = nullptr;
     Action* m_prev = nullptr;
-    core::git::commit_t m_commit;
+    git::commit_t m_commit;
 
-    core::git::tree_t m_tree;
+    git::tree_t m_tree;
     ConflictStatus m_tree_conflict = ConflictStatus::UNKNOWN;
 
     optional_u31 m_msg_id;

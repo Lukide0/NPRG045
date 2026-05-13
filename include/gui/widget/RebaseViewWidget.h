@@ -2,10 +2,10 @@
 
 #include "action/Action.h"
 #include "action/ActionManager.h"
-#include "core/conflict/ConflictManager.h"
-#include "core/git/GitGraph.h"
-#include "core/git/parser.h"
-#include "core/git/types.h"
+#include "conflict/ConflictManager.h"
+#include "git/GitGraph.h"
+#include "git/parser.h"
+#include "git/types.h"
 #include "gui/widget/CommitViewWidget.h"
 #include "gui/widget/ConflictWidget.h"
 #include "gui/widget/DiffWidget.h"
@@ -39,7 +39,7 @@ public:
         git_repository* repo,
         const std::string& head,
         const std::string& onto,
-        const std::vector<core::git::CommitAction>& actions
+        const std::vector<git::CommitAction>& actions
     );
 
     std::optional<std::string> update(git_repository* repo, const std::string& head, const std::string& onto);
@@ -98,13 +98,13 @@ private:
 
     Node* m_last_node = nullptr;
 
-    core::git::GitGraph<Node*> m_graph;
+    git::GitGraph<Node*> m_graph;
     action::ActionsManager& m_actions;
-    core::conflict::ConflictManager& m_conflict_manager;
+    conflict::ConflictManager& m_conflict_manager;
 
     /* GIT */
     git_repository* m_repo;
-    core::git::reference_t m_head;
+    git::reference_t m_head;
     Node* m_root_node;
 
     action::Action* m_cherrypick = nullptr;
@@ -115,10 +115,10 @@ private:
         action::Action* parent_action;
     } m_resolving;
 
-    core::git::index_t m_conflict_index;
+    git::index_t m_conflict_index;
 
     std::vector<std::string> m_conflict_paths;
-    std::vector<core::conflict::ConflictEntry> m_conflict_entries;
+    std::vector<conflict::ConflictEntry> m_conflict_entries;
     std::vector<git_oid> m_conflict_files;
 
 private:

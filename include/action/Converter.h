@@ -2,7 +2,7 @@
 
 #include "Action.h"
 #include "ActionManager.h"
-#include "core/conflict/ConflictManager.h"
+#include "conflict/ConflictManager.h"
 
 namespace action {
 
@@ -26,7 +26,7 @@ public:
     static bool actions_to_todo(
         std::ostream& output,
         ActionsManager& manager,
-        core::conflict::ConflictManager& conflict_manager,
+        conflict::ConflictManager& conflict_manager,
         bool insert_break = false
     );
 };

@@ -1,8 +1,8 @@
 #include "action/ActionManager.h"
 
 #include "action/Action.h"
-#include "core/git/types.h"
-#include "core/utils/unexpected.h"
+#include "git/types.h"
+#include "utils/unexpected.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -27,9 +27,9 @@ std::uint32_t ActionsManager::add_msg(std::string&& msg) {
     return index;
 }
 
-core::git::commit_t ActionsManager::split(Action* act, core::git::commit_t&& prev, core::git::commit_t&& next) {
+git::commit_t ActionsManager::split(Action* act, git::commit_t&& prev, git::commit_t&& next) {
 
-    core::git::commit_t commit = std::move(act->m_commit);
+    git::commit_t commit = std::move(act->m_commit);
 
     act->m_commit = std::move(prev);
 
@@ -43,14 +43,12 @@ core::git::commit_t ActionsManager::split(Action* act, core::git::commit_t&& pre
     return commit;
 }
 
-std::pair<core::git::commit_t, core::git::commit_t>
-ActionsManager::merge_next(Action* act, core::git::commit_t&& commit) {
+std::pair<git::commit_t, git::commit_t> ActionsManager::merge_next(Action* act, git::commit_t&& commit) {
     assert(act->get_next() != nullptr);
 
     auto* next = act->get_next();
 
-    auto commits
-        = std::make_pair<core::git::commit_t, core::git::commit_t>(std::move(act->m_commit), std::move(next->m_commit));
+    auto commits = std::make_pair<git::commit_t, git::commit_t>(std::move(act->m_commit), std::move(next->m_commit));
 
     act->m_commit = std::move(commit);
 

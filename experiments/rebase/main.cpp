@@ -90,6 +90,7 @@ int revert(args_t args) {
         show_last_err();
         return 1;
     }
+
     git_commit_t last_commit;
     if (!get_last_commit(last_commit, g_repo)) {
         show_last_err();

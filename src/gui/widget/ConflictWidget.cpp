@@ -60,7 +60,7 @@ void ConflictWidget::addConflictFile(const std::string& path, const std::string&
     m_conflicts += 1;
 }
 
-void ConflictWidget::addConflictFile(const std::string& path, const core::git::conflict_diff_t& diff) {
+void ConflictWidget::addConflictFile(const std::string& path, const git::conflict_diff_t& diff) {
     addConflictFile(path, diff.diff);
 }
 

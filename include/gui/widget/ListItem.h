@@ -1,10 +1,10 @@
 #pragma once
 
 #include "action/Action.h"
-#include "core/conflict/conflict.h"
-#include "core/state/Command.h"
+#include "conflict/conflict.h"
 #include "gui/widget/graph/Node.h"
 #include "logging/Log.h"
+#include "state/Command.h"
 
 #include <QBoxLayout>
 #include <QColor>
@@ -27,7 +27,7 @@ public:
     using ActionType = action::ActionType;
 
     static constexpr auto items = action::action_types;
-    using ConflictStatus        = core::conflict::ConflictStatus;
+    using ConflictStatus        = conflict::ConflictStatus;
 
     static constexpr int indexOf(ActionType type) {
         for (int i = 0; i < static_cast<int>(items.size()); ++i) {
@@ -91,7 +91,7 @@ public:
 private:
     Node* m_node = nullptr;
     action::Action& m_action;
-    core::conflict::ConflictStatus m_conflict;
+    conflict::ConflictStatus m_conflict;
 
     RebaseViewWidget* m_rebase;
     QListWidget* m_parent;
@@ -106,7 +106,7 @@ private:
     void updateMarkerColor();
 };
 
-class ListItemMoveCommand : public core::state::Command {
+class ListItemMoveCommand : public state::Command {
 public:
     ListItemMoveCommand(RebaseViewWidget* rebase, QListWidget* parent, int prev_row, int curr_row);
     ~ListItemMoveCommand() override = default;
@@ -123,7 +123,7 @@ private:
     void move(int from, int to);
 };
 
-class ListItemChangedCommand : public core::state::Command {
+class ListItemChangedCommand : public state::Command {
 public:
     ListItemChangedCommand(QListWidget* parent, int row, action::ActionType prev, action::ActionType curr);
     ~ListItemChangedCommand() override = default;

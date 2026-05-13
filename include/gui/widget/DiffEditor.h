@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/git/diff.h"
+#include "git/diff.h"
 #include <functional>
 #include <QPlainTextEdit>
 #include <vector>
@@ -13,7 +13,7 @@ class DiffEditorLineData;
 class DiffEditor : public QPlainTextEdit {
     Q_OBJECT
 public:
-    DiffEditor(const core::git::diff_files_t& diff, QWidget* parent = nullptr);
+    DiffEditor(const git::diff_files_t& diff, QWidget* parent = nullptr);
 
     void diffLinePaintEvent(QPaintEvent* event);
     int diffLineWidth();
@@ -62,7 +62,7 @@ private:
     bool selectOnlyFile() const;
 
 private:
-    const core::git::diff_files_t& m_diff;
+    const git::diff_files_t& m_diff;
 
     DiffEditorLine* m_line;
     bool m_context_menu           = false;

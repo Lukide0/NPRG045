@@ -1,12 +1,12 @@
 #include "gui/widget/ListItem.h"
 #include "action/Action.h"
 #include "App.h"
-#include "core/git/parser.h"
-#include "core/state/CommandHistory.h"
+#include "git/parser.h"
 #include "gui/style/ConflictStyle.h"
 #include "gui/style/StyleManager.h"
 #include "gui/widget/RebaseViewWidget.h"
 #include "logging/Log.h"
+#include "state/CommandHistory.h"
 
 #include <QBoxLayout>
 #include <QColor>
@@ -98,9 +98,7 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
 
         m_action.set_type(curr_type);
 
-        core::state::CommandHistory::Add(
-            std::make_unique<ListItemChangedCommand>(m_parent, m_row, prev_type, curr_type)
-        );
+        state::CommandHistory::Add(std::make_unique<ListItemChangedCommand>(m_parent, m_row, prev_type, curr_type));
 
         App::updateConflicts(m_action.get_prev());
         App::updateGraph();

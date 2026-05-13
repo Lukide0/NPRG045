@@ -2,16 +2,16 @@
 #include "action/Action.h"
 #include "action/ActionManager.h"
 #include "App.h"
-#include "core/git/diff.h"
-#include "core/git/types.h"
-#include "core/patch/PatchSplitter.h"
-#include "core/patch/split.h"
-#include "core/state/CommandHistory.h"
+#include "git/diff.h"
+#include "git/types.h"
 #include "gui/clear_layout.h"
 #include "gui/widget/DiffEditor.h"
 #include "gui/widget/DiffEditorLine.h"
 #include "gui/widget/DiffFile.h"
 #include "logging/Log.h"
+#include "patch/PatchSplitter.h"
+#include "patch/split.h"
+#include "state/CommandHistory.h"
 
 #include <cstddef>
 #include <format>
@@ -40,10 +40,10 @@
 
 namespace gui::widget {
 
-using core::git::diff_files_t;
-using core::git::diff_hunk_t;
-using core::git::diff_line_t;
-using core::git::diff_result_t;
+using git::diff_files_t;
+using git::diff_hunk_t;
+using git::diff_line_t;
+using git::diff_result_t;
 
 using action::Action;
 
@@ -87,21 +87,21 @@ void DiffWidget::update(git_commit* commit) {
     }
 
     diff_result_t res;
-    core::git::commit_t parent_commit;
+    git::commit_t parent_commit;
     std::uint32_t parents = git_commit_parentcount(commit);
 
     if (parents == 0) {
-        res = core::git::prepare_diff(nullptr, commit);
+        res = git::prepare_diff(nullptr, commit);
     } else if (parents > 1 || git_commit_parent(&parent_commit, commit, 0) != 0) {
         res.state = diff_result_t::FAILED_TO_CREATE_DIFF;
     } else {
-        res = core::git::prepare_diff(parent_commit, commit);
+        res = git::prepare_diff(parent_commit, commit);
     }
 
     update(res, false);
 }
 
-void DiffWidget::update(core::git::diff_result_t& res, bool editable) {
+void DiffWidget::update(git::diff_result_t& res, bool editable) {
     switch (res.state) {
     case diff_result_t::FAILED_TO_RETRIEVE_TREE:
         QMessageBox::critical(this, "Commit diff error", "Failed to retrieve tree from commit");
@@ -114,7 +114,7 @@ void DiffWidget::update(core::git::diff_result_t& res, bool editable) {
         break;
     }
 
-    m_diffs = core::git::create_diff(res.diff);
+    m_diffs = git::create_diff(res.diff);
     for (std::size_t i = 0; i < m_diffs.size(); ++i) {
         if (i != 0) {
             auto* line = new QFrame(this);
@@ -130,7 +130,7 @@ void DiffWidget::update(core::git::diff_result_t& res, bool editable) {
 }
 
 void DiffWidget::update(Action* action) {
-    using ConflictStatus = core::conflict::ConflictStatus;
+    using ConflictStatus = conflict::ConflictStatus;
     clear();
     m_action = action;
 
@@ -142,7 +142,7 @@ void DiffWidget::update(Action* action) {
     diff_result_t res;
     if (parent == nullptr) {
         git_commit* root_commit = action::ActionsManager::get().get_root_commit();
-        res                     = core::git::prepare_diff(root_commit, action->get_commit());
+        res                     = git::prepare_diff(root_commit, action->get_commit());
     } else {
         switch (parent->get_tree_status()) {
         case ConflictStatus::UNKNOWN:
@@ -170,7 +170,7 @@ void DiffWidget::update(Action* action) {
 
         git_repository* repo = git_commit_owner(action->get_commit());
 
-        res = core::git::prepare_resolution_diff(parent->get_tree(), action, repo);
+        res = git::prepare_resolution_diff(parent->get_tree(), action, repo);
     }
 
     update(res, true);
@@ -230,7 +230,7 @@ void DiffWidget::createFileDiff(const diff_files_t& diff, bool editable) {
         return;
     }
 
-    file_diff->setDiff(core::git::diff_header(diff));
+    file_diff->setDiff(git::diff_header(diff));
     file_diff->setHeader(header);
 
     std::vector<section_t> sections;
@@ -333,12 +333,12 @@ void DiffWidget::addLineDiff(
 }
 
 void DiffWidget::splitCommitEvent() {
-    using FileState = core::patch::PatchSplitter::FileState;
+    using FileState = patch::PatchSplitter::FileState;
 
     std::string patch_text;
 
     {
-        core::patch::PatchSplitter splitter;
+        patch::PatchSplitter splitter;
 
         for (auto&& file : m_files) {
             const DiffEditor* editor = file->getEditor();
@@ -381,7 +381,7 @@ void DiffWidget::splitCommitEvent() {
         }
     };
 
-    core::git::diff_t diff;
+    git::diff_t diff;
 
     int state = git_diff_from_buffer(&diff, patch_text.c_str(), patch_text.size());
     if (state != 0) {
@@ -389,10 +389,10 @@ void DiffWidget::splitCommitEvent() {
         return;
     }
 
-    core::git::commit_t first_commit;
-    core::git::commit_t second_commit;
+    git::commit_t first_commit;
+    git::commit_t second_commit;
 
-    bool res = core::patch::split(first_commit, second_commit, m_action, diff);
+    bool res = patch::split(first_commit, second_commit, m_action, diff);
     if (!res) {
         handler();
         return;
@@ -403,7 +403,7 @@ void DiffWidget::splitCommitEvent() {
     auto cmd = std::make_unique<CommitSplitCommand>(index, std::move(first_commit), std::move(second_commit));
     cmd->execute();
 
-    core::state::CommandHistory::Add(std::move(cmd));
+    state::CommandHistory::Add(std::move(cmd));
 }
 
 void CommitSplitCommand::execute() {
