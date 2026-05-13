@@ -1,5 +1,4 @@
 #include "gui/style/StyleManager.h"
-#include "App.h"
 
 #include <QSettings>
 

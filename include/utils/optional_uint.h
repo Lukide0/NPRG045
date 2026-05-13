@@ -3,7 +3,6 @@
 #include <cassert>
 #include <concepts>
 #include <cstdint>
-#include <limits>
 
 /**
  * @brief Optional unsigned integer stored with a sentinel bit.

@@ -1,4 +1,5 @@
 #include "gui/widget/CommitViewWidget.h"
+
 #include "action/Action.h"
 #include "action/ActionManager.h"
 #include "git/diff.h"
@@ -14,6 +15,7 @@
 
 #include <git2/commit.h>
 #include <git2/diff.h>
+#include <git2/oid.h>
 #include <git2/tree.h>
 #include <git2/types.h>
 
@@ -23,13 +25,13 @@
 #include <QListWidgetItem>
 #include <QMessageBox>
 #include <QString>
+#include <Qt>
 #include <QVariant>
 
 #include <cstdlib>
 #include <ctime>
 #include <format>
 #include <iomanip>
-#include <qnamespace.h>
 #include <sstream>
 #include <string>
 

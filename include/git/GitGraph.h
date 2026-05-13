@@ -1,19 +1,21 @@
 #pragma once
 
 #include "types.h"
+
 #include <cassert>
 #include <cstdint>
 #include <functional>
-#include <git2/commit.h>
-#include <git2/oid.h>
-#include <git2/revwalk.h>
-#include <git2/types.h>
 #include <optional>
 #include <span>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+#include <git2/commit.h>
+#include <git2/oid.h>
+#include <git2/revwalk.h>
+#include <git2/types.h>
 
 namespace git {
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "git/diff.h"
+
 #include <sstream>
 #include <string>
 

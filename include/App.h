@@ -1,9 +1,12 @@
 #pragma once
 
+#include "action/Action.h"
+#include "git/types.h"
 #include "gui/widget/RebaseViewWidget.h"
 #include "gui/widget/WelcomeWidget.h"
 
 #include <cassert>
+#include <optional>
 #include <string>
 
 #include <git2.h>
@@ -14,12 +17,15 @@
 #include <git2/types.h>
 
 #include <QAction>
+#include <QCloseEvent>
 #include <QFileDialog>
 #include <QHBoxLayout>
+#include <QKeySequence>
 #include <QLabel>
 #include <QLayout>
 #include <QListWidget>
 #include <QMainWindow>
+#include <QMap>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QSettings>

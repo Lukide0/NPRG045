@@ -3,11 +3,14 @@
 #include "action/Action.h"
 #include "conflict/ConflictManager.h"
 #include "git/types.h"
+
 #include <filesystem>
-#include <git2/types.h>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include <git2/types.h>
 
 namespace state {
 

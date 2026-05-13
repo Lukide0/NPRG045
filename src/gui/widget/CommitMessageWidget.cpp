@@ -1,4 +1,5 @@
 #include "gui/widget/CommitMessageWidget.h"
+
 #include "action/Action.h"
 #include "action/ActionManager.h"
 #include "git/types.h"
@@ -7,13 +8,15 @@
 
 #include <cstddef>
 #include <format>
-#include <git2/commit.h>
 #include <string>
+
+#include <git2/commit.h>
 
 #include <QAction>
 #include <QHBoxLayout>
 #include <QMessageBox>
 #include <QPlainTextEdit>
+#include <QPushButton>
 #include <QString>
 
 namespace gui::widget {

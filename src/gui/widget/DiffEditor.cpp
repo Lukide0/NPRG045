@@ -1,21 +1,24 @@
 #include "gui/widget/DiffEditor.h"
 #include "git/diff.h"
 #include "gui/color.h"
+#include "gui/style/DiffStyle.h"
+#include "gui/style/GlobalStyle.h"
 #include "gui/style/StyleManager.h"
 #include "gui/widget/DiffEditorLine.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <functional>
 
 #include <QColor>
 #include <QFrame>
 #include <QMenu>
-#include <qnamespace.h>
 #include <QPainter>
 #include <QPlainTextEdit>
 #include <QSignalBlocker>
+#include <Qt>
 #include <QTextBlock>
-#include <qtmetamacros.h>
+#include <QTextEdit>
 #include <QtNumeric>
 #include <QWidget>
 

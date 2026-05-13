@@ -1,12 +1,18 @@
 #include "gui/widget/ShortcutEditor.h"
 #include "App.h"
 
+#include <QAbstractItemView>
+#include <QDialog>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QKeySequence>
+#include <QKeySequenceEdit>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QSettings>
+#include <QString>
+#include <Qt>
 #include <QTableWidget>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -63,7 +69,7 @@ void ShortcutEditor::setup() {
 }
 
 void ShortcutEditor::populateTable() {
-    m_table->setRowCount(m_actions.size());
+    m_table->setRowCount(static_cast<int>(m_actions.size()));
 
     int row = 0;
     for (auto it = m_actions.constBegin(); it != m_actions.constEnd(); ++it, ++row) {

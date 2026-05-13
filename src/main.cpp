@@ -2,8 +2,10 @@
 #include "App.h"
 #include "logging/Log.h"
 #include <QApplication>
+#include <QCommandLineOption>
 #include <QCommandLineParser>
 #include <QStyleHints>
+#include <Qt>
 
 int main(int argc, char* argv[]) {
 

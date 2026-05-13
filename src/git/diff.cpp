@@ -1,19 +1,24 @@
 #include "git/diff.h"
+
 #include "action/Action.h"
 #include "conflict/ConflictManager.h"
 #include "git/types.h"
 #include "utils/unexpected.h"
 
-#include <git2/buffer.h>
-#include <git2/commit.h>
-#include <git2/diff.h>
-#include <git2/patch.h>
-#include <git2/tree.h>
-#include <git2/types.h>
+#include <cassert>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include <git2/buffer.h>
+#include <git2/commit.h>
+#include <git2/diff.h>
+#include <git2/index.h>
+#include <git2/merge.h>
+#include <git2/patch.h>
+#include <git2/tree.h>
+#include <git2/types.h>
 
 namespace git {
 

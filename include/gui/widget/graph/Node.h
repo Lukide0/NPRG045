@@ -1,17 +1,21 @@
 #pragma once
 
 #include "action/Action.h"
+#include "conflict/conflict.h"
 #include "git/types.h"
 
-#include <algorithm>
+#include <git2/oid.h>
+#include <string>
+
 #include <git2/commit.h>
 #include <git2/types.h>
 
 #include <QColor>
 #include <QGraphicsItem>
 #include <QPainterPath>
-
-#include <string>
+#include <Qt>
+#include <QtTypes>
+#include <QWidget>
 
 namespace gui::widget {
 

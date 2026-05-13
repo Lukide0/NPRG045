@@ -4,6 +4,8 @@
 #include "ActionManager.h"
 #include "conflict/ConflictManager.h"
 
+#include <ostream>
+
 namespace action {
 
 /**

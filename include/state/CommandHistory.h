@@ -1,11 +1,12 @@
 #pragma once
 
 #include "Command.h"
-#include <cstddef>
+
 #include <cstdint>
 #include <memory>
-#include <QAction>
 #include <vector>
+
+#include <QAction>
 
 namespace state {
 
@@ -22,7 +23,7 @@ public:
     /**
      * @brief Checks if redo is available.
      */
-    [[nodiscard]] bool canRedo() const { return static_cast<std::size_t>(m_index + 1) < m_commands.size(); }
+    [[nodiscard]] bool canRedo() const { return (m_index + 1) < static_cast<std::int32_t>(m_commands.size()); }
 
     /**
      * @brief Undoes the last executed command.

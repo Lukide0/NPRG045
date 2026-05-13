@@ -6,17 +6,18 @@
 #include "logging/Log.h"
 #include "state/Command.h"
 
+#include <array>
+#include <cassert>
+
 #include <QBoxLayout>
 #include <QColor>
 #include <QComboBox>
 #include <QLabel>
 #include <QListWidgetItem>
+#include <QObject>
 #include <QPalette>
 #include <QString>
 #include <QWidget>
-
-#include <array>
-#include <cassert>
 
 namespace gui::widget {
 

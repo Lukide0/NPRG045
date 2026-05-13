@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QLabel>
+#include <QString>
+#include <Qt>
 #include <QWidget>
 
 namespace gui::widget {

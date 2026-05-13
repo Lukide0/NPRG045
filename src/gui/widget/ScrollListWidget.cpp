@@ -1,8 +1,13 @@
 #include "gui/widget/ScrollListWidget.h"
 
 #include <QDragMoveEvent>
+#include <QListWidget>
+#include <QPoint>
+#include <QRect>
 #include <QScrollBar>
 #include <QTimer>
+#include <QtMinMax>
+#include <QWidget>
 
 namespace gui::widget {
 

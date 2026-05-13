@@ -1,6 +1,7 @@
 #include "git/parser.h"
+
 #include "git/paths.h"
-#include "utils/todo.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cstddef>

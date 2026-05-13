@@ -1,7 +1,16 @@
 #include "gui/widget/WelcomeWidget.h"
 #include "git/types.h"
+
 #include <git2/repository.h>
 #include <git2/types.h>
+
+#include <QDir>
+#include <QFont>
+#include <QPushButton>
+#include <QString>
+#include <Qt>
+#include <QVBoxLayout>
+#include <QWidget>
 
 namespace gui::widget {
 

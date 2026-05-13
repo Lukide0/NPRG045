@@ -1,4 +1,5 @@
 #include "git/paths.h"
+
 #include <filesystem>
 #include <string>
 

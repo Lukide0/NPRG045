@@ -2,13 +2,15 @@
 
 #include "action/Action.h"
 #include "action/ActionManager.h"
-#include "gui/file.h"
+
 #include <functional>
+#include <string>
+
 #include <QHBoxLayout>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QString>
 #include <QWidget>
-#include <string>
 
 namespace gui::widget {
 

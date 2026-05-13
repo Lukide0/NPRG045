@@ -1,11 +1,16 @@
 #pragma once
 
+#include <QColor>
 #include <QColorDialog>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QPalette>
 #include <QPushButton>
+#include <QString>
+#include <Qt>
 #include <QTabWidget>
 #include <QVBoxLayout>
+#include <QWidget>
 
 namespace gui::widget {
 

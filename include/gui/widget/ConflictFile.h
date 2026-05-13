@@ -1,8 +1,13 @@
 #pragma once
 
 #include "gui/editor_height.h"
+
+#include <QFont>
+#include <QFrame>
 #include <QLabel>
 #include <QPlainTextEdit>
+#include <QString>
+#include <Qt>
 #include <QVBoxLayout>
 #include <QWidget>
 

@@ -1,7 +1,8 @@
 #include "gui/widget/graph/Node.h"
+
 #include "action/ActionManager.h"
-#include "gui/color.h"
 #include "gui/style/ConflictStyle.h"
+#include "gui/style/GlobalStyle.h"
 #include "gui/style/StyleManager.h"
 
 #include <algorithm>
@@ -12,12 +13,13 @@
 #include <QFont>
 #include <QFontDatabase>
 #include <QGraphicsItem>
-#include <qnamespace.h>
 #include <QPainter>
 #include <QPen>
 #include <QString>
 #include <QStyleOptionGraphicsItem>
+#include <Qt>
 #include <QTextOption>
+#include <QtTypes>
 #include <QWidget>
 
 namespace gui::widget {

@@ -1,15 +1,25 @@
-
 #include "gui/widget/SettingsDialog.h"
+
 #include "App.h"
+#include "gui/style/ConflictStyle.h"
+#include "gui/style/DiffStyle.h"
+#include "gui/style/GlobalStyle.h"
 #include "gui/style/StyleManager.h"
 #include "gui/widget/ShortcutEditor.h"
+#include "logging/Log.h"
 
-#include <qcolor.h>
+#include <QColor>
 #include <QColorDialog>
+#include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QPalette>
 #include <QPushButton>
+#include <QSettings>
+#include <QTabWidget>
+#include <QVBoxLayout>
+#include <QWidget>
 
 namespace gui::widget {
 

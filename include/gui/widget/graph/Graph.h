@@ -1,13 +1,15 @@
 #pragma once
 
 #include "Node.h"
+
 #include <cassert>
 #include <cstdint>
 #include <functional>
+#include <vector>
+
 #include <QGraphicsView>
-#include <qobject.h>
-#include <qtmetamacros.h>
-#include <qwidget.h>
+#include <QObject>
+#include <QWidget>
 
 namespace gui::widget {
 

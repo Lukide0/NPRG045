@@ -1,5 +1,11 @@
 #include "gui/widget/ConflictDialog.h"
 
+#include <QDialog>
+#include <QMessageBox>
+#include <Qt>
+#include <QVBoxLayout>
+#include <QWidget>
+
 namespace gui::widget {
 
 ConflictDialog::ConflictDialog(QWidget* parent)

@@ -5,6 +5,9 @@
 #include <QPen>
 #include <QSplitter>
 #include <QSplitterHandle>
+#include <Qt>
+#include <QtTypes>
+#include <QWidget>
 
 namespace gui::widget {
 

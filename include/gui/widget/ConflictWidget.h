@@ -2,6 +2,10 @@
 
 #include "git/diff.h"
 #include "gui/clear_layout.h"
+
+#include <cstdint>
+#include <string>
+
 #include <QListWidget>
 #include <QScrollArea>
 #include <QVBoxLayout>

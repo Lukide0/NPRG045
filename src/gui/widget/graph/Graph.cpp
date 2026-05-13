@@ -1,13 +1,19 @@
 #include "gui/widget/graph/Graph.h"
+
 #include "gui/widget/graph/Node.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <functional>
+
+#include <QGraphicsScene>
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QScrollBar>
+#include <Qt>
+#include <QtTypes>
 
 namespace gui::widget {
 

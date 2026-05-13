@@ -1,8 +1,12 @@
 #include "state/CommandHistory.h"
+
 #include "state/Command.h"
+
 #include <cstddef>
 #include <memory>
 #include <utility>
+
+#include <QAction>
 
 namespace state {
 

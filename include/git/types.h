@@ -26,6 +26,7 @@
 #include <git2/revparse.h>
 #include <git2/signature.h>
 #include <git2/status.h>
+#include <git2/strarray.h>
 #include <git2/tree.h>
 #include <git2/types.h>
 
@@ -73,7 +74,7 @@ public:
 
     T* get() { return m_obj; }
 
-    const T* get() const { return m_obj; }
+    [[nodiscard]] const T* get() const { return m_obj; }
 
     T* release() {
         T* tmp = m_obj;
@@ -151,7 +152,8 @@ class str_array {
 public:
     str_array(std::span<const std::string> strings)
         : m_storage(strings.begin(), strings.end()) {
-        m_size    = strings.size();
+        m_size = strings.size();
+        // NOLINTNEXTLINE(modernize-avoid-c-arrays)
         m_strings = std::make_unique<char*[]>(m_size);
 
         for (std::size_t i = 0; i < m_size; ++i) {
@@ -174,6 +176,7 @@ public:
 
 private:
     std::vector<std::string> m_storage;
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays)
     std::unique_ptr<char*[]> m_strings;
     std::size_t m_size;
 };

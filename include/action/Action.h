@@ -4,11 +4,14 @@
 #include "git/types.h"
 #include "utils/optional_uint.h"
 #include "utils/todo.h"
+
+#include <array>
 #include <cassert>
+#include <utility>
+
 #include <git2/commit.h>
 #include <git2/oid.h>
 #include <git2/types.h>
-#include <utility>
 
 namespace action {
 

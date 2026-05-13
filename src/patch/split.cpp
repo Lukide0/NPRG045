@@ -1,11 +1,15 @@
 #include "patch/split.h"
+
 #include "action/Action.h"
 #include "action/ActionManager.h"
 #include "git/types.h"
 #include "logging/Log.h"
 
+#include <cassert>
+
 #include <git2/apply.h>
 #include <git2/commit.h>
+#include <git2/diff.h>
 #include <git2/index.h>
 #include <git2/oid.h>
 #include <git2/tree.h>

@@ -1,14 +1,16 @@
 #include "gui/file.h"
 
+#include <utility>
+
 #include <QDebug>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFile>
 #include <QStandardPaths>
 #include <QString>
+#include <QStringConverter>
 #include <QTextStream>
 #include <QUrl>
-#include <utility>
 
 namespace gui {
 

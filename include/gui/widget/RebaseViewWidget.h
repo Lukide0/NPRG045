@@ -13,12 +13,12 @@
 #include "gui/widget/graph/Node.h"
 #include "gui/widget/ListItem.h"
 
-#include <git2/oid.h>
-#include <git2/types.h>
-
 #include <optional>
 #include <string>
 #include <vector>
+
+#include <git2/oid.h>
+#include <git2/types.h>
 
 #include <QBoxLayout>
 #include <QGridLayout>

@@ -1,7 +1,8 @@
 #pragma once
 
-#include <git2/errors.h>
 #include <string>
+
+#include <git2/errors.h>
 
 namespace git {
 

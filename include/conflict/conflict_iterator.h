@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+
 #include <git2/index.h>
 #include <git2/types.h>
 

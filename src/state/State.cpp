@@ -1,26 +1,28 @@
 #include "state/State.h"
+
 #include "action/Action.h"
 #include "action/ActionManager.h"
 #include "conflict/ConflictManager.h"
 #include "git/types.h"
-#include "logging/Log.h"
 
 #include <filesystem>
-#include <git2/oid.h>
-#include <git2/tree.h>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include <git2/commit.h>
+#include <git2/oid.h>
 #include <git2/repository.h>
+#include <git2/tree.h>
 #include <git2/types.h>
 
 #include <QDomDocument>
 #include <QFile>
 #include <QRegularExpression>
 #include <QString>
+#include <QStringList>
+#include <Qt>
 #include <QTextStream>
 
 namespace state {
@@ -39,8 +41,8 @@ std::string load_message(const QDomElement& action) {
 
     QStringList lines;
 
-    for (int i = 0; i < nodes.size(); ++i) {
-        auto&& line = nodes.at(i);
+    for (auto&& node : nodes) {
+        auto& line = node;
         lines << line.toElement().text();
     }
 

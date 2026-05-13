@@ -4,7 +4,11 @@
 #include "gui/style/StyleManager.h"
 #include "utils/strings.h"
 
+#include <cstddef>
+
 #include <git2/merge.h>
+
+#include <QString>
 #include <QSyntaxHighlighter>
 #include <QWidget>
 
@@ -41,13 +45,13 @@ private:
     void highlightBlock(const QString& text) override {
 
         if (text.startsWith(QString::fromUtf8(START_BLOCK_MARKER.ptr(), START_BLOCK_MARKER.size()))) {
-            setFormat(0, text.length(), m_style);
+            setFormat(0, static_cast<int>(text.length()), m_style);
             setCurrentBlockState(CONFLICT_BLOCK);
             return;
         }
 
         if (previousBlockState() == CONFLICT_BLOCK) {
-            setFormat(0, text.length(), m_style);
+            setFormat(0, static_cast<int>(text.length()), m_style);
 
             if (text.startsWith(QString::fromUtf8(END_BLOCK_MARKER.ptr(), END_BLOCK_MARKER.size()))) {
                 setCurrentBlockState(NORMAL_BLOCK);

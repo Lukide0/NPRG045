@@ -1,8 +1,12 @@
 #include "gui/style/ConflictStyle.h"
+
 #include "gui/style/StyleManager.h"
 
 #include <cassert>
+#include <cstddef>
+
 #include <QColor>
+#include <QSettings>
 
 namespace gui::style {
 

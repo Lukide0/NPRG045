@@ -1,19 +1,31 @@
 #include "conflict/conflict.h"
+
 #include "action/Action.h"
 #include "action/ActionManager.h"
-#include "conflict/conflict_iterator.h"
+#include "conflict/ConflictManager.h"
 #include "git/error.h"
 #include "git/types.h"
+
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <span>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include <git2/blob.h>
 #include <git2/cherrypick.h>
 #include <git2/commit.h>
+#include <git2/diff.h>
 #include <git2/index.h>
+#include <git2/merge.h>
+#include <git2/oid.h>
 #include <git2/repository.h>
 #include <git2/status.h>
+#include <git2/strarray.h>
 #include <git2/types.h>
-#include <memory>
-#include <span>
-#include <utility>
 
 namespace conflict {
 

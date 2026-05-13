@@ -1,10 +1,18 @@
 #include "gui/widget/ConflictWidget.h"
+
+#include "git/diff.h"
 #include "gui/widget/ConflictFile.h"
 #include "gui/widget/ConflictHighlighter.h"
 
+#include <string>
+
+#include <QFont>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
+#include <QScrollArea>
+#include <QString>
 #include <QWidget>
 
 namespace gui::widget {

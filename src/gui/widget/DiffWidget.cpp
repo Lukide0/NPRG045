@@ -1,10 +1,13 @@
 #include "gui/widget/DiffWidget.h"
+
 #include "action/Action.h"
 #include "action/ActionManager.h"
 #include "App.h"
+#include "conflict/conflict.h"
 #include "git/diff.h"
 #include "git/types.h"
 #include "gui/clear_layout.h"
+#include "gui/style/DiffStyle.h"
 #include "gui/widget/DiffEditor.h"
 #include "gui/widget/DiffEditorLine.h"
 #include "gui/widget/DiffFile.h"
@@ -14,11 +17,14 @@
 #include "state/CommandHistory.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
+#include <git2/commit.h>
 #include <git2/diff.h>
 #include <git2/errors.h>
 #include <git2/patch.h>

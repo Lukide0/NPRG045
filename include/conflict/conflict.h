@@ -3,10 +3,14 @@
 #include "conflict/ConflictManager.h"
 #include "git/types.h"
 
+#include <cstdint>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 
+#include <git2/oid.h>
 #include <git2/types.h>
 
 namespace action {

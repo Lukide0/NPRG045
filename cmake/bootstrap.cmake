@@ -22,8 +22,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # -----------------------------------------------------------------------------
 # Set compiler options
 
-if(DEFINED CMAKE_BUILD_TYPE AND CMAKE_BUILD_TYPE EQUAL "DEBUG")
-    if(NOT DEFINED CMAKE_COMPILE_WARNING_AS_ERROR)
-        set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
-    endif()
+string(TOLOWER "${CMAKE_BUILD_TYPE}" BUILD_TYPE_LOWER)
+if(BUILD_TYPE_LOWER STREQUAL "debug")
+    set(IS_DEBUG_BUILD TRUE)
+else()
+    set(IS_DEBUG_BUILD FALSE)
 endif()

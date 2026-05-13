@@ -1,9 +1,15 @@
 #pragma once
 
 #include "git/diff.h"
+
+#include <cstddef>
+#include <cstdint>
 #include <functional>
+
+#include <QObject>
 #include <QPlainTextEdit>
-#include <vector>
+#include <QTextBlock>
+#include <QWidget>
 
 namespace gui::widget {
 
@@ -59,7 +65,7 @@ private:
 
     void setBlockHighlight(QTextBlock block, bool enable);
 
-    bool selectOnlyFile() const;
+    [[nodiscard]] bool selectOnlyFile() const;
 
 private:
     const git::diff_files_t& m_diff;

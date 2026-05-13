@@ -1,11 +1,16 @@
 #pragma once
 
 #include "App.h"
+
 #include <QAction>
 #include <QDialog>
+#include <QKeyEvent>
 #include <QKeySequenceEdit>
 #include <QMap>
+#include <QObject>
 #include <QPushButton>
+#include <QString>
+#include <Qt>
 #include <QTableWidget>
 
 namespace gui::widget {

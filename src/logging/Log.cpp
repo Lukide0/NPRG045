@@ -2,13 +2,20 @@
 
 #include "build.h"
 
+#include <cstdint>
 #include <format>
 #include <iostream>
+#include <source_location>
+#include <string>
+#include <string_view>
 
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QTextStream>
 #include <QThread>
 #include <QtLogging>
+#include <QtTypes>
 
 namespace logging {
 

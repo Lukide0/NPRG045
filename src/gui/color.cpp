@@ -1,7 +1,7 @@
 #include "gui/color.h"
+
 #include "git/diff.h"
 #include "gui/style/DiffStyle.h"
-#include "gui/style/StyleManager.h"
 #include "utils/unexpected.h"
 
 #include <QColor>

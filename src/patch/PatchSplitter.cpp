@@ -1,10 +1,13 @@
 #include "patch/PatchSplitter.h"
+
 #include "git/diff.h"
 #include "git/types.h"
 #include "utils/todo.h"
+
 #include <iostream>
 
 #include <QMessageBox>
+#include <QString>
 
 namespace patch {
 

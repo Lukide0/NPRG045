@@ -1,7 +1,9 @@
 #pragma once
 
+#include <QAbstractItemView>
 #include <QLabel>
 #include <QListWidget>
+#include <QObject>
 #include <QVBoxLayout>
 #include <QWidget>
 

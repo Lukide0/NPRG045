@@ -1,7 +1,7 @@
 #include "gui/widget/ListItem.h"
+
 #include "action/Action.h"
 #include "App.h"
-#include "git/parser.h"
 #include "gui/style/ConflictStyle.h"
 #include "gui/style/StyleManager.h"
 #include "gui/widget/RebaseViewWidget.h"
@@ -11,9 +11,13 @@
 #include <QBoxLayout>
 #include <QColor>
 #include <QComboBox>
+#include <QEvent>
 #include <QLabel>
 #include <QListWidgetItem>
+#include <QObject>
 #include <QPalette>
+#include <QSizePolicy>
+#include <Qt>
 #include <QWidget>
 
 #include <cassert>

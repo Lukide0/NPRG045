@@ -6,6 +6,10 @@ set(BUILD_CLI OFF CACHE BOOL "")
 
 add_subdirectory("${PROJECT_SOURCE_DIR}/vendor/libgit2" "${CMAKE_CURRENT_BINARY_DIR}/libgit2")
 
+set_directory_properties(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/libgit2"
+    PROPERTIES COMPILE_WARNING_AS_ERROR OFF
+)
+
 add_library(git2 INTERFACE)
 
 target_link_libraries(git2 INTERFACE libgit2package)

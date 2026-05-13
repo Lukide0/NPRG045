@@ -5,23 +5,22 @@
 #include "conflict/conflict.h"
 #include "conflict/conflict_iterator.h"
 #include "conflict/ConflictManager.h"
-#include "git/commit.h"
+#include "git/diff.h"
 #include "git/error.h"
 #include "git/GitGraph.h"
 #include "git/head.h"
 #include "git/parser.h"
 #include "git/types.h"
-#include "gui/color.h"
 #include "gui/style/GlobalStyle.h"
 #include "gui/style/StyleManager.h"
 #include "gui/widget/CommitViewWidget.h"
 #include "gui/widget/ConflictDialog.h"
+#include "gui/widget/ConflictWidget.h"
 #include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Graph.h"
 #include "gui/widget/graph/Node.h"
 #include "gui/widget/LineSplitter.h"
 #include "gui/widget/ListItem.h"
-#include "gui/widget/NamedListWidget.h"
 #include "gui/widget/ScrollListWidget.h"
 #include "logging/Log.h"
 #include "state/CommandHistory.h"
@@ -32,14 +31,11 @@
 #include <cassert>
 #include <cstdint>
 #include <format>
-#include <git2/refs.h>
-#include <git2/repository.h>
-#include <git2/signature.h>
-#include <git2/tree.h>
 #include <memory>
 #include <optional>
 #include <span>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -50,7 +46,11 @@
 #include <git2/index.h>
 #include <git2/merge.h>
 #include <git2/oid.h>
+#include <git2/refs.h>
+#include <git2/repository.h>
+#include <git2/signature.h>
 #include <git2/status.h>
+#include <git2/tree.h>
 #include <git2/types.h>
 
 #include <QAbstractItemModel>
@@ -61,11 +61,12 @@
 #include <QList>
 #include <QListWidgetItem>
 #include <QMessageBox>
-#include <qnamespace.h>
 #include <QObject>
 #include <QPalette>
 #include <QPushButton>
 #include <QSplitter>
+#include <QString>
+#include <Qt>
 #include <QWidget>
 
 namespace gui::widget {
@@ -257,7 +258,7 @@ void RebaseViewWidget::updateConflictMarkers() {
         m_conflict_files,
         [this](bool conflict, std::uint32_t action_id, void*) -> bool {
             if (conflict) {
-                auto* item = getListItem(action_id);
+                auto* item = getListItem(static_cast<int>(action_id));
                 if (item != nullptr) {
                     item->showConflictMarker();
                 }
@@ -532,7 +533,7 @@ void RebaseViewWidget::changeActionType() {
     int index       = ListItem::indexOf(type);
     assert(index >= 0);
 
-    int new_index       = (index + 1) % ListItem::items.size();
+    auto new_index      = static_cast<int>((index + 1) % ListItem::items.size());
     ActionType new_type = ListItem::items[new_index];
 
     auto* cmd = new ListItemChangedCommand(m_list_actions, current, type, new_type);

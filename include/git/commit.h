@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstddef>
+
 #include <git2/commit.h>
 #include <git2/oid.h>
 #include <git2/types.h>

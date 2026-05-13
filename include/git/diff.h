@@ -2,13 +2,15 @@
 
 #include "action/Action.h"
 #include "git/types.h"
+
 #include <cstdint>
-#include <git2/diff.h>
-#include <git2/oid.h>
-#include <git2/types.h>
 #include <optional>
 #include <string>
 #include <vector>
+
+#include <git2/diff.h>
+#include <git2/oid.h>
+#include <git2/types.h>
 
 namespace git {
 

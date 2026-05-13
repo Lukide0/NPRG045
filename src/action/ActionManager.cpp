@@ -4,6 +4,7 @@
 #include "git/types.h"
 #include "utils/unexpected.h"
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <string>

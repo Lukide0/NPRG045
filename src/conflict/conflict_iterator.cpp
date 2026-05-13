@@ -1,10 +1,11 @@
 #include "conflict/conflict_iterator.h"
+
 #include "git/types.h"
-#include "utils/debug.h"
+
 #include <functional>
+
 #include <git2/index.h>
 #include <git2/types.h>
-#include <utility>
 
 namespace conflict {
 

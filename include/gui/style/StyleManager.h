@@ -4,6 +4,8 @@
 #include "gui/style/DiffStyle.h"
 #include "gui/style/GlobalStyle.h"
 
+#include <QSettings>
+
 namespace gui::style {
 
 class StyleManager {

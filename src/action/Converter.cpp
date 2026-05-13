@@ -1,11 +1,15 @@
 #include "action/Converter.h"
+
 #include "action/Action.h"
 #include "action/ActionManager.h"
+#include "conflict/ConflictManager.h"
 #include "git/commit.h"
+#include "git/types.h"
 #include "logging/Log.h"
 
 #include <git2/commit.h>
 #include <git2/oid.h>
+#include <git2/types.h>
 
 #include <array>
 #include <cassert>

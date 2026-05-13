@@ -1,20 +1,25 @@
 #include "conflict/ConflictManager.h"
+
+#include "conflict/conflict_iterator.h"
 #include "git/types.h"
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <ctime>
-#include <fstream>
+#include <span>
+#include <string>
+#include <utility>
+
 #include <git2/blob.h>
+#include <git2/commit.h>
 #include <git2/errors.h>
 #include <git2/index.h>
 #include <git2/oid.h>
 #include <git2/sys/errors.h>
+#include <git2/tree.h>
 #include <git2/types.h>
-#include <ios>
-#include <span>
-#include <string>
-#include <utility>
 
 namespace conflict {
 
@@ -136,7 +141,7 @@ bool ConflictManager::apply_resolution(
     new_entry.flags_extended = 0;
 
     git_index_time time_now;
-    time_now.seconds     = std::time(nullptr);
+    time_now.seconds     = static_cast<int>(std::time(nullptr));
     time_now.nanoseconds = 0;
 
     if (our != nullptr) {
