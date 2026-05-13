@@ -13,7 +13,6 @@ include(cmake/create_executable.cmake)
 include(cmake/libgit2.cmake)
 include(cmake/qt.cmake)
 
-set(CMAKE_AUTOMOC ON)
 set(INCLUDE_PATH "${CMAKE_SOURCE_DIR}/include")
 
 # -----------------------------------------------------------------------------
@@ -35,7 +34,9 @@ create_executable(${PROJECT_NAME}
         ${QT_XML}
 )
 
+
 target_compile_definitions(${PROJECT_NAME} PRIVATE SOURCE_ROOT="${CMAKE_SOURCE_DIR}/")
 
 add_subdirectory(src)
 add_subdirectory(tools)
+add_subdirectory(resources)

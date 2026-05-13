@@ -5,7 +5,10 @@ function(create_executable name)
 
     cmake_parse_arguments(PARSE_ARGV 1 ARG "${options}" "${oneValueArgs}" "${multivalueArgs}")
 
-    add_executable("${name}" ${ARG_SOURCES})
+    set(CMAKE_AUTOMOC ON)
+    set(CMAKE_AUTORCC ON)
+
+    qt_add_executable("${name}" ${ARG_SOURCES})
 
     target_compile_features("${name}" PRIVATE cxx_std_20)
 

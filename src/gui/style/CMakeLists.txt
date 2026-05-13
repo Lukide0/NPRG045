@@ -9,4 +9,6 @@ target_sources(${PROJECT_NAME} PRIVATE
 
     GlobalStyle.cpp
     ${INCLUDE_PATH}/gui/style/GlobalStyle.h
+
+    load_style.cpp
 )

@@ -1,5 +1,6 @@
 
 #include "App.h"
+#include "gui/style/load_style.h"
 #include "logging/Log.h"
 #include <QApplication>
 #include <QCommandLineOption>
@@ -46,6 +47,10 @@ int main(int argc, char* argv[]) {
     }
 
     Log::enable_debug(parser.isSet(debug));
+
+    if (!gui::style::load_style(app, ":/styles/light.qss")) {
+        LOG_WARN("Using default Qt style");
+    }
 
     const auto args = parser.positionalArguments();
 
