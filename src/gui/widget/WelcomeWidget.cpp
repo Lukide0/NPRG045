@@ -31,12 +31,8 @@ void WelcomeWidget::setupUI() {
     layout->setContentsMargins(40, 40, 40, 40);
 
     m_title = new QLabel("Git Shuffle");
+    m_title->setObjectName("title");
     m_title->setAlignment(Qt::AlignCenter);
-
-    QFont title_font = m_title->font();
-    title_font.setBold(true);
-    title_font.setPointSize(title_font.pointSize() + 8);
-    m_title->setFont(title_font);
 
     auto* subtitle = new QLabel("Choose how to start:");
     subtitle->setAlignment(Qt::AlignCenter);
@@ -45,13 +41,13 @@ void WelcomeWidget::setupUI() {
     button_layout->setSpacing(15);
 
     m_open_curr_dir = new QPushButton("Open Current Working Directory");
-    m_open_curr_dir->setMinimumHeight(50);
+    m_open_curr_dir->setMinimumHeight(45);
 
     m_open_repo = new QPushButton("Browse for Git Repository");
-    m_open_repo->setMinimumHeight(50);
+    m_open_repo->setMinimumHeight(45);
 
     m_load_save = new QPushButton("Load save file");
-    m_load_save->setMinimumHeight(50);
+    m_load_save->setMinimumHeight(45);
 
     button_layout->addWidget(m_open_curr_dir);
     button_layout->addWidget(m_open_repo);

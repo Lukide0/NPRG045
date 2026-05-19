@@ -15,8 +15,11 @@
 #include <QLabel>
 #include <QListWidgetItem>
 #include <QObject>
+#include <QPainter>
 #include <QPalette>
 #include <QSizePolicy>
+#include <QStyledItemDelegate>
+#include <QStyleOption>
 #include <Qt>
 #include <QWidget>
 
@@ -60,7 +63,7 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
 
     m_layout = new QHBoxLayout();
     m_layout->setSizeConstraint(QLayout::SetMinAndMaxSize);
-    m_layout->setContentsMargins(0, 1, 0, 1);
+    m_layout->setContentsMargins(0, 0, 0, 0);
     m_layout->setSpacing(2);
 
     m_layout->addWidget(m_combo);

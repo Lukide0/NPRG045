@@ -2,13 +2,18 @@
 
 #include "git/diff.h"
 #include "gui/editor_height.h"
+#include "gui/style/GlobalStyle.h"
+#include "gui/style/StyleManager.h"
 #include "gui/widget/DiffEditor.h"
+
+#include <QFont>
 #include <QLabel>
+#include <QPalette>
 #include <QString>
-#include <qtmetamacros.h>
+#include <Qt>
 #include <QVBoxLayout>
 #include <QWidget>
-#include <string>
+
 #include <utility>
 
 namespace gui::widget {
@@ -16,8 +21,13 @@ namespace gui::widget {
 class DiffFile : public QWidget {
     Q_OBJECT
 public:
+    static constexpr const char* NOT_SELECTED_PREFIX = "\uf1db ";
+    static constexpr const char* SELECTED_PREFIX     = "\uf192 ";
+
     DiffFile(const git::diff_files_t& diff, QWidget* parent = nullptr)
         : QWidget(parent) {
+        using style::GlobalStyle;
+
         m_layout = new QVBoxLayout();
         m_layout->setContentsMargins(0, 0, 0, 0);
         m_layout->addStretch();
@@ -43,23 +53,35 @@ public:
             QPalette palette = m_label->palette();
 
             // remove prefix
-            if (baseText.startsWith("● ") || baseText.startsWith("○ ")) {
+            if (baseText.startsWith(SELECTED_PREFIX) || baseText.startsWith(NOT_SELECTED_PREFIX)) {
                 baseText = baseText.mid(2);
             }
 
+            m_selected = selected;
+
             if (selected) {
-                m_label->setText("● " + baseText);
-                palette.setColor(QPalette::WindowText, QColor(0, 120, 215));
+                m_label->setText(SELECTED_PREFIX + baseText);
+                palette.setColor(QPalette::WindowText, GlobalStyle::get_color(GlobalStyle::Style::HIGHLIGHT));
             } else {
-                m_label->setText("○ " + baseText);
+                m_label->setText(NOT_SELECTED_PREFIX + baseText);
                 palette.setColor(QPalette::WindowText, palette.color(QPalette::Text));
             }
 
             m_label->setPalette(palette);
         });
+
+        connect(&style::StyleManager::get_global_style(), &style::GlobalStyle::changed, this, [this]() {
+            if (!m_selected) {
+                return;
+            }
+
+            auto p = m_label->palette();
+            p.setColor(QPalette::WindowText, GlobalStyle::get_color(GlobalStyle::HIGHLIGHT));
+            m_label->setPalette(p);
+        });
     }
 
-    void setHeader(const QString& filepath) { m_label->setText("○ " + filepath); }
+    void setHeader(const QString& filepath) { m_label->setText(NOT_SELECTED_PREFIX + filepath); }
 
     void setDiff(git::diff_files_header_t diff) { m_diff = std::move(diff); }
 
@@ -74,6 +96,7 @@ private:
     QLabel* m_label;
     DiffEditor* m_editor;
     git::diff_files_header_t m_diff;
+    bool m_selected = false;
 };
 
 }

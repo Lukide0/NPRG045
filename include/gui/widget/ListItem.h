@@ -24,6 +24,7 @@ namespace gui::widget {
 class RebaseViewWidget;
 
 class ListItem : public QWidget {
+    Q_OBJECT
 public:
     using ActionType = action::ActionType;
 

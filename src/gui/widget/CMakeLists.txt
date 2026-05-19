@@ -10,6 +10,7 @@ target_sources(${PROJECT_NAME} PRIVATE
         DiffWidget.cpp
         DiffEditor.cpp
 
+        ${INCLUDE_PATH}/gui/widget/ListItem.h
         ListItem.cpp
 
         graph/Graph.cpp

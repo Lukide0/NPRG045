@@ -1,0 +1,49 @@
+
+/*-- WelcomeWidget ----------------------------------------------------------*/
+
+gui--widget--WelcomeWidget > .QPushButton {
+    border-radius: 10px;
+    border: 2px solid #512DA8;
+    color: #263238;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+gui--widget--WelcomeWidget > .QPushButton::hover {
+    background-color: #D1C4E9;
+}
+
+gui--widget--WelcomeWidget > .QPushButton::pressed {
+    background-color: #9575CD;
+}
+
+gui--widget--WelcomeWidget > .QLabel {
+    font-size: 13px;
+}
+
+gui--widget--WelcomeWidget > #title {
+    font-size: 25px;
+    font-weight: 700;
+}
+
+/*-- ListItem -------------------------------------------------------*/
+
+gui--widget--ListItem > QComboBox {
+    border: 1px solid #263238;
+    background-color: #FAFAFA;
+    padding: 2px 7px;
+    color: #263238;
+}
+
+gui--widget--ListItem > QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+
+    border: 0;
+    border-left: 1px solid #263238;
+    width: 20px;
+}
+
+gui--widget--ListItem > QComboBox::down-arrow {
+    image: url(:/icons/arrow-down-16x16.png);
+}

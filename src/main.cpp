@@ -5,6 +5,7 @@
 #include <QApplication>
 #include <QCommandLineOption>
 #include <QCommandLineParser>
+#include <QFontDatabase>
 #include <QStyleHints>
 #include <Qt>
 
@@ -28,6 +29,9 @@ int main(int argc, char* argv[]) {
     QCommandLineOption debug("debug", "Enable debug logging output");
     parser.addOption(debug);
 
+    QCommandLineOption no_style("no-style", "Disable all styles and fonts; use system defaults.");
+    parser.addOption(no_style);
+
     parser.addPositionalArgument("path", "Todo file or repo directory");
 
     parser.process(app);
@@ -48,10 +52,34 @@ int main(int argc, char* argv[]) {
 
     Log::enable_debug(parser.isSet(debug));
 
-    if (!gui::style::load_style(app, ":/styles/light.qss")) {
-        LOG_WARN("Using default Qt style");
-    }
+    QApplication::styleHints()->setColorScheme(Qt::ColorScheme::Light);
+    QApplication::setStyle("fusion");
 
+    if (!parser.isSet(no_style)) {
+
+        if (!gui::style::load_fonts(
+                {
+                    // App font
+                    ":/fonts/CodeNewRoman/CodeNewRomanNerdFontPropo-Bold.otf",
+                    ":/fonts/CodeNewRoman/CodeNewRomanNerdFontPropo-Italic.otf",
+
+                    // Editor font
+                    ":/fonts/CodeNewRoman/CodeNewRomanNerdFontMono-Bold.otf",
+                    ":/fonts/CodeNewRoman/CodeNewRomanNerdFontMono-Italic.otf",
+                    ":/fonts/CodeNewRoman/CodeNewRomanNerdFontMono-Regular.otf",
+                }
+            )) {
+            LOG_WARN("Could not load fonts");
+        }
+
+        if (!gui::style::load_and_set_font(":/fonts/CodeNewRoman/CodeNewRomanNerdFontPropo-Regular.otf")) {
+            LOG_WARN("Using default font: '{}'", QApplication::font().family().toStdString());
+        }
+
+        if (!gui::style::load_style(app, ":/styles/light.qss")) {
+            LOG_WARN("Using default Qt style");
+        }
+    }
     const auto args = parser.positionalArguments();
 
     App main_window;
