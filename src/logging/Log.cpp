@@ -12,6 +12,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QStandardPaths>
 #include <QTextStream>
 #include <QThread>
 #include <QtLogging>
@@ -35,7 +36,7 @@ void Log::enable_debug(bool enable) { g_enable_debug = enable; }
 void Log::set_filter(Type type) { g_filter = static_cast<int>(type); }
 
 void Log::init() {
-    const QDir directory = QDir::homePath() + "/.local/share/git_shuffle";
+    const QDir directory = QStandardPaths::writableLocation(QStandardPaths::StandardLocation::StateLocation);
     const QString path   = directory.path() + "/events.log";
 
     if (!directory.exists()) {
