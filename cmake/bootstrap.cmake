@@ -15,6 +15,11 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 # Set policy
 cmake_policy(SET CMP0076 NEW)
 
+# normalize paths before matching runtime dependencies
+if(POLICY CMP0207)
+    cmake_policy(SET CMP0207 NEW)
+endif()
+
 # Use folders for source file organization with IDE generators (Visual
 # Studio/Xcode)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)

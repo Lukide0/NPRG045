@@ -5,9 +5,6 @@ function(create_executable name)
 
     cmake_parse_arguments(PARSE_ARGV 1 ARG "${options}" "${oneValueArgs}" "${multivalueArgs}")
 
-    set(CMAKE_AUTOMOC ON)
-    set(CMAKE_AUTORCC ON)
-
     qt_add_executable("${name}" ${ARG_SOURCES})
 
     target_compile_features("${name}" PRIVATE cxx_std_20)
@@ -23,6 +20,10 @@ function(create_executable name)
         $<$<BOOL:${ARG_LTO_ENABLE} >: INTERPROCEDURAL_OPTIMIZATION TRUE>
     )
 
-    target_link_libraries(${name} PUBLIC ${ARG_LIBS})
+    if(WIN32)
+        set_target_properties("${name}" PROPERTIES WIN32_EXECUTABLE ON)
+    endif()
+
+    target_link_libraries(${name} PRIVATE ${ARG_LIBS})
 
 endfunction()

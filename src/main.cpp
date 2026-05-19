@@ -1,5 +1,6 @@
 
 #include "App.h"
+#include "build.h"
 #include "gui/style/load_style.h"
 #include "logging/Log.h"
 #include <QApplication>
@@ -12,16 +13,12 @@
 int main(int argc, char* argv[]) {
 
     QApplication app(argc, argv);
-    QApplication::setApplicationName("git shuffle");
-    QApplication::setApplicationVersion("0.1.0");
-
-    QApplication::styleHints()->setColorScheme(Qt::ColorScheme::Light);
-    QApplication::setStyle("fusion");
-
-    QIcon::setThemeName("hicolor");
+    QApplication::setApplicationName(build::app_name);
+    QApplication::setApplicationVersion(build::version);
 
     QCommandLineParser parser;
     auto help = parser.addHelpOption();
+    parser.addVersionOption();
 
     QCommandLineOption verbose("verbose", "Enable verbose logging output");
     parser.addOption(verbose);

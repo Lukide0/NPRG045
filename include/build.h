@@ -10,6 +10,18 @@ constexpr std::string_view source_directory = SOURCE_ROOT;
 constexpr std::string_view source_directory;
 #endif
 
+#ifdef GIT_SHUFFLE_VERSION
+constexpr const char* version = GIT_SHUFFLE_VERSION;
+#else
+constexpr const char* version = "unknown";
+#endif
+
+#ifdef APP_NAME
+constexpr const char* app_name = APP_NAME;
+#else
+constexpr const char* app_name = "git_shuffle";
+#endif
+
 /**
  * @brief Removes the source directory prefix from a path if present.
  *
