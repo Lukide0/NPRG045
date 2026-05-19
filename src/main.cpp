@@ -50,7 +50,7 @@ int main(int argc, char* argv[]) {
     Log::enable_debug(parser.isSet(debug));
 
     QApplication::styleHints()->setColorScheme(Qt::ColorScheme::Light);
-    QApplication::setStyle("fusion");
+    QApplication::setStyle("Fusion");
 
     if (!parser.isSet(no_style)) {
 
