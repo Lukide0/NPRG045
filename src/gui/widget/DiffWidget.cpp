@@ -143,12 +143,21 @@ void DiffWidget::update(Action* action) {
     if (action == nullptr) {
         return;
     }
+
     Action* parent = action->get_prev();
 
     diff_result_t res;
     if (parent == nullptr) {
         git_commit* root_commit = action::ActionsManager::get().get_root_commit();
-        res                     = git::prepare_diff(root_commit, action->get_commit());
+        git_repository* repo    = git_commit_owner(root_commit);
+
+        git::tree_t root_tree;
+        if (git_commit_tree(&root_tree, root_commit) != 0) {
+            QMessageBox::critical(this, "Commit diff error", "Failed to retrieve tree from commit");
+            return;
+        }
+        res = git::prepare_diff(root_tree.get(), action->get_tree(), repo);
+
     } else {
         switch (parent->get_tree_status()) {
         case ConflictStatus::UNKNOWN:

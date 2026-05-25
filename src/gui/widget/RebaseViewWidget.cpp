@@ -272,6 +272,29 @@ void RebaseViewWidget::updateConflictMarkers() {
 void RebaseViewWidget::updateConflictList(Action* start) {
     using conflict::ConflictStatus;
 
+    const auto move_start = [](const Action* act) -> bool {
+        switch (act->get_type()) {
+        case ActionType::PICK:
+        case ActionType::REWORD:
+        case ActionType::EDIT:
+            return false;
+        case ActionType::DROP:
+        case ActionType::SQUASH:
+        case ActionType::FIXUP:
+            return true;
+        }
+
+        return true;
+    };
+
+    // NOTE: If the starting action is fixup/squash, iterate to the first picked action so the correct actions can be
+    // updated.
+    for (; start != nullptr; start = start->get_prev()) {
+        if (!move_start(start)) {
+            break;
+        }
+    }
+
     Action* parent = nullptr;
 
     if (start == nullptr) {
@@ -279,19 +302,7 @@ void RebaseViewWidget::updateConflictList(Action* start) {
     } else {
         parent = action::ActionsManager::get_picked_parent(start);
 
-        if (parent != nullptr) {
-            switch (parent->get_tree_status()) {
-            // NOTE: no need for update
-            case ConflictStatus::UNKNOWN:
-            case ConflictStatus::ERR:
-            case ConflictStatus::HAS_CONFLICT:
-                return;
-
-            case ConflictStatus::NO_CONFLICT:
-            case ConflictStatus::RESOLVED_CONFLICT:
-                break;
-            }
-        } else {
+        if (parent == nullptr) {
             start = getActionsManager().get_first_action();
         }
     }
@@ -304,6 +315,7 @@ void RebaseViewWidget::updateConflictList(Action* start) {
     m_conflict_entries.clear();
     m_conflict_files.clear();
 
+    Action* merge_action_start = nullptr;
     for (Action* act = start; act != nullptr; act = act->get_next()) {
         // clear the resulting tree
         act->clear_tree();
@@ -312,11 +324,23 @@ void RebaseViewWidget::updateConflictList(Action* start) {
 
         switch (act->get_type()) {
         case action::ActionType::PICK:
-        case action::ActionType::SQUASH:
-        case action::ActionType::FIXUP:
         case action::ActionType::REWORD:
         case action::ActionType::EDIT:
+            parent             = act;
+            merge_action_start = act;
+            break;
+
+        case action::ActionType::SQUASH:
+        case action::ActionType::FIXUP:
             parent = act;
+
+            if (merge_action_start != nullptr) {
+                git::tree_t copy_tree;
+                assert(git_tree_dup(&copy_tree, act->get_tree()) == 0);
+
+                merge_action_start->set_tree(std::move(copy_tree), act->get_tree_status());
+            }
+
             break;
 
         case action::ActionType::DROP:
