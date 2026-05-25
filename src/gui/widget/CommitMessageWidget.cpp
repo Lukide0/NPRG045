@@ -127,7 +127,7 @@ void CommitMessageWidget::setAction(Action* action) {
     m_action = action;
 
     auto msg_id = action->get_msg_id();
-    if (action->has_msg() && msg_id.is_value()) {
+    if (action->get_type() == ActionType::REWORD && action->has_msg() && msg_id.is_value()) {
         msg = QString::fromStdString(m_manager.get_msg(msg_id.value()));
     } else {
         msg = create_commit_message(action);

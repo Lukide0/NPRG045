@@ -92,7 +92,7 @@ void CommitViewWidget::createRows() {
         }
     });
 
-    if (m_action == nullptr || !m_action->has_msg()) {
+    if (m_action == nullptr) {
         const char* msg = git_commit_message(m_commit);
         m_msg->setText(msg);
 
