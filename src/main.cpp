@@ -59,11 +59,6 @@ int main(int argc, char* argv[]) {
                     // App font
                     ":/fonts/CodeNewRoman/CodeNewRomanNerdFontPropo-Bold.otf",
                     ":/fonts/CodeNewRoman/CodeNewRomanNerdFontPropo-Italic.otf",
-
-                    // Editor font
-                    ":/fonts/CodeNewRoman/CodeNewRomanNerdFontMono-Bold.otf",
-                    ":/fonts/CodeNewRoman/CodeNewRomanNerdFontMono-Italic.otf",
-                    ":/fonts/CodeNewRoman/CodeNewRomanNerdFontMono-Regular.otf",
                 }
             )) {
             LOG_WARN("Could not load fonts");
