@@ -81,12 +81,13 @@ void DiffWidget::ensureEditorVisible(DiffFile* file) {
 
 void DiffWidget::clear() {
     clear_layout(m_scroll_layout);
+
     m_files.clear();
+    m_action = nullptr;
 }
 
 void DiffWidget::update(git_commit* commit) {
     clear();
-    m_action = nullptr;
 
     if (commit == nullptr) {
         return;

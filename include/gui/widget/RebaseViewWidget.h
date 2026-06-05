@@ -130,7 +130,7 @@ private:
 
     Node* findOldCommit(const git_oid& oid);
 
-    void showCommit(Node* prev, Node* next);
+    void showCommit(Node* prev, Node* next, bool merge_actions = false);
 
     void prepareGraph();
 

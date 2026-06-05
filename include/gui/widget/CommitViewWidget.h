@@ -2,6 +2,7 @@
 
 #include "action/Action.h"
 #include "action/ActionManager.h"
+#include "git/diff.h"
 #include "gui/widget/CommitMessageWidget.h"
 #include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Node.h"
@@ -27,6 +28,7 @@ public:
 
     void update(Node* node);
     void update(Node* node, action::Action* act);
+    void update(Node* node, git::diff_result_t& diff);
 
     void update();
 

@@ -198,6 +198,7 @@ void CommitViewWidget::update(Node* node, action::Action* act) {
 
     if (m_action == nullptr && m_node == nullptr) {
         m_commit = nullptr;
+        m_diff->clear();
     } else if (m_action == nullptr) {
         m_commit = node->getCommit();
         m_diff->update(m_commit);
@@ -205,6 +206,17 @@ void CommitViewWidget::update(Node* node, action::Action* act) {
         m_commit = m_action->get_commit();
         m_diff->update(m_action);
     }
+
+    updateInfo();
+}
+
+void CommitViewWidget::update(Node* node, git::diff_result_t& diff) {
+    m_node   = node;
+    m_action = nullptr;
+    m_commit = nullptr;
+
+    m_diff->clear();
+    m_diff->update(diff, false);
 
     updateInfo();
 }

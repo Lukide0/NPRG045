@@ -159,10 +159,11 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
     connect(m_list_actions, &QListWidget::itemSelectionChanged, this, [this]() { changeItemSelection(); });
 
-    auto handle = [&](Node* prev, Node* next) { this->showCommit(prev, next); };
+    auto handle_old = [&](Node* prev, Node* next) { this->showCommit(prev, next, false); };
+    auto handle_new = [&](Node* prev, Node* next) { this->showCommit(prev, next, true); };
 
-    m_old_commits_graph->setHandle(handle);
-    m_new_commits_graph->setHandle(handle);
+    m_old_commits_graph->setHandle(handle_old);
+    m_new_commits_graph->setHandle(handle_new);
 
     connect(
         m_list_actions->model(),
@@ -560,7 +561,7 @@ void RebaseViewWidget::changeActionType(ActionType type) {
     cmd->execute();
 }
 
-void RebaseViewWidget::showCommit(Node* prev, Node* next) {
+void RebaseViewWidget::showCommit(Node* prev, Node* next, bool merge_actions) {
     if (next == nullptr) {
         m_commit_view->update(nullptr);
         return;
@@ -570,7 +571,47 @@ void RebaseViewWidget::showCommit(Node* prev, Node* next) {
         return;
     }
 
-    m_commit_view->update(next);
+    if (!merge_actions) {
+        m_commit_view->update(next);
+        return;
+    }
+
+    Action* act = next->getAction();
+    if (act == nullptr) {
+        m_commit_view->update(nullptr);
+        return;
+    }
+
+    Action* end = act;
+
+    for (Action* it = end; it->get_next() != nullptr; it = it->get_next()) {
+        if (it == act) {
+            continue;
+        }
+
+        switch (it->get_type()) {
+        case ActionType::FIXUP:
+        case ActionType::SQUASH:
+            end = it;
+            break;
+
+        case ActionType::DROP:
+            break;
+
+        case ActionType::EDIT:
+        case ActionType::PICK:
+        case ActionType::REWORD:
+            goto EXIT_LOOP;
+        }
+    }
+EXIT_LOOP:
+
+    git_commit* parent_commit = action::ActionsManager::get_parent_commit(act);
+    git::tree_t parent_tree;
+    assert(git_commit_tree(&parent_tree, parent_commit) == 0);
+
+    auto diff = git::prepare_resolution_diff(parent_tree, end, git_commit_owner(parent_commit));
+    m_commit_view->update(next, diff);
 }
 
 std::optional<std::string>

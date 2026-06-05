@@ -29,6 +29,7 @@ public:
 
     void update(action::Action* act);
     void update(git_commit* commit);
+    void update(git::diff_result_t& res, bool editable);
 
     void clear();
 
@@ -56,8 +57,6 @@ private:
         Type type;
         QTextBlock block;
     };
-
-    void update(git::diff_result_t& res, bool editable);
 
     void createFileDiff(const git::diff_files_t& diff, bool editable);
     void addHunkDiff(const git::diff_hunk_t& hunk, std::vector<section_t>& sections);
