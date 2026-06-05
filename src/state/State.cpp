@@ -41,8 +41,8 @@ std::string load_message(const QDomElement& action) {
 
     QStringList lines;
 
-    for (auto&& node : nodes) {
-        auto& line = node;
+    for (int i = 0; i < nodes.size(); ++i) {
+        auto&& line = nodes.at(i);
         lines << line.toElement().text();
     }
 
