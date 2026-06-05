@@ -206,7 +206,7 @@ void RebaseViewWidget::changeItemSelection() {
         return;
     }
 
-    m_commit_view->update(list_item->getNode());
+    m_commit_view->update(list_item->getNode(), &list_item->getCommitAction());
     showConflict(list_item->getNode());
 }
 
@@ -272,29 +272,6 @@ void RebaseViewWidget::updateConflictMarkers() {
 void RebaseViewWidget::updateConflictList(Action* start) {
     using conflict::ConflictStatus;
 
-    const auto move_start = [](const Action* act) -> bool {
-        switch (act->get_type()) {
-        case ActionType::PICK:
-        case ActionType::REWORD:
-        case ActionType::EDIT:
-            return false;
-        case ActionType::DROP:
-        case ActionType::SQUASH:
-        case ActionType::FIXUP:
-            return true;
-        }
-
-        return true;
-    };
-
-    // NOTE: If the starting action is fixup/squash, iterate to the first picked action so the correct actions can be
-    // updated.
-    for (; start != nullptr; start = start->get_prev()) {
-        if (!move_start(start)) {
-            break;
-        }
-    }
-
     Action* parent = nullptr;
 
     if (start == nullptr) {
@@ -315,7 +292,6 @@ void RebaseViewWidget::updateConflictList(Action* start) {
     m_conflict_entries.clear();
     m_conflict_files.clear();
 
-    Action* merge_action_start = nullptr;
     for (Action* act = start; act != nullptr; act = act->get_next()) {
         // clear the resulting tree
         act->clear_tree();
@@ -326,21 +302,9 @@ void RebaseViewWidget::updateConflictList(Action* start) {
         case action::ActionType::PICK:
         case action::ActionType::REWORD:
         case action::ActionType::EDIT:
-            parent             = act;
-            merge_action_start = act;
-            break;
-
         case action::ActionType::SQUASH:
         case action::ActionType::FIXUP:
             parent = act;
-
-            if (merge_action_start != nullptr) {
-                git::tree_t copy_tree;
-                assert(git_tree_dup(&copy_tree, act->get_tree()) == 0);
-
-                merge_action_start->set_tree(std::move(copy_tree), act->get_tree_status());
-            }
-
             break;
 
         case action::ActionType::DROP:
@@ -692,7 +656,8 @@ std::optional<std::string> RebaseViewWidget::update(
         case CmdType::MERGE:
         case CmdType::UPDATE_REF:
             return std::format(
-                "Advanced rebase command not supported '{}'. Only basic commit actions (pick, edit, squash, etc.) are "
+                "Advanced rebase command not supported '{}'. Only basic commit actions (pick, edit, squash, etc.) "
+                "are "
                 "available.",
                 git::cmd_to_str(action.type)
             );
@@ -784,7 +749,7 @@ void RebaseViewWidget::updateGraph() {
     m_last_node = m_root_node;
 
     for (std::int32_t i = 0; i < list->count(); ++i) {
-        auto* item = getListItem(i);
+        ListItem* item = getListItem(i);
         assert(item != nullptr);
 
         Action& act = item->getCommitAction();
@@ -1112,5 +1077,4 @@ bool RebaseViewWidget::markResolved() {
 
     return true;
 }
-
 }

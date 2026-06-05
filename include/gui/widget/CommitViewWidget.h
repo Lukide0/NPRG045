@@ -26,6 +26,7 @@ public:
     CommitViewWidget(DiffWidget* diff);
 
     void update(Node* node);
+    void update(Node* node, action::Action* act);
 
     void update();
 
