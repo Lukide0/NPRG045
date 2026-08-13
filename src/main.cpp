@@ -26,10 +26,16 @@ int main(int argc, char* argv[]) {
     QCommandLineOption debug("debug", "Enable debug logging output");
     parser.addOption(debug);
 
-    QCommandLineOption no_style("no-style", "Disable all styles and fonts; use system defaults.");
+    QCommandLineOption no_style("no-style", "Disable all styles and fonts; use system defaults");
     parser.addOption(no_style);
 
-    parser.addPositionalArgument("path", "Todo file or repo directory");
+    QCommandLineOption edit_todo(
+        "edit-todo",
+        "Launches the app with the specified todo file from a valid repository and exits with the resulting status "
+        "code",
+        "todo_file"
+    );
+    parser.addOption(edit_todo);
 
     parser.process(app);
 
@@ -72,12 +78,12 @@ int main(int argc, char* argv[]) {
             LOG_WARN("Using default Qt style");
         }
     }
-    const auto args = parser.positionalArguments();
 
     App main_window;
 
-    if (!args.empty()) {
-        main_window.openRepoCLI(args.first().toStdString());
+    if (parser.isSet(edit_todo)) {
+        const QString file = parser.value(edit_todo);
+        main_window.openRepoCLI(file.toStdString());
     }
 
     main_window.show();

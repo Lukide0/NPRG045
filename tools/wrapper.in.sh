@@ -9,4 +9,4 @@ fi
 
 GIT_SHUFFLE_BIN="${GIT_SHUFFLE_BIN:-$<TARGET_FILE:git_shuffle>}"
 
-"$GIT_SHUFFLE_BIN" "$1"
+"$GIT_SHUFFLE_BIN" --edit-todo "$1"
