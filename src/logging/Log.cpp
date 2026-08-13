@@ -20,8 +20,9 @@
 
 namespace logging {
 
-static auto g_filter       = static_cast<int>(Type::INFO | Type::WARN | Type::ERR);
-static bool g_enable_debug = false;
+static auto g_filter         = static_cast<int>(Type::INFO | Type::WARN | Type::ERR);
+static bool g_enable_debug   = false;
+static bool g_enable_verbose = false;
 
 static QFile g_log_file;
 static QTextStream g_log_stream;
@@ -32,6 +33,19 @@ static void write_to_log(
 );
 
 void Log::enable_debug(bool enable) { g_enable_debug = enable; }
+
+bool Log::is_debug() { return g_enable_debug; }
+
+bool Log::is_verbose() { return g_enable_verbose; }
+
+void Log::enable_verbose(bool verbose) {
+    g_enable_verbose = verbose;
+    if (verbose) {
+        g_filter = static_cast<int>(Type::INFO | Type::WARN | Type::ERR);
+    } else {
+        g_filter = static_cast<int>(Type::ERR);
+    }
+}
 
 void Log::set_filter(Type type) { g_filter = static_cast<int>(type); }
 

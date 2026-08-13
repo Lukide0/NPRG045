@@ -47,12 +47,7 @@ int main(int argc, char* argv[]) {
 
     Log::init();
 
-    if (parser.isSet(verbose)) {
-        Log::set_filter(Type::INFO | Type::ERR | Type::WARN);
-    } else {
-        Log::set_filter(Type::ERR);
-    }
-
+    Log::enable_verbose(parser.isSet(verbose));
     Log::enable_debug(parser.isSet(debug));
 
     QApplication::styleHints()->setColorScheme(Qt::ColorScheme::Light);
