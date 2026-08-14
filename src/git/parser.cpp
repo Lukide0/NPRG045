@@ -167,24 +167,30 @@ ParseResult parse_file(const std::string& filepath) {
     return res;
 }
 
-std::optional<const char*> get_rebase_info(const std::string& repo, std::string& out_head, std::string& out_onto) {
+std::optional<RebaseInfoError> get_rebase_info(const std::string& repo, std::string& out_head, std::string& out_onto) {
 
     {
         auto head_file = std::ifstream(repo + '/' + HEAD_FILE.c_str());
         auto onto_file = std::ifstream(repo + '/' + ONTO_FILE.c_str());
 
         if (!head_file || !onto_file) {
-            return "Cannot find git rebase files. Make sure you're in an active rebase operation.";
+            return std::make_optional<RebaseInfoError>(
+                RebaseInfoError::NotFound,
+                "Cannot find git rebase files. Make sure you're in an active rebase operation."
+            );
         }
+
         std::getline(head_file, out_head);
         std::getline(onto_file, out_onto);
     }
 
     if (out_head.empty() || out_onto.empty()) {
-        return "Git rebase files are empty or corrupted. The rebase operation may be in an invalid state.";
+        return std::make_optional<RebaseInfoError>(
+            RebaseInfoError::EmptyOrCurrupted,
+            "Git rebase files are empty or corrupted. The rebase operation may be in an invalid state."
+        );
     }
 
     return std::nullopt;
 }
-
 }

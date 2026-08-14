@@ -3,6 +3,7 @@
 #include "action/Action.h"
 #include "action/ActionManager.h"
 #include "git/types.h"
+#include "gui/error.h"
 #include "gui/file.h"
 #include "utils/optional_uint.h"
 
@@ -172,7 +173,7 @@ void CommitMessageWidget::openInEditor() {
     auto&& [filepath, status] = create_temp_file(m_editor->toPlainText(), filename, true);
 
     if (!status) {
-        QMessageBox::critical(this, "Editor Error", "Failed to create temporary file for editing.", QMessageBox::Ok);
+        DISPLAY_ERROR(this, "Editor error", "Failed to create temporary file for editing.");
         return;
     }
 
@@ -192,16 +193,13 @@ void CommitMessageWidget::updateText() {
     auto&& [content, status] = read_file(m_filepath);
 
     if (!status) {
-        QMessageBox::critical(
+        DISPLAY_ERROR(
             this,
-            "File Read Error",
-            QString(
-                "Failed to read the edited file.\n"
-                "The file may have been deleted or is no longer accessible.\n"
-                "File: %1"
+            "File read error",
+            std::format(
+                "Failed to read the edited file.\nThe file may have been deleted or is no longer accessible.\nFile: {}",
+                m_filepath.toStdString()
             )
-                .arg(m_filepath),
-            QMessageBox::Ok
         );
 
         m_filepath.clear();

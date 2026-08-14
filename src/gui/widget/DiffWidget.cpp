@@ -5,8 +5,10 @@
 #include "App.h"
 #include "conflict/conflict.h"
 #include "git/diff.h"
+#include "git/error.h"
 #include "git/types.h"
 #include "gui/clear_layout.h"
+#include "gui/error.h"
 #include "gui/style/DiffStyle.h"
 #include "gui/widget/DiffEditor.h"
 #include "gui/widget/DiffEditorLine.h"
@@ -34,7 +36,6 @@
 #include <QFrame>
 #include <QList>
 #include <QMenu>
-#include <QMessageBox>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QString>
@@ -111,11 +112,11 @@ void DiffWidget::update(git_commit* commit) {
 void DiffWidget::update(git::diff_result_t& res, bool editable) {
     switch (res.state) {
     case diff_result_t::FAILED_TO_RETRIEVE_TREE:
-        QMessageBox::critical(this, "Commit diff error", "Failed to retrieve tree from commit");
+        DISPLAY_LIBGIT_ERROR(this, "Failed to retrieve tree from commit", git::get_last_error());
         return;
 
     case diff_result_t::FAILED_TO_CREATE_DIFF:
-        QMessageBox::critical(this, "Commit diff error", "Failed to create diff");
+        DISPLAY_LIBGIT_ERROR(this, "Failed to create diff", git::get_last_error());
         return;
     case diff_result_t::OK:
         break;
@@ -154,7 +155,7 @@ void DiffWidget::update(Action* action) {
 
         git::tree_t root_tree;
         if (git_commit_tree(&root_tree, root_commit) != 0) {
-            QMessageBox::critical(this, "Commit diff error", "Failed to retrieve tree from commit");
+            DISPLAY_LIBGIT_ERROR(this, "failed to retrieve tree from commit", git::get_last_error());
             return;
         }
         res = git::prepare_diff(root_tree.get(), action->get_tree(), repo);
@@ -235,13 +236,10 @@ void DiffWidget::createFileDiff(const diff_files_t& diff, bool editable) {
     if (header.isEmpty()) {
         const std::string& path = (!diff.old_file.path.empty()) ? diff.old_file.path : diff.new_file.path;
 
-        LOG_ERROR("Unsupported file ({}) state: {}", path, static_cast<int>(diff.state));
-        QMessageBox::critical(
+        DISPLAY_ERROR(
             this,
             "Repository error",
-            QString("Unsupported file '%1' has unsupported state: %2")
-                .arg(QString::fromStdString(path))
-                .arg(QString::number(static_cast<int>(diff.state)))
+            std::format("File '{}' has unsupported state '{}'", path, diff.state_to_str(diff.state))
         );
         return;
     }
@@ -366,6 +364,11 @@ void DiffWidget::splitCommitEvent() {
 
             FileState state = FileState::ALL_SELECTED;
             if (!splitter.file_begin(file->getDiff(), state)) {
+                DISPLAY_ERROR(
+                    this,
+                    "Unsupported  file state",
+                    std::format("File state '{}' is not supported", diff_files_t::state_to_str(file->getDiff().state))
+                );
                 return;
             }
 
@@ -379,8 +382,8 @@ void DiffWidget::splitCommitEvent() {
         }
 
         if (splitter.is_whole_patch()) {
-            QMessageBox::critical(
-                this, "Invalid Split", "The split must contain a non-empty subset of the patch, not entire patch"
+            DISPLAY_ERROR(
+                this, "Invalid split", "The split must contain a non-empty subset of the patch, not entire patch"
             );
             return;
         }
@@ -388,29 +391,20 @@ void DiffWidget::splitCommitEvent() {
         patch_text = splitter.get_patch();
     }
 
-    auto handler = [this]() {
-        const auto* err = git_error_last();
-        if (err != nullptr && err->message != nullptr) {
-            QMessageBox::critical(this, "Failed to create patch", err->message);
-        } else {
-            QMessageBox::critical(this, "Failed to create patch", "Unknown error");
-        }
-    };
-
     git::diff_t diff;
 
     int state = git_diff_from_buffer(&diff, patch_text.c_str(), patch_text.size());
     if (state != 0) {
-        handler();
+        DISPLAY_LIBGIT_ERROR(this, "Failed to create diff", git::get_last_error());
         return;
     }
 
     git::commit_t first_commit;
     git::commit_t second_commit;
 
-    bool res = patch::split(first_commit, second_commit, m_action, diff);
-    if (!res) {
-        handler();
+    patch::SplitError err = patch::split(first_commit, second_commit, m_action, diff);
+    if (err.has_error()) {
+        DISPLAY_LIBGIT_ERROR(this, "Failed to create split", std::format("{}: {}.", err.title, err.message));
         return;
     }
 

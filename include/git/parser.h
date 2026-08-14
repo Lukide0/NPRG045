@@ -3,6 +3,7 @@
 #include <cassert>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace git {
@@ -90,6 +91,19 @@ struct ParseResult {
  */
 ParseResult parse_file(const std::string& filepath);
 
+struct RebaseInfoError {
+    enum Type {
+        NotFound,
+        EmptyOrCurrupted,
+    } type;
+
+    const char* msg;
+
+    constexpr RebaseInfoError(Type t, const char* m)
+        : type(t)
+        , msg(m) { }
+};
+
 /**
  * @brief Retrieves rebase information from a repository.
  *
@@ -99,6 +113,6 @@ ParseResult parse_file(const std::string& filepath);
  *
  * @return Optional error message (nullopt if successful).
  */
-std::optional<const char*> get_rebase_info(const std::string& repo, std::string& out_head, std::string& out_onto);
+std::optional<RebaseInfoError> get_rebase_info(const std::string& repo, std::string& out_head, std::string& out_onto);
 
 }

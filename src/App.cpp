@@ -2,8 +2,10 @@
 
 #include "action/Action.h"
 #include "action/Converter.h"
+#include "git/error.h"
 #include "git/parser.h"
 #include "git/paths.h"
+#include "gui/error.h"
 #include "gui/style/StyleManager.h"
 #include "gui/widget/RebaseViewWidget.h"
 #include "gui/widget/SettingsDialog.h"
@@ -423,9 +425,7 @@ bool App::openRepo(const std::string& path) {
     git::repository_t new_repo;
     if (git_repository_open(&new_repo, path.c_str()) != 0) {
 
-        const auto* err = git_error_last();
-        QMessageBox::critical(this, "Repo Error", err->message);
-        LOG_ERROR("Failed to open repo: {}", err->message);
+        DISPLAY_LIBGIT_ERROR(this, "Failed to open repository", git::get_last_error());
 
         m_welcome_widget->show();
         return false;
@@ -433,6 +433,13 @@ bool App::openRepo(const std::string& path) {
 
     m_repo      = std::move(new_repo);
     m_repo_path = path;
+
+    auto err = git::get_rebase_info(m_repo_path, m_rebase_head, m_rebase_onto);
+    if (err.has_value()) {
+        DISPLAY_ERROR(this, "Rebase error", err->msg);
+        m_welcome_widget->show();
+        return false;
+    }
 
     if (!loadRebase()) {
         m_welcome_widget->show();
@@ -446,27 +453,18 @@ bool App::openRepo(const std::string& path) {
 }
 
 bool App::loadRebase() {
-
-    auto err = git::get_rebase_info(m_repo_path, m_rebase_head, m_rebase_onto);
-    if (err.has_value()) {
-        QMessageBox::critical(this, "Rebase Error", err.value());
-        LOG_ERROR("{}", err.value());
-        return false;
-    }
-
     auto filepath = m_repo_path + '/' + git::TODO_FILE.c_str();
 
     auto res = git::parse_file(filepath);
     if (!res.err.empty()) {
-        QMessageBox::critical(this, "Rebase Error", res.err.c_str());
-        LOG_ERROR("Failed to parse todo file: {}", res.err);
+        DISPLAY_ERROR(this, "Failed to parse todo file", res.err);
         return false;
     }
 
     auto rebase_res = m_rebase_view->update(m_repo, m_rebase_head, m_rebase_onto, res.actions);
 
     if (rebase_res.has_value()) {
-        QMessageBox::critical(this, "Rebase Error", rebase_res.value().c_str());
+        DISPLAY_ERROR(this, "Rebase error", *rebase_res);
         return false;
     }
 
@@ -503,7 +501,7 @@ bool App::saveSaveFile(bool choose_file) {
     LOG_INFO("Saving: {}", m_save_file->toStdString());
 
     if (!state::State::save(m_save_file.value().toStdU32String(), m_repo_path, m_rebase_head, m_rebase_onto)) {
-        QMessageBox::critical(this, "Save error", "Failed to save");
+        DISPLAY_ERROR(this, "Save error", "Failed to save");
         return false;
     }
 
@@ -527,7 +525,7 @@ bool App::loadSaveFile() {
     git::repository_t repo;
     auto save_data = state::State::load(filepath.toStdU32String(), &repo);
     if (!save_data.has_value()) {
-        QMessageBox::critical(this, "Load error", "Failed to load save file");
+        DISPLAY_ERROR(this, "Load save error", "Failed to load save file");
         return false;
     }
 
@@ -568,7 +566,7 @@ bool App::loadSaveFile() {
 
     auto rebase_res = m_rebase_view->update(m_repo, save_data->head, save_data->onto);
     if (rebase_res.has_value()) {
-        QMessageBox::critical(this, "Rebase Error", rebase_res.value().c_str());
+        DISPLAY_ERROR(this, "Rebase error", *rebase_res);
     }
 
     return true;
@@ -580,29 +578,29 @@ bool App::saveTodoFile(bool insert_break) {
 
     auto err = git::get_rebase_info(m_repo_path, head, onto);
     if (err.has_value()) {
-        QMessageBox::critical(
+        DISPLAY_ERROR(
             this,
-            "Rebase Error",
-            "Cannot save: Git rebase files not found.\n\n"
-            "Make sure you're in the middle of an active rebase operation."
+            "Rebase todo file error",
+            "Cannot save todo file: Git rebase files not found.\nMake sure you're in the middle of an active rebase "
+            "operation."
         );
         return false;
     }
 
     if (head != m_rebase_head || onto != m_rebase_onto) {
-        QMessageBox::critical(
+        DISPLAY_ERROR(
             this,
-            "Rebase State Mismatch",
-            QString(
+            "Rebase state mismatch",
+            std::format(
                 "Cannot save: The current rebase no longer matches what this application is editing.\n\n"
-                "Expected - HEAD: %1, onto: %2\n"
-                "Current  - HEAD: %3, onto: %4\n\n"
-                "Git operations were performed that changed the rebase state."
+                "Expected - HEAD: {}, onto: {}\n"
+                "Current  - HEAD: {}, onto: {}\n\n"
+                "Git operations were performed that changed the rebase state.",
+                m_rebase_head.substr(0, 8),
+                m_rebase_onto.substr(0, 8),
+                head.substr(0, 8),
+                onto.substr(0, 8)
             )
-                .arg(QString::fromStdString(m_rebase_head.substr(0, 8)))
-                .arg(QString::fromStdString(m_rebase_onto.substr(0, 8)))
-                .arg(QString::fromStdString(head.substr(0, 8)))
-                .arg(QString::fromStdString(onto.substr(0, 8)))
         );
 
         return false;
@@ -612,11 +610,8 @@ bool App::saveTodoFile(bool insert_break) {
 
     std::ofstream todo_file(filepath);
     if (!todo_file.good()) {
-        QMessageBox::critical(
-            this,
-            "File Access Error",
-            "Cannot save rebase instructions.\n\n"
-            "Unable to write to the git rebase file."
+        DISPLAY_ERROR(
+            this, "File access error", "Cannot save rebase instructions. Unable to write to the git rebase todo file."
         );
         return false;
     }
@@ -628,7 +623,7 @@ bool App::saveTodoFile(bool insert_break) {
         = action::Converter::actions_to_todo(todo_file, manager, conflict::ConflictManager::get(), insert_break);
 
     if (!status) {
-        QMessageBox::critical(this, "Save Error", "Failed to save rebase instructions.");
+        DISPLAY_ERROR(this, "Save error", "Failed to save rebase instructions");
         return false;
     }
 

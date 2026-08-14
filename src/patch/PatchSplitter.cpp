@@ -42,11 +42,6 @@ bool PatchSplitter::file_begin(const diff_files_header_t& header, FileState stat
     case State::TYPECHANGE:
     case State::UNREADABLE:
     case State::CONFLICTED:
-        QMessageBox::critical(
-            nullptr,
-            "Unsupported Diff State",
-            QString("File diff state '%1' is not supported.").arg(diff_files_t::state_to_str(header.state))
-        );
         return false;
     }
 

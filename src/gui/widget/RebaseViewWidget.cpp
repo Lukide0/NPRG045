@@ -11,6 +11,7 @@
 #include "git/head.h"
 #include "git/parser.h"
 #include "git/types.h"
+#include "gui/error.h"
 #include "gui/style/GlobalStyle.h"
 #include "gui/style/StyleManager.h"
 #include "gui/widget/CommitViewWidget.h"
@@ -24,7 +25,6 @@
 #include "gui/widget/ScrollListWidget.h"
 #include "logging/Log.h"
 #include "state/CommandHistory.h"
-#include "utils/debug.h"
 #include "utils/todo.h"
 #include "utils/unexpected.h"
 
@@ -60,7 +60,6 @@
 #include <QLabel>
 #include <QList>
 #include <QListWidgetItem>
-#include <QMessageBox>
 #include <QObject>
 #include <QPalette>
 #include <QPushButton>
@@ -338,7 +337,7 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Actio
         UNEXPECTED();
 
     case ConflictStatus::ERR:
-        utils::log_libgit_error();
+        DISPLAY_LIBGIT_ERROR(this, "Conflict update error", git::get_last_error());
         return ConflictStatus::UNKNOWN;
 
     case ConflictStatus::UNKNOWN:
@@ -348,13 +347,13 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Actio
         // create tree from index
         git_oid oid;
         if (git_index_write_tree_to(&oid, conflict_index.get(), m_repo) != 0) {
-            utils::log_libgit_error();
+            DISPLAY_LIBGIT_ERROR(this, "Failed to write tree", git::get_last_error());
             return ConflictStatus::UNKNOWN;
         }
         git::tree_t tree;
 
         if (git_tree_lookup(&tree, m_repo, &oid) != 0) {
-            utils::log_libgit_error();
+            DISPLAY_LIBGIT_ERROR(this, "Failed to find tree", git::get_last_error());
             return ConflictStatus::UNKNOWN;
         }
 
@@ -412,12 +411,14 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Actio
         if (!m_conflict_manager.is_resolved(conflict_entry)) {
             auto conflict_diff = git::create_conflict_diff(m_repo, entry.ancestor, entry.our, entry.their);
 
-            LOG_INFO("Conflict in '{}'", path);
+            LOG_WARN("Conflict in '{}'", path);
 
             if (!conflict_diff.has_value()) {
-                utils::log_libgit_error();
-                std::string diff = std::format("Failed to construct diff. Reason: {}", git::get_last_error());
-                m_conflict_widget->addConflictFile(path, diff);
+                std::string err = "Failed to construct diff. Reason: ";
+                err += git::get_last_error();
+                LOG_ERROR(err);
+
+                m_conflict_widget->addConflictFile(path, err);
             } else {
                 m_conflict_widget->addConflictFile(path, conflict_diff.value());
             }
@@ -428,7 +429,7 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Actio
     // clang-format on
 
     if (!iterator_status) {
-        utils::log_libgit_error();
+        LOG_ERROR("Conflict iterator error: {}", git::get_last_error());
         return ConflictStatus::UNKNOWN;
     }
 
@@ -440,22 +441,19 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Actio
     if (!m_conflict_manager.apply_resolutions_no_write(
             m_conflict_entries, m_conflict_paths, m_repo, m_conflict_index.get()
         )) {
-        utils::log_libgit_error();
-        QMessageBox::critical(this, "Recorded resolution error", QString::fromStdString(git::get_last_error()));
+        DISPLAY_LIBGIT_ERROR(this, "Recorded resolution error", git::get_last_error());
         return ConflictStatus::UNKNOWN;
     }
 
     git_oid oid;
     if (git_index_write_tree_to(&oid, m_conflict_index, m_repo) != 0) {
-        utils::log_libgit_error();
-        QMessageBox::critical(this, "Recorded resolution error", QString::fromStdString(git::get_last_error()));
+        DISPLAY_LIBGIT_ERROR(this, "Recorded resolution error", git::get_last_error());
         return ConflictStatus::ERR;
     }
 
     git::tree_t tree;
     if (git_tree_lookup(&tree, m_repo, &oid) != 0) {
-        utils::log_libgit_error();
-        QMessageBox::critical(this, "Recorded resolution error", QString::fromStdString(git::get_last_error()));
+        DISPLAY_LIBGIT_ERROR(this, "Recorded resolution error", git::get_last_error());
         return ConflictStatus::ERR;
     }
 
@@ -648,6 +646,7 @@ std::optional<std::string> RebaseViewWidget::update(
     const std::string& onto,
     const std::vector<git::CommitAction>& actions
 ) {
+    LOG_INFO("Preparing view: head[{}] onto[{}]", head, onto);
     using git::CmdType;
 
     m_old_commits_graph->clear();
@@ -918,15 +917,13 @@ void RebaseViewWidget::checkoutAndResolve() {
         git_status_list* list;
 
         if (git_status_list_new(&list, m_repo, &opts) != 0) {
-            utils::log_libgit_error();
-            QMessageBox::critical(this, "Status error", QString::fromStdString(git::get_last_error()));
+            DISPLAY_LIBGIT_ERROR(this, "Status error", git::get_last_error());
             return;
         }
 
         bool has_changes = (git_status_list_entrycount(list) != 0);
         if (has_changes) {
-            LOG_ERROR("Working directory is not clean");
-            QMessageBox::critical(this, "Status error", "Working directory is not clean");
+            DISPLAY_ERROR(this, "Status error", "Working directory is not clean");
             return;
         }
     }
@@ -937,8 +934,7 @@ void RebaseViewWidget::checkoutAndResolve() {
     m_resolving.parent_action = nullptr;
 
     if (git_repository_head(&m_head, m_repo) != 0) {
-        utils::log_libgit_error();
-        QMessageBox::critical(this, "Repo head error", QString::fromStdString(git::get_last_error()));
+        DISPLAY_LIBGIT_ERROR(this, "Repo head error", git::get_last_error());
         return;
     }
 
@@ -958,30 +954,24 @@ void RebaseViewWidget::checkoutAndResolve() {
 
         git::tree_t tree;
         if (git_tree_lookup(&tree, m_repo, tree_oid) != 0) {
-            utils::log_libgit_error();
-            QMessageBox::critical(this, "Failed to load tree", QString::fromStdString(git::get_last_error()));
+            DISPLAY_LIBGIT_ERROR(this, "Failed to load tree", git::get_last_error());
             return;
         }
 
         git::signature_t sig;
         if (git_signature_default(&sig, m_repo) != 0) {
-            utils::log_libgit_error();
-            QMessageBox::critical(this, "Failed to load signature", QString::fromStdString(git::get_last_error()));
+            DISPLAY_LIBGIT_ERROR(this, "Failed to load signature", git::get_last_error());
             return;
         }
 
         git_oid commit_id;
         if (git_commit_create(&commit_id, m_repo, nullptr, sig, sig, nullptr, "Tmp commit", tree, 0, nullptr) != 0) {
-            utils::log_libgit_error();
-            QMessageBox::critical(
-                this, "Failed to create temporary commit", QString::fromStdString(git::get_last_error())
-            );
+            DISPLAY_LIBGIT_ERROR(this, "Failed to create temporary commit", git::get_last_error());
             return;
         }
 
         if (!git::set_repository_head_detached(m_repo, &commit_id)) {
-            utils::log_libgit_error();
-            QMessageBox::critical(this, "Repo head error", QString::fromStdString(git::get_last_error()));
+            DISPLAY_LIBGIT_ERROR(this, "Repo head error", git::get_last_error());
             return;
         }
 
@@ -995,8 +985,7 @@ void RebaseViewWidget::checkoutAndResolve() {
         opts.checkout_strategy |= GIT_CHECKOUT_SAFE | GIT_CHECKOUT_ALLOW_CONFLICTS | GIT_CHECKOUT_RECREATE_MISSING;
 
         if (git_checkout_index(m_repo, m_conflict_index.get(), &opts) != 0) {
-            utils::log_libgit_error();
-            QMessageBox::critical(this, "Repo head error", QString::fromStdString(git::get_last_error()));
+            DISPLAY_LIBGIT_ERROR(this, "Repo head error", git::get_last_error());
             return;
         }
 
@@ -1009,14 +998,12 @@ void RebaseViewWidget::checkoutAndResolve() {
     {
         git::index_t index;
         if (git_repository_index(&index, m_repo) != 0) {
-            utils::log_libgit_error();
-            QMessageBox::critical(this, "Repo error", QString::fromStdString(git::get_last_error()));
+            DISPLAY_LIBGIT_ERROR(this, "Repo error", git::get_last_error());
             return;
         }
 
         if (!m_conflict_manager.apply_resolutions(m_conflict_entries, m_conflict_paths, m_repo, index.get())) {
-            utils::log_libgit_error();
-            QMessageBox::critical(this, "Recorded resolution error", QString::fromStdString(git::get_last_error()));
+            DISPLAY_LIBGIT_ERROR(this, "Recorded resolution error", git::get_last_error());
             return;
         }
     }
@@ -1045,10 +1032,7 @@ void RebaseViewWidget::checkoutAndResolve() {
             LOG_INFO("Restoring HEAD: '{}'", git_reference_name(m_head));
 
             if (!git::set_repository_head(m_repo, m_head.get())) {
-                utils::log_libgit_error();
-                QMessageBox::critical(
-                    this, "Failed to clean working directory", QString::fromStdString(git::get_last_error())
-                );
+                DISPLAY_LIBGIT_ERROR(this, "Failed to clean working directory", git::get_last_error());
             }
 
             m_resolve_conflicts_btn->setEnabled(true);
@@ -1064,8 +1048,7 @@ bool RebaseViewWidget::markResolved() {
 
     git::index_t repo_index;
     if (git_repository_index(&repo_index, m_repo) != 0) {
-        utils::log_libgit_error();
-        QMessageBox::critical(this, "Repo index", QString::fromStdString(git::get_last_error()));
+        DISPLAY_LIBGIT_ERROR(this, "Repo index", git::get_last_error());
         return false;
     }
 
@@ -1073,23 +1056,20 @@ bool RebaseViewWidget::markResolved() {
     auto&& [err, tree_oid]
         = conflict::add_resolved_files(repo_index, m_repo, m_conflict_paths, m_conflict_entries, m_conflict_manager);
     if (err.has_value()) {
-        LOG_ERROR("{}", err.value());
-        QMessageBox::critical(this, "Resolution error", QString::fromStdString(err.value()));
+        DISPLAY_ERROR(this, "Resolution error", git::get_last_error());
         return false;
     }
 
     git::tree_t tree;
     if (git_tree_lookup(&tree, m_repo, &tree_oid) != 0) {
-        utils::log_libgit_error();
-        QMessageBox::critical(this, "Tree error", QString::fromStdString(git::get_last_error()));
+        DISPLAY_LIBGIT_ERROR(this, "Tree error", git::get_last_error());
         return false;
     }
 
     LOG_INFO("Restoring HEAD: '{}'", git_reference_name(m_head));
     // Change working tree
     if (!git::set_repository_head(m_repo, m_head)) {
-        utils::log_libgit_error();
-        QMessageBox::critical(this, "Repo head error", QString::fromStdString(git::get_last_error()));
+        DISPLAY_LIBGIT_ERROR(this, "Repo head error", git::get_last_error());
         return false;
     }
 
