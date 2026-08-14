@@ -2,6 +2,7 @@
 
 #include "action/Action.h"
 #include "git/types.h"
+#include "gui/widget/RebaseSelectionWidget.h"
 #include "gui/widget/RebaseViewWidget.h"
 #include "gui/widget/WelcomeWidget.h"
 
@@ -29,6 +30,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QSettings>
+#include <QStackedLayout>
 #include <QString>
 
 /**
@@ -152,9 +154,15 @@ private:
     std::string m_rebase_head;
     std::string m_rebase_onto;
 
-    QHBoxLayout* m_layout;
-    gui::widget::RebaseViewWidget* m_rebase_view;
+    QStackedLayout* m_layout;
+
     gui::widget::WelcomeWidget* m_welcome_widget;
+    gui::widget::RebaseViewWidget* m_rebase_view;
+    gui::widget::RebaseSelectionWidget* m_rebase_select;
+
+    static constexpr int page_welcome       = 0;
+    static constexpr int page_rebase_view   = 1;
+    static constexpr int page_rebase_select = 2;
 
     git::repository_t m_repo;
 
@@ -196,7 +204,7 @@ private:
     /**
      * @brief Loads the save file.
      */
-    bool loadSaveFile();
+    void loadSaveFile();
 
     /**
      * @brief Saves the todo file.
@@ -221,4 +229,19 @@ private:
      * @return User's save decision.
      */
     SaveStatus maybeSave();
+
+    /**
+     * @brief Prepares RebaseSelectionWidget
+     */
+    bool prepareRebaseSelection();
+
+    /**
+     * @brief Executes git interactive rebase and closes this app.
+     */
+    void startNewRebase(QString commit_id);
+
+    /**
+     * @brief Updates commits inside the RebaseSelectionWidget.
+     */
+    void updateRebaseSelection(const std::string& branch);
 };

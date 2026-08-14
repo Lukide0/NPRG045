@@ -2,13 +2,19 @@
 
 #include "action/Action.h"
 #include "action/Converter.h"
+#include "conflict/ConflictManager.h"
+#include "git/commit.h"
 #include "git/error.h"
 #include "git/parser.h"
 #include "git/paths.h"
+#include "git/types.h"
 #include "gui/error.h"
 #include "gui/style/StyleManager.h"
+#include "gui/widget/ListItem.h"
+#include "gui/widget/RebaseSelectionWidget.h"
 #include "gui/widget/RebaseViewWidget.h"
 #include "gui/widget/SettingsDialog.h"
+#include "gui/widget/WelcomeWidget.h"
 #include "logging/Log.h"
 #include "state/CommandHistory.h"
 #include "state/State.h"
@@ -17,18 +23,26 @@
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
+#include <format>
 #include <fstream>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <git2.h>
+#include <git2/branch.h>
 #include <git2/commit.h>
 #include <git2/errors.h>
 #include <git2/global.h>
+#include <git2/oid.h>
 #include <git2/repository.h>
 #include <git2/types.h>
 
 #include <QAction>
 #include <QApplication>
+#include <QCloseEvent>
+#include <QDialog>
+#include <QDir>
 #include <QFileDialog>
 #include <QFont>
 #include <QHBoxLayout>
@@ -37,12 +51,18 @@
 #include <QLayout>
 #include <QListWidget>
 #include <QMainWindow>
+#include <QMap>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <qnamespace.h>
 #include <QPalette>
+#include <QProcess>
+#include <QProcessEnvironment>
+#include <QSettings>
+#include <QStackedLayout>
+#include <QStandardPaths>
 #include <QString>
-#include <utility>
+#include <QtTypes>
 
 static App* g_app = nullptr;
 
@@ -265,15 +285,23 @@ void App::setup() {
     main->setContentsMargins(0, 0, 0, 0);
     setCentralWidget(main);
 
-    m_layout = new QHBoxLayout(main);
+    m_layout = new QStackedLayout();
+    main->setLayout(m_layout);
 
     m_rebase_view    = new gui::widget::RebaseViewWidget();
     m_welcome_widget = new gui::widget::WelcomeWidget();
+    m_rebase_select  = new gui::widget::RebaseSelectionWidget();
 
+    auto* welcome_page   = new QWidget();
+    auto* welcome_layout = new QHBoxLayout();
+    welcome_page->setLayout(welcome_layout);
+
+    welcome_layout->addWidget(m_welcome_widget);
+
+    m_layout->addWidget(welcome_page);
     m_layout->addWidget(m_rebase_view);
-    m_layout->addWidget(m_welcome_widget);
+    m_layout->addWidget(m_rebase_select);
 
-    m_rebase_view->hide();
     m_rebase_view->hideOldCommits();
 
     connect(m_welcome_widget, &gui::widget::WelcomeWidget::openCurrentDirectory, this, [this]() {
@@ -288,10 +316,17 @@ void App::setup() {
         openRepoDialog();
     });
 
-    connect(m_welcome_widget, &gui::widget::WelcomeWidget::loadSaveFile, this, [this]() {
-        // NOTE: loadSaveFile handles widget visibility based on success/failure
-        loadSaveFile();
+    connect(m_welcome_widget, &gui::widget::WelcomeWidget::loadSaveFile, this, &App::loadSaveFile);
+
+    connect(
+        m_rebase_select, &gui::widget::RebaseSelectionWidget::branchSelectionChanged, this, &App::updateRebaseSelection
+    );
+
+    connect(m_rebase_select, &gui::widget::RebaseSelectionWidget::cancelled, this, [this]() {
+        m_layout->setCurrentIndex(page_welcome);
     });
+
+    connect(m_rebase_select, &gui::widget::RebaseSelectionWidget::completed, this, &App::startNewRebase);
 }
 
 App::SaveStatus App::maybeSave() {
@@ -419,7 +454,6 @@ void App::openRepoCLI(const std::string& path) {
 bool App::openRepo(const std::string& path) {
     LOG_INFO("Openning repo: {}", path);
 
-    m_rebase_view->hide();
     state::CommandHistory::Clear();
 
     git::repository_t new_repo;
@@ -427,7 +461,7 @@ bool App::openRepo(const std::string& path) {
 
         DISPLAY_LIBGIT_ERROR(this, "Failed to open repository", git::get_last_error());
 
-        m_welcome_widget->show();
+        m_layout->setCurrentIndex(page_welcome);
         return false;
     }
 
@@ -436,19 +470,29 @@ bool App::openRepo(const std::string& path) {
 
     auto err = git::get_rebase_info(m_repo_path, m_rebase_head, m_rebase_onto);
     if (err.has_value()) {
+
+        if (err->type == git::RebaseInfoError::NotFound) {
+            m_layout->setCurrentIndex(page_rebase_select);
+
+            if (!prepareRebaseSelection()) {
+                m_layout->setCurrentIndex(page_welcome);
+                return false;
+            } else {
+                return true;
+            }
+        }
+
         DISPLAY_ERROR(this, "Rebase error", err->msg);
-        m_welcome_widget->show();
+        m_layout->setCurrentIndex(page_welcome);
         return false;
     }
 
     if (!loadRebase()) {
-        m_welcome_widget->show();
+        m_layout->setCurrentIndex(page_welcome);
         return false;
     }
 
-    m_rebase_view->show();
-    m_welcome_widget->hide();
-
+    m_layout->setCurrentIndex(page_rebase_view);
     return true;
 }
 
@@ -469,6 +513,145 @@ bool App::loadRebase() {
     }
 
     return true;
+}
+
+bool App::prepareRebaseSelection() {
+
+    git::branch_iterator_t branch_iter;
+
+    if (git_branch_iterator_new(&branch_iter, m_repo, GIT_BRANCH_LOCAL) != 0) {
+        return false;
+    }
+
+    git::reference_t branch_ref;
+    git_branch_t branch_type;
+
+    std::vector<std::string> branches;
+
+    while (git_branch_next(&branch_ref, &branch_type, branch_iter) == 0) {
+        const char* name;
+
+        if (git_branch_name(&name, branch_ref) != 0) {
+            continue;
+        }
+
+        branches.emplace_back(name);
+    }
+
+    m_rebase_select->setBranches(std::move(branches));
+
+    return true;
+}
+
+void App::startNewRebase(QString commit_id) {
+    auto branch_name = QString::fromStdString(m_rebase_select->selectedBranch());
+
+    if (commit_id.isEmpty() || branch_name.isEmpty()) {
+        return;
+    }
+
+    git_oid oid;
+
+    QByteArray bytes = commit_id.toLatin1();
+    if (git_oid_fromstrn(&oid, bytes.constData(), bytes.size()) != 0) {
+        return;
+    }
+
+    git::commit_t commit;
+    if (git_commit_lookup(&commit, m_repo, &oid) != 0) {
+        return;
+    }
+
+    const bool is_root_commit = git_commit_parentcount(commit) == 0;
+
+    QString target;
+    if (is_root_commit) {
+        target = "--root";
+    } else {
+        // include parent parent so that the commit is included in todo list
+        target = commit_id + "^";
+    }
+
+    QString git_path = QStandardPaths::findExecutable("git");
+    if (git_path.isEmpty()) {
+        DISPLAY_ERROR(this, "Rebase error", "Could not find git command.");
+        return;
+    }
+
+    QString app_path = QApplication::applicationFilePath();
+    if (logging::Log::is_debug()) {
+        app_path += " --debug";
+    }
+
+    if (logging::Log::is_verbose()) {
+        app_path += " --verbose";
+    }
+
+    app_path += " --edit-todo";
+
+    QString cmd_str = QString("%1 rebase --no-rebase-merges -i %2 %3").arg(git_path).arg(target).arg(branch_name);
+
+    LOG_INFO(
+        R"(Executing git.
+    Command: {}
+    WorkingDir: {}
+    Editor: {})",
+        cmd_str.toStdString(),
+        m_repo_path,
+        app_path.toStdString()
+    );
+
+    auto answer = QMessageBox::question(
+        this,
+        "Execute command",
+        QString("Do you want to execute this command?\n- Command: %1\n- Working dir: %2").arg(cmd_str).arg(m_repo_path),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No
+    );
+
+    if (answer == QMessageBox::No) {
+        return;
+    }
+
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("GIT_SEQUENCE_EDITOR", app_path);
+
+    QProcess git_proc;
+    git_proc.setProgram(git_path);
+    git_proc.setArguments({ "rebase", "--no-rebase-merges", "-i", target, branch_name });
+    git_proc.setWorkingDirectory(QString::fromStdString(m_repo_path));
+    git_proc.setProcessEnvironment(env);
+
+    qint64 pid;
+    if (!git_proc.startDetached(&pid)) {
+        DISPLAY_ERROR(this, "Failed to execute git command", git_proc.errorString().toStdString());
+        return;
+    }
+
+    // close this application and let git reopen it with the todo file
+    QApplication::quit();
+}
+
+void App::updateRebaseSelection(const std::string& branch) {
+    if (branch.empty() || m_repo == nullptr) {
+        return;
+    }
+
+    m_rebase_select->clearCommits();
+
+    git::iterate_branch_commits(m_repo, branch.c_str(), [this](git_commit* commit) {
+        const auto* id     = git_commit_id(commit);
+        std::string id_str = git_oid_tostr_s(id);
+
+        const char* summary = git_commit_summary(commit);
+        if (summary == nullptr) {
+            return;
+        }
+
+        std::string name = std::format("[{}]: {}", git::format_oid_to_str(id), summary);
+
+        m_rebase_select->addCommit(name, id_str);
+    });
 }
 
 bool App::saveSaveFile(bool choose_file) {
@@ -510,14 +693,14 @@ bool App::saveSaveFile(bool choose_file) {
     return true;
 }
 
-bool App::loadSaveFile() {
+void App::loadSaveFile() {
     QString filter = "XML Files (*.xml)";
     QString dir    = m_save_file.value_or(QString::fromStdString(m_repo_path));
 
     QString filepath = QFileDialog::getOpenFileName(this, "Load", dir, filter, nullptr);
 
     if (filepath.isEmpty()) {
-        return false;
+        return;
     }
 
     LOG_INFO("Loading: {}", filepath.toStdString());
@@ -526,10 +709,8 @@ bool App::loadSaveFile() {
     auto save_data = state::State::load(filepath.toStdU32String(), &repo);
     if (!save_data.has_value()) {
         DISPLAY_ERROR(this, "Load save error", "Failed to load save file");
-        return false;
+        return;
     }
-
-    m_rebase_view->hide();
 
     m_save_file = filepath;
     m_repo      = std::move(repo);
@@ -561,15 +742,12 @@ bool App::loadSaveFile() {
 
     state::CommandHistory::Clear();
 
-    m_rebase_view->show();
-    m_welcome_widget->hide();
+    m_layout->setCurrentIndex(page_rebase_view);
 
     auto rebase_res = m_rebase_view->update(m_repo, save_data->head, save_data->onto);
     if (rebase_res.has_value()) {
         DISPLAY_ERROR(this, "Rebase error", *rebase_res);
     }
-
-    return true;
 }
 
 bool App::saveTodoFile(bool insert_break) {

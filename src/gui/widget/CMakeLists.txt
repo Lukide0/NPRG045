@@ -4,6 +4,9 @@ target_sources(${PROJECT_NAME} PRIVATE
         CommitViewWidget.cpp
         CommitMessageWidget.cpp
 
+        ${INCLUDE_PATH}/gui/widget/RebaseSelectionWidget.h
+        RebaseSelectionWidget.cpp
+
         ConflictWidget.cpp
         ${INCLUDE_PATH}/gui/widget/ConflictHighlighter.h
 
