@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstddef>
 
+#include <functional>
 #include <git2/commit.h>
 #include <git2/oid.h>
 #include <git2/types.h>
@@ -96,5 +97,7 @@ bool modify_commit(
     const git_tree* tree,
     const git_commit* parent
 );
+
+bool iterate_branch_commits(git_repository* repo, const char* branch_name, std::function<void(git_commit*)> commit_cb);
 
 }

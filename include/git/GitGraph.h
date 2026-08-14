@@ -44,7 +44,7 @@ public:
     /**
      * @brief Creates an empty graph.
      */
-    static GitGraph empty() { return {}; }
+    static GitGraph empty() { return { }; }
 
     /**
      * @brief Builds a graph from two commit hashes.
@@ -66,25 +66,22 @@ public:
 
         GitGraph graph;
 
-        git_revwalk* walker = nullptr;
+        revwalk_t walker;
         if (git_revwalk_new(&walker, repo) != 0) {
             return std::nullopt;
         }
 
         if (git_revwalk_sorting(walker, GIT_SORT_TOPOLOGICAL | GIT_SORT_TIME) != 0) {
-            git_revwalk_free(walker);
             return std::nullopt;
         }
 
         // start commit
         if (git_revwalk_push(walker, git_commit_id(start_commit)) != 0) {
-            git_revwalk_free(walker);
             return std::nullopt;
         }
 
         // end commit
         if (git_revwalk_hide(walker, git_commit_id(end_commit)) != 0) {
-            git_revwalk_free(walker);
             return std::nullopt;
         }
 
@@ -96,7 +93,6 @@ public:
             commit_t commit;
 
             if (git_commit_lookup(&commit, repo, &oid) != 0) {
-                git_revwalk_free(walker);
                 return std::nullopt;
             }
 
@@ -112,7 +108,6 @@ public:
         // insert oldest commit
         graph.try_insert(std::move(end_commit), idx);
 
-        git_revwalk_free(walker);
         return graph;
     }
 
@@ -230,7 +225,7 @@ private:
             node_t {
                 .commit = std::move(commit),
                 .depth  = depth,
-                .data   = {},
+                .data   = { },
             }
         );
 
