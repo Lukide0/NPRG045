@@ -26,19 +26,26 @@ public:
 
     [[nodiscard]] const std::string& title() const { return m_title; }
 
-    static void display(QWidget* parent, const ErrorMessage& msg) {
+    static void
+    display(QWidget* parent, const ErrorMessage& msg, std::source_location loc = std::source_location::current()) {
         if (msg.is_libgit()) {
-            display<true>(parent, msg.title(), msg.message());
+            display<true>(parent, msg.title(), msg.message(), loc);
         } else {
-            display<false>(parent, msg.title(), msg.message());
+            display<false>(parent, msg.title(), msg.message(), loc);
         }
     }
 
-    template <bool libgit> static void display(QWidget* parent, const std::string& title, const std::string& message) {
+    template <bool libgit>
+    static void display(
+        QWidget* parent,
+        const std::string& title,
+        const std::string& message,
+        std::source_location loc = std::source_location::current()
+    ) {
         if constexpr (libgit) {
-            LOG_ERROR("[Libgit2]{}: {}", title, message);
+            ::logging::Log::error(std::format("[Libgit2]{}: {}", title, message), loc);
         } else {
-            LOG_ERROR("{}: {}", title, message);
+            ::logging::Log::error(std::format("{}: {}", title, message), loc);
         }
 
         QMessageBox::critical(
