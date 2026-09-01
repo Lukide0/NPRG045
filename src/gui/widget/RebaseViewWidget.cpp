@@ -661,6 +661,23 @@ std::optional<std::string> RebaseViewWidget::update(
 
     for (auto&& action : actions) {
 
+        switch (action.type) {
+        case CmdType::LABEL:
+        case CmdType::EXEC:
+        case CmdType::BREAK:
+        case CmdType::RESET:
+        case CmdType::MERGE:
+        case CmdType::UPDATE_REF:
+            return std::format(
+                "Advanced rebase command not supported '{}' on line {}."
+                " Only basic commit actions (pick, edit, squash, etc.) are available.",
+                git::cmd_to_str(action.type),
+                action.line
+            );
+        default:
+            break;
+        }
+
         git_oid id;
         if (!git::get_oid_from_hash(id, action.hash.c_str(), m_repo)) {
             return "Could not find commit";
@@ -689,18 +706,8 @@ std::optional<std::string> RebaseViewWidget::update(
         case CmdType::DROP:
             m_actions.append(Action(ActionType::DROP, id, m_repo));
             break;
-        case CmdType::LABEL:
-        case CmdType::EXEC:
-        case CmdType::BREAK:
-        case CmdType::RESET:
-        case CmdType::MERGE:
-        case CmdType::UPDATE_REF:
-            return std::format(
-                "Advanced rebase command not supported '{}'. Only basic commit actions (pick, edit, squash, etc.) "
-                "are "
-                "available.",
-                git::cmd_to_str(action.type)
-            );
+        default:
+            UNEXPECTED();
         }
     }
 

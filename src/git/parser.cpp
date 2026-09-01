@@ -99,8 +99,11 @@ ParseResult parse_file(const std::string& filepath) {
 
     // TODO: Return information about the rename (-C, -c)
 
+    std::size_t line_num = 0;
     std::string line;
     while (std::getline(file, line)) {
+        line_num += 1;
+
         auto line_res = parse_line(line);
 
         auto args_raw = line_res.rest;
@@ -159,7 +162,7 @@ ParseResult parse_file(const std::string& filepath) {
             return res;
         }
 
-        res.actions.push_back({ .type = line_res.type, .hash = commit_hash });
+        res.actions.push_back({ .type = line_res.type, .hash = commit_hash, .line = line_num });
 
     no_commit:;
     }

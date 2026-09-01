@@ -72,6 +72,7 @@ static constexpr const char* cmd_to_str(CmdType type) {
 struct CommitAction {
     CmdType type;
     std::string hash;
+    std::size_t line;
 };
 
 /**

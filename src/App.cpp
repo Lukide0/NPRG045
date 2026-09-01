@@ -340,7 +340,7 @@ App::SaveStatus App::maybeSave() {
         msg.setText("Do you want to execute your rebase plan?");
         msg.setIcon(QMessageBox::Warning);
 
-        auto* save_exec_btn = msg.addButton("Save && Execute", QMessageBox::AcceptRole);
+        auto* save_exec_btn = msg.addButton("Execute", QMessageBox::AcceptRole);
         auto* save_btn      = msg.addButton("Save", QMessageBox::ActionRole);
         auto* discard_btn   = msg.addButton("Discard", QMessageBox::ActionRole);
         auto* cancel_btn    = msg.addButton("Cancel", QMessageBox::RejectRole);
