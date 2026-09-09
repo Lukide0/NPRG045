@@ -2,6 +2,13 @@
 
 A tool for editing Git history: conveniently reordering commits in a branch before publishing or merging.
 
+## Requirements
+
+- Git
+- CMake >= 3.25
+- C++20 compiler
+- Qt >= 6.8 with the following components installed: `Widgets`, `Core`, `Xml`
+
 ## Building
 
 ```bash
