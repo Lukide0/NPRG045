@@ -47,3 +47,15 @@ gui--widget--ListItem > QComboBox::drop-down {
 gui--widget--ListItem > QComboBox::down-arrow {
     image: url(:/icons/arrow-down-16x16.png);
 }
+
+/*-- RebaseSelectionWidget ------------------------------------------*/
+
+gui--widget--RebaseSelectionWidget QLabel[class="title"] {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+gui--widget--RebaseSelectionWidget #rebase-selection-message {
+    color: #FF7E00;
+    font-weight: 700;
+}

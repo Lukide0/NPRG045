@@ -24,6 +24,8 @@ RebaseSelectionWidget::RebaseSelectionWidget(QWidget* parent)
     m_forward_btn->setEnabled(false);
     m_message = new QLabel();
 
+    m_message->setObjectName("rebase-selection-message");
+
     auto* navigation = new QHBoxLayout();
     navigation->addWidget(m_back_btn);
     navigation->addStretch(1);
@@ -41,7 +43,9 @@ RebaseSelectionWidget::RebaseSelectionWidget(QWidget* parent)
         auto* branch_layout = new QVBoxLayout(branch_page);
 
         auto* branch_title = new QLabel("Select branch to rebase");
-        m_branches         = new QComboBox(branch_page);
+        branch_title->setProperty("class", "title");
+
+        m_branches = new QComboBox(branch_page);
 
         branch_layout->addWidget(branch_title);
         branch_layout->addWidget(m_branches);
@@ -55,6 +59,7 @@ RebaseSelectionWidget::RebaseSelectionWidget(QWidget* parent)
         auto* commits_layout = new QVBoxLayout(commits_page);
 
         auto* commits_title = new QLabel("Select stating commit");
+        commits_title->setProperty("class", "title");
 
         auto* commits_descrition
             = new QLabel("The list does NOT contain merge commits. The merge commits are dropped from todo list.");
