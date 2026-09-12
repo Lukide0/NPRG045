@@ -638,6 +638,14 @@ void App::updateRebaseSelection(const std::string& branch) {
     }
 
     m_rebase_select->clearCommits();
+    m_rebase_select->clearMessage();
+
+    git::branch_state_t state = git::check_branch(m_repo, branch.c_str());
+    if (state.behind > 0) {
+        m_rebase_select->setMessage(
+            QString("Warning: branch '%1' is %2 commit(s) behind upstream").arg(branch).arg(state.behind)
+        );
+    }
 
     git::iterate_branch_commits(m_repo, branch.c_str(), [this](git_commit* commit) {
         const auto* id     = git_commit_id(commit);

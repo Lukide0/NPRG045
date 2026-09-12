@@ -23,6 +23,7 @@
 #include <git2/oid.h>
 #include <git2/patch.h>
 #include <git2/refs.h>
+#include <git2/remote.h>
 #include <git2/repository.h>
 #include <git2/revparse.h>
 #include <git2/revwalk.h>
@@ -146,6 +147,7 @@ using branch_iterator_t   = ptr_object_t<git_branch_iterator, git_branch_iterato
 using blob_t              = ptr_object_t<git_blob, git_blob_free>;
 using revwalk_t           = ptr_object_t<git_revwalk, git_revwalk_free>;
 using repository_t        = ptr_object_t<git_repository, git_repository_free>;
+using remote_t            = ptr_object_t<git_remote, git_remote_free>;
 
 using buffer_t = object_t<git_buf, git_buf_dispose>;
 

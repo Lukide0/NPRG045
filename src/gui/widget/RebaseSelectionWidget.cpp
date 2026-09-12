@@ -22,6 +22,7 @@ RebaseSelectionWidget::RebaseSelectionWidget(QWidget* parent)
     m_back_btn    = new QPushButton();
     m_forward_btn = new QPushButton();
     m_forward_btn->setEnabled(false);
+    m_message = new QLabel();
 
     auto* navigation = new QHBoxLayout();
     navigation->addWidget(m_back_btn);
@@ -64,6 +65,7 @@ RebaseSelectionWidget::RebaseSelectionWidget(QWidget* parent)
 
         commits_layout->addWidget(commits_title);
         commits_layout->addWidget(commits_descrition);
+        commits_layout->addWidget(m_message);
         commits_layout->addWidget(m_commits);
 
         m_stack->addWidget(commits_page);

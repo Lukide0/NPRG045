@@ -2,6 +2,7 @@
 
 #include <git2/oid.h>
 #include <QComboBox>
+#include <QLabel>
 #include <QListWidget>
 #include <QPushButton>
 #include <QStackedWidget>
@@ -21,6 +22,13 @@ public:
 
     void addCommit(const std::string& name, const std::string& id);
     void clearCommits();
+
+    void setMessage(const QString& msg) {
+        m_message->setText(msg);
+        m_message->show();
+    }
+
+    void clearMessage() { m_message->hide(); }
 
     [[nodiscard]] const std::string& selectedBranch() const { return m_branch_names[m_branch_index]; }
 
@@ -42,6 +50,7 @@ private:
 
     QComboBox* m_branches;
     QListWidget* m_commits;
+    QLabel* m_message;
 
     QPushButton* m_back_btn;
     QPushButton* m_forward_btn;

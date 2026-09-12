@@ -98,6 +98,22 @@ bool modify_commit(
     const git_commit* parent
 );
 
+/**
+ * @brief Iterates over branch commits.
+ *
+ * @param repo Git repository.
+ * @param branch_name Branch name.
+ * @param commit_cb Callback invoked per commit.
+ *
+ * @return True if iteration completed successfully.
+ */
 bool iterate_branch_commits(git_repository* repo, const char* branch_name, std::function<void(git_commit*)> commit_cb);
+
+struct branch_state_t {
+    std::size_t behind;
+    std::size_t ahead;
+};
+
+branch_state_t check_branch(git_repository* repo, const char* branch_name);
 
 }

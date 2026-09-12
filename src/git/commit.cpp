@@ -4,8 +4,11 @@
 #include <cassert>
 #include <cstddef>
 
+#include <git2/buffer.h>
 #include <git2/commit.h>
+#include <git2/graph.h>
 #include <git2/oid.h>
+#include <git2/remote.h>
 #include <git2/revwalk.h>
 #include <git2/types.h>
 
@@ -103,4 +106,70 @@ bool iterate_branch_commits(git_repository* repo, const char* branch_name, std::
 
     return true;
 }
+
+void try_fetch_commits(
+    git_repository* repo, const char* branch_name, git_reference* local_ref, git_reference** out_upstream
+) {
+    *out_upstream = nullptr;
+
+    buffer_t remote_name { GIT_BUF_INIT };
+
+    if (git_branch_lookup(&local_ref, repo, branch_name, GIT_BRANCH_LOCAL) != 0) {
+        return;
+    }
+
+    // no upstream
+    if (git_branch_upstream(out_upstream, local_ref) != 0) {
+        return;
+    }
+
+    if (git_branch_remote_name(&remote_name, repo, git_reference_name(*out_upstream)) != 0) {
+        return;
+    }
+
+    remote_t remote;
+    if (git_remote_lookup(&remote, repo, remote_name.get().ptr) != 0) {
+        return;
+    }
+
+    if (git_remote_fetch(remote, nullptr, nullptr, nullptr) != 0) {
+        return;
+    }
+
+    git_reference* original_upstream = *out_upstream;
+    if (git_branch_upstream(out_upstream, local_ref) == 0) {
+        git_reference_free(original_upstream);
+    } else {
+        *out_upstream = original_upstream;
+    }
+}
+
+branch_state_t check_branch(git_repository* repo, const char* branch_name) {
+
+    reference_t local_ref;
+    reference_t upstream_ref;
+
+    branch_state_t result = {
+        .behind = 0,
+        .ahead  = 0,
+    };
+
+    if (git_branch_lookup(&local_ref, repo, branch_name, GIT_BRANCH_LOCAL) != 0) {
+        return result;
+    }
+
+    try_fetch_commits(repo, branch_name, local_ref, &upstream_ref);
+
+    // no upstream
+    if (upstream_ref == nullptr) {
+        return result;
+    }
+
+    git_graph_ahead_behind(
+        &result.ahead, &result.behind, repo, git_reference_target(local_ref), git_reference_target(upstream_ref)
+    );
+
+    return result;
+}
+
 }
