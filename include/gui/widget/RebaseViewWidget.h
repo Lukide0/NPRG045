@@ -12,6 +12,7 @@
 #include "gui/widget/graph/Graph.h"
 #include "gui/widget/graph/Node.h"
 #include "gui/widget/ListItem.h"
+#include "state/AppState.h"
 
 #include <optional>
 #include <string>
@@ -35,14 +36,9 @@ namespace gui::widget {
 class RebaseViewWidget : public QWidget {
 public:
     RebaseViewWidget(QWidget* parent = nullptr);
-    std::optional<std::string> update(
-        git_repository* repo,
-        const std::string& head,
-        const std::string& onto,
-        const std::vector<git::CommitAction>& actions
-    );
 
-    std::optional<std::string> update(git_repository* repo, const std::string& head, const std::string& onto);
+    std::optional<std::string> update(state::AppState& state, const std::vector<git::CommitAction>& actions);
+    std::optional<std::string> update(state::AppState& state);
 
     void updateGraph();
 
@@ -107,19 +103,7 @@ private:
     git::reference_t m_head;
     Node* m_root_node;
 
-    action::Action* m_cherrypick = nullptr;
-
-    /* Conflict */
-    struct {
-        action::Action* action;
-        action::Action* parent_action;
-    } m_resolving;
-
-    git::index_t m_conflict_index;
-
-    std::vector<std::string> m_conflict_paths;
-    std::vector<conflict::ConflictEntry> m_conflict_entries;
-    std::vector<git_oid> m_conflict_files;
+    state::AppState::Conflict* m_conflict = nullptr;
 
 private:
     std::optional<std::string> prepareGitGraph(git_repository* repo, const std::string& head, const std::string& onto);

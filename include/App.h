@@ -5,6 +5,7 @@
 #include "gui/widget/RebaseSelectionWidget.h"
 #include "gui/widget/RebaseViewWidget.h"
 #include "gui/widget/WelcomeWidget.h"
+#include "state/AppState.h"
 
 #include <cassert>
 #include <optional>
@@ -150,10 +151,6 @@ private:
     QAction* m_repo_open;
     QAction* m_load_save;
 
-    std::string m_repo_path;
-    std::string m_rebase_head;
-    std::string m_rebase_onto;
-
     QStackedLayout* m_layout;
 
     gui::widget::WelcomeWidget* m_welcome_widget;
@@ -164,7 +161,7 @@ private:
     static constexpr int page_rebase_view   = 1;
     static constexpr int page_rebase_select = 2;
 
-    git::repository_t m_repo;
+    state::AppState m_state;
 
     std::optional<QString> m_save_file;
 

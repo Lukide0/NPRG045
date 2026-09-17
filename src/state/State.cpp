@@ -259,12 +259,7 @@ void load_conflicts(QDomElement& root, SaveData& save_data, git_repository* repo
     }
 }
 
-bool State::save(
-    const std::filesystem::path& path,
-    const std::filesystem::path& repo,
-    const std::string& head,
-    const std::string& onto
-) {
+bool State::save(const std::filesystem::path& path, const AppState& state) {
 
     QDomDocument doc;
 
@@ -272,9 +267,9 @@ bool State::save(
     doc.appendChild(header);
 
     QDomElement root = doc.createElement(ROOT_NODE);
-    root.setAttribute("repo", QString::fromStdU32String(repo.u32string()));
-    root.setAttribute("head", QString::fromStdString(head));
-    root.setAttribute("onto", QString::fromStdString(onto));
+    root.setAttribute("repo", QString::fromStdString(state.repo_path()));
+    root.setAttribute("head", QString::fromStdString(state.rebase_head()));
+    root.setAttribute("onto", QString::fromStdString(state.rebase_onto()));
 
     doc.appendChild(root);
 
@@ -316,12 +311,11 @@ std::optional<SaveData> State::load(const std::filesystem::path& path, git_repos
         return std::nullopt;
     }
 
-    auto repo_path = root.attribute("repo").toStdString();
+    save_data.repo_path = root.attribute("repo").toStdString();
+    save_data.head      = root.attribute("head").toStdString();
+    save_data.onto      = root.attribute("onto").toStdString();
 
-    save_data.head = root.attribute("head").toStdString();
-    save_data.onto = root.attribute("onto").toStdString();
-
-    if (git_repository_open(repo, repo_path.c_str()) != 0) {
+    if (git_repository_open(repo, save_data.repo_path.c_str()) != 0) {
         return std::nullopt;
     }
 

@@ -18,7 +18,6 @@
 #include "logging/Log.h"
 #include "state/CommandHistory.h"
 #include "state/State.h"
-#include "utils/optional_uint.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -74,7 +73,7 @@ void App::updateConflicts(action::Action* start) { g_app->m_rebase_view->updateC
 
 gui::widget::RebaseViewWidget* App::getRebaseViewWidget() { return g_app->m_rebase_view; }
 
-const std::string& App::getRepoPath() { return g_app->m_repo_path; }
+const std::string& App::getRepoPath() { return g_app->m_state.repo_path(); }
 
 QMap<QString, App::ShortcutAction>& App::getShortcuts() { return g_app->m_shortcuts; }
 
@@ -465,10 +464,13 @@ bool App::openRepo(const std::string& path) {
         return false;
     }
 
-    m_repo      = std::move(new_repo);
-    m_repo_path = path;
+    m_state.set_repo(std::move(new_repo), path);
 
-    auto err = git::get_rebase_info(m_repo_path, m_rebase_head, m_rebase_onto);
+    std::string head, onto;
+    auto err = git::get_rebase_info(path, head, onto);
+
+    m_state.set_rebase(head, onto);
+
     if (err.has_value()) {
 
         if (err->type == git::RebaseInfoError::NotFound) {
@@ -497,7 +499,7 @@ bool App::openRepo(const std::string& path) {
 }
 
 bool App::loadRebase() {
-    auto filepath = m_repo_path + '/' + git::TODO_FILE.c_str();
+    auto filepath = m_state.repo_path() + '/' + git::TODO_FILE.c_str();
 
     auto res = git::parse_file(filepath);
     if (!res.err.empty()) {
@@ -505,8 +507,7 @@ bool App::loadRebase() {
         return false;
     }
 
-    auto rebase_res = m_rebase_view->update(m_repo, m_rebase_head, m_rebase_onto, res.actions);
-
+    auto rebase_res = m_rebase_view->update(m_state, res.actions);
     if (rebase_res.has_value()) {
         DISPLAY_ERROR(this, "Rebase error", *rebase_res);
         return false;
@@ -519,7 +520,7 @@ bool App::prepareRebaseSelection() {
 
     git::branch_iterator_t branch_iter;
 
-    if (git_branch_iterator_new(&branch_iter, m_repo, GIT_BRANCH_LOCAL) != 0) {
+    if (git_branch_iterator_new(&branch_iter, m_state.repo(), GIT_BRANCH_LOCAL) != 0) {
         return false;
     }
 
@@ -558,7 +559,7 @@ void App::startNewRebase(QString commit_id) {
     }
 
     git::commit_t commit;
-    if (git_commit_lookup(&commit, m_repo, &oid) != 0) {
+    if (git_commit_lookup(&commit, m_state.repo(), &oid) != 0) {
         return;
     }
 
@@ -597,14 +598,16 @@ void App::startNewRebase(QString commit_id) {
     WorkingDir: {}
     Editor: {})",
         cmd_str.toStdString(),
-        m_repo_path,
+        m_state.repo_path(),
         app_path.toStdString()
     );
 
     auto answer = QMessageBox::question(
         this,
         "Execute command",
-        QString("Do you want to execute this command?\n- Command: %1\n- Working dir: %2").arg(cmd_str).arg(m_repo_path),
+        QString("Do you want to execute this command?\n- Command: %1\n- Working dir: %2")
+            .arg(cmd_str)
+            .arg(m_state.repo_path()),
         QMessageBox::Yes | QMessageBox::No,
         QMessageBox::No
     );
@@ -619,7 +622,7 @@ void App::startNewRebase(QString commit_id) {
     QProcess git_proc;
     git_proc.setProgram(git_path);
     git_proc.setArguments({ "rebase", "--no-rebase-merges", "-i", target, branch_name });
-    git_proc.setWorkingDirectory(QString::fromStdString(m_repo_path));
+    git_proc.setWorkingDirectory(QString::fromStdString(m_state.repo_path()));
     git_proc.setProcessEnvironment(env);
 
     qint64 pid;
@@ -633,21 +636,21 @@ void App::startNewRebase(QString commit_id) {
 }
 
 void App::updateRebaseSelection(const std::string& branch) {
-    if (branch.empty() || m_repo == nullptr) {
+    if (branch.empty() || m_state.repo() == nullptr) {
         return;
     }
 
     m_rebase_select->clearCommits();
     m_rebase_select->clearMessage();
 
-    git::branch_state_t state = git::check_branch(m_repo, branch.c_str());
+    git::branch_state_t state = git::check_branch(m_state.repo(), branch.c_str());
     if (state.behind > 0) {
         m_rebase_select->setMessage(
             QString("Warning: branch '%1' is %2 commit(s) behind upstream").arg(branch).arg(state.behind)
         );
     }
 
-    git::iterate_branch_commits(m_repo, branch.c_str(), [this](git_commit* commit) {
+    git::iterate_branch_commits(m_state.repo(), branch.c_str(), [this](git_commit* commit) {
         const auto* id     = git_commit_id(commit);
         std::string id_str = git_oid_tostr_s(id);
 
@@ -664,7 +667,7 @@ void App::updateRebaseSelection(const std::string& branch) {
 
 bool App::saveSaveFile(bool choose_file) {
     if (!m_save_file.has_value() || choose_file) {
-        QString default_path = QString::fromStdString(m_repo_path);
+        QString default_path = QString::fromStdString(m_state.repo_path());
 
         QString filter = tr("XML Files (*.xml)");
 
@@ -672,7 +675,7 @@ bool App::saveSaveFile(bool choose_file) {
         dialog.setWindowTitle("Save");
         dialog.setAcceptMode(QFileDialog::AcceptSave);
         dialog.setNameFilter("XML Files (*.xml)");
-        dialog.setDirectory(QString::fromStdString(m_repo_path));
+        dialog.setDirectory(QString::fromStdString(m_state.repo_path()));
 
         dialog.setDefaultSuffix("xml");
 
@@ -691,7 +694,7 @@ bool App::saveSaveFile(bool choose_file) {
 
     LOG_INFO("Saving: {}", m_save_file->toStdString());
 
-    if (!state::State::save(m_save_file.value().toStdU32String(), m_repo_path, m_rebase_head, m_rebase_onto)) {
+    if (!state::State::save(m_save_file.value().toStdU32String(), m_state)) {
         DISPLAY_ERROR(this, "Save error", "Failed to save");
         return false;
     }
@@ -703,7 +706,7 @@ bool App::saveSaveFile(bool choose_file) {
 
 void App::loadSaveFile() {
     QString filter = "XML Files (*.xml)";
-    QString dir    = m_save_file.value_or(QString::fromStdString(m_repo_path));
+    QString dir    = m_save_file.value_or(QString::fromStdString(m_state.repo_path()));
 
     QString filepath = QFileDialog::getOpenFileName(this, "Load", dir, filter, nullptr);
 
@@ -721,10 +724,9 @@ void App::loadSaveFile() {
     }
 
     m_save_file = filepath;
-    m_repo      = std::move(repo);
 
-    m_rebase_head = save_data->head;
-    m_rebase_onto = save_data->onto;
+    m_state.set_repo(std::move(repo), save_data->repo_path);
+    m_state.set_rebase(save_data->head, save_data->onto);
 
     auto& act_manager = action::ActionsManager::get();
     act_manager.clear();
@@ -752,7 +754,7 @@ void App::loadSaveFile() {
 
     m_layout->setCurrentIndex(page_rebase_view);
 
-    auto rebase_res = m_rebase_view->update(m_repo, save_data->head, save_data->onto);
+    auto rebase_res = m_rebase_view->update(m_state);
     if (rebase_res.has_value()) {
         DISPLAY_ERROR(this, "Rebase error", *rebase_res);
     }
@@ -762,7 +764,10 @@ bool App::saveTodoFile(bool insert_break) {
     std::string head;
     std::string onto;
 
-    auto err = git::get_rebase_info(m_repo_path, head, onto);
+    const std::string& expected_head = m_state.rebase_head();
+    const std::string& expected_onto = m_state.rebase_onto();
+
+    auto err = git::get_rebase_info(m_state.repo_path(), head, onto);
     if (err.has_value()) {
         DISPLAY_ERROR(
             this,
@@ -773,7 +778,7 @@ bool App::saveTodoFile(bool insert_break) {
         return false;
     }
 
-    if (head != m_rebase_head || onto != m_rebase_onto) {
+    if (head != expected_head || onto != expected_onto) {
         DISPLAY_ERROR(
             this,
             "Rebase state mismatch",
@@ -782,8 +787,8 @@ bool App::saveTodoFile(bool insert_break) {
                 "Expected - HEAD: {}, onto: {}\n"
                 "Current  - HEAD: {}, onto: {}\n\n"
                 "Git operations were performed that changed the rebase state.",
-                m_rebase_head.substr(0, 8),
-                m_rebase_onto.substr(0, 8),
+                expected_head.substr(0, 8),
+                expected_onto.substr(0, 8),
                 head.substr(0, 8),
                 onto.substr(0, 8)
             )
@@ -792,7 +797,7 @@ bool App::saveTodoFile(bool insert_break) {
         return false;
     }
 
-    auto filepath = m_repo_path + '/' + git::TODO_FILE.c_str();
+    auto filepath = m_state.repo_path() + '/' + git::TODO_FILE.c_str();
 
     std::ofstream todo_file(filepath);
     if (!todo_file.good()) {

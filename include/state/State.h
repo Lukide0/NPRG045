@@ -3,6 +3,7 @@
 #include "action/Action.h"
 #include "conflict/ConflictManager.h"
 #include "git/types.h"
+#include "state/AppState.h"
 
 #include <filesystem>
 #include <optional>
@@ -23,6 +24,7 @@ struct SaveData {
     std::vector<std::pair<conflict::ConflictTrees, git::tree_t>> conflict_trees;
     git::commit_t root;
 
+    std::string repo_path;
     std::string head;
     std::string onto;
 };
@@ -36,18 +38,11 @@ public:
      * @brief Saves application state to a file.
      *
      * @param path Output file path.
-     * @param repo Repository path.
-     * @param head Current HEAD reference.
-     * @param onto Current ONTO reference.
+     * @param state Application state.
      *
      * @return True if save succeeded.
      */
-    static bool save(
-        const std::filesystem::path& path,
-        const std::filesystem::path& repo,
-        const std::string& head,
-        const std::string& onto
-    );
+    static bool save(const std::filesystem::path& path, const AppState& state);
 
     /**
      * @brief Loads application state from a file.

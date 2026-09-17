@@ -248,14 +248,14 @@ void RebaseViewWidget::updateConflictMarkers() {
         item->hideConflictMarker();
     }
 
-    if (m_cherrypick == nullptr || m_cherrypick->get_prev() == nullptr) {
+    if (m_conflict->action() == nullptr || m_conflict->parent_action() == nullptr) {
         return;
     }
 
     conflict::iterate_actions(
-        *m_cherrypick,
+        *m_conflict->action(),
         m_repo,
-        m_conflict_files,
+        m_conflict->files(),
         [this](bool conflict, std::uint32_t action_id, void*) -> bool {
             if (conflict) {
                 auto* item = getListItem(static_cast<int>(action_id));
@@ -288,9 +288,7 @@ void RebaseViewWidget::updateConflictList(Action* start) {
 
     // prepare conflict widget
     m_conflict_widget->clearConflicts();
-    m_conflict_paths.clear();
-    m_conflict_entries.clear();
-    m_conflict_files.clear();
+    m_conflict->clear_items();
 
     for (Action* act = start; act != nullptr; act = act->get_next()) {
         // clear the resulting tree
@@ -366,17 +364,13 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Actio
     }
 
     // update conflict
-    m_conflict_index = std::move(conflict_index);
-    m_cherrypick     = act;
-
-    // update conflict widget
     m_conflict_widget->clearConflicts();
-    m_conflict_paths.clear();
-    m_conflict_entries.clear();
-    m_conflict_files.clear();
+    m_conflict->clear_items();
+
+    m_conflict->set_conflict(act, std::move(conflict_index));
 
     // clang-format off
-    bool iterator_status = conflict::iterate(m_conflict_index.get(), [this](conflict::entry_data_t entry) -> bool {
+    bool iterator_status = conflict::iterate(m_conflict->index(), [this](conflict::entry_data_t entry) -> bool {
 
         const char* path = nullptr;
 
@@ -390,7 +384,7 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Actio
         if (entry.their != nullptr) {
             conflict_entry.their_id = git_oid_tostr_s(&entry.their->id);
 
-            m_conflict_files.push_back(entry.their->id);
+            m_conflict->add_file(entry.their->id);
 
             if (path == nullptr) {
                 path = entry.their->path;
@@ -405,8 +399,7 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Actio
             }
         }
 
-        m_conflict_paths.emplace_back(path);
-        m_conflict_entries.push_back(conflict_entry);
+        m_conflict->add(path, conflict_entry);
 
         if (!m_conflict_manager.is_resolved(conflict_entry)) {
             auto conflict_diff = git::create_conflict_diff(m_repo, entry.ancestor, entry.our, entry.their);
@@ -439,14 +432,14 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Actio
     }
 
     if (!m_conflict_manager.apply_resolutions_no_write(
-            m_conflict_entries, m_conflict_paths, m_repo, m_conflict_index.get()
+            m_conflict->entries(), m_conflict->paths(), m_repo, m_conflict->index()
         )) {
         DISPLAY_LIBGIT_ERROR(this, "Recorded resolution error", git::get_last_error());
         return ConflictStatus::UNKNOWN;
     }
 
     git_oid oid;
-    if (git_index_write_tree_to(&oid, m_conflict_index, m_repo) != 0) {
+    if (git_index_write_tree_to(&oid, m_conflict->index(), m_repo) != 0) {
         DISPLAY_LIBGIT_ERROR(this, "Recorded resolution error", git::get_last_error());
         return ConflictStatus::ERR;
     }
@@ -640,21 +633,18 @@ RebaseViewWidget::prepareGitGraph(git_repository* repo, const std::string& head,
     return std::nullopt;
 }
 
-std::optional<std::string> RebaseViewWidget::update(
-    git_repository* repo,
-    const std::string& head,
-    const std::string& onto,
-    const std::vector<git::CommitAction>& actions
-) {
-    LOG_INFO("Preparing view: head[{}] onto[{}]", head, onto);
+std::optional<std::string>
+RebaseViewWidget::update(state::AppState& state, const std::vector<git::CommitAction>& actions) {
+    LOG_INFO("Preparing view: head[{}] onto[{}]", state.rebase_head(), state.rebase_onto());
     using git::CmdType;
 
     m_old_commits_graph->clear();
     m_actions.clear();
 
-    m_repo = repo;
+    m_repo     = state.repo();
+    m_conflict = &state.conflict();
 
-    auto err = prepareGitGraph(repo, head, onto);
+    auto err = prepareGitGraph(state.repo(), state.rebase_head(), state.rebase_onto());
     if (err.has_value()) {
         return err;
     }
@@ -715,14 +705,14 @@ std::optional<std::string> RebaseViewWidget::update(
     return std::nullopt;
 }
 
-std::optional<std::string>
-RebaseViewWidget::update(git_repository* repo, const std::string& head, const std::string& onto) {
+std::optional<std::string> RebaseViewWidget::update(state::AppState& state) {
 
     m_old_commits_graph->clear();
 
-    m_repo = repo;
+    m_repo     = state.repo();
+    m_conflict = &state.conflict();
 
-    auto err = prepareGitGraph(repo, head, onto);
+    auto err = prepareGitGraph(state.repo(), state.rebase_head(), state.rebase_onto());
     if (err.has_value()) {
         return err;
     }
@@ -937,8 +927,7 @@ void RebaseViewWidget::checkoutAndResolve() {
 
     LOG_INFO("Working dir is clean");
 
-    m_resolving.action        = nullptr;
-    m_resolving.parent_action = nullptr;
+    m_conflict->clear_resolving();
 
     if (git_repository_head(&m_head, m_repo) != 0) {
         DISPLAY_LIBGIT_ERROR(this, "Repo head error", git::get_last_error());
@@ -949,7 +938,7 @@ void RebaseViewWidget::checkoutAndResolve() {
 
     // 2. Create temporary commit and checkout onto it
     {
-        Action* parent_act      = m_cherrypick->get_prev();
+        Action* parent_act      = m_conflict->parent_action();
         git_oid const* tree_oid = nullptr;
         if (parent_act == nullptr) {
             tree_oid = git_commit_tree_id(m_actions.get_root_commit());
@@ -991,7 +980,7 @@ void RebaseViewWidget::checkoutAndResolve() {
 
         opts.checkout_strategy |= GIT_CHECKOUT_SAFE | GIT_CHECKOUT_ALLOW_CONFLICTS | GIT_CHECKOUT_RECREATE_MISSING;
 
-        if (git_checkout_index(m_repo, m_conflict_index.get(), &opts) != 0) {
+        if (git_checkout_index(m_repo, m_conflict->index(), &opts) != 0) {
             DISPLAY_LIBGIT_ERROR(this, "Repo head error", git::get_last_error());
             return;
         }
@@ -1009,14 +998,13 @@ void RebaseViewWidget::checkoutAndResolve() {
             return;
         }
 
-        if (!m_conflict_manager.apply_resolutions(m_conflict_entries, m_conflict_paths, m_repo, index.get())) {
+        if (!m_conflict_manager.apply_resolutions(m_conflict->entries(), m_conflict->paths(), m_repo, index.get())) {
             DISPLAY_LIBGIT_ERROR(this, "Recorded resolution error", git::get_last_error());
             return;
         }
     }
 
-    m_resolving.action        = m_cherrypick;
-    m_resolving.parent_action = m_cherrypick->get_prev();
+    m_conflict->start_resolving();
 
     // 5. Create dialog to prevent user to modifing application state
     {
@@ -1049,7 +1037,7 @@ void RebaseViewWidget::checkoutAndResolve() {
 
 bool RebaseViewWidget::markResolved() {
 
-    if (m_conflict_index.get() == nullptr || m_resolving.action == nullptr) {
+    if (m_conflict->index() == nullptr || !m_conflict->is_resolving()) {
         return false;
     }
 
@@ -1060,10 +1048,11 @@ bool RebaseViewWidget::markResolved() {
     }
 
     // 1. Add all modified files to the index and create new tree
-    auto&& [err, tree_oid]
-        = conflict::add_resolved_files(repo_index, m_repo, m_conflict_paths, m_conflict_entries, m_conflict_manager);
+    auto&& [err, tree_oid] = conflict::add_resolved_files(
+        repo_index, m_repo, m_conflict->paths(), m_conflict->entries(), m_conflict_manager
+    );
     if (err.has_value()) {
-        DISPLAY_ERROR(this, "Resolution error", git::get_last_error());
+        DISPLAY_ERROR(this, "Resolution error", *err);
         return false;
     }
 
@@ -1083,23 +1072,23 @@ bool RebaseViewWidget::markResolved() {
     conflict::ConflictTrees conflict;
 
     git_oid const* tree_id;
-    if (m_cherrypick->get_prev() != nullptr) {
-        tree_id = git_tree_id(m_cherrypick->get_prev()->get_tree());
+    if (m_conflict->parent_action() != nullptr) {
+        tree_id = git_tree_id(m_conflict->parent_action()->get_tree());
     } else {
         git_commit* root_commit = m_actions.get_root_commit();
         tree_id                 = git_commit_tree_id(root_commit);
     }
 
     auto& conflict_manager  = conflict::ConflictManager::get();
-    conflict.commit_id      = git::format_oid_to_str<git::OID_SIZE>(&m_cherrypick->get_oid());
+    conflict.commit_id      = git::format_oid_to_str<git::OID_SIZE>(&m_conflict->action()->get_oid());
     conflict.parent_tree_id = git::format_oid_to_str<git::OID_SIZE>(tree_id);
 
     conflict_manager.add_trees_resolution(conflict, std::move(tree));
 
     LOG_INFO("Saving conflict resolution");
 
-    m_resolving.action        = nullptr;
-    m_resolving.parent_action = nullptr;
+    m_conflict->finish_resolving();
+    m_conflict->clear_conflict();
 
     updateActions();
 
