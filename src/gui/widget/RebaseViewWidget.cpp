@@ -125,7 +125,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_conflict_widget->hide();
 
     // Buttons
-    m_resolve_conflicts_btn = new QPushButton("Checkout and resolve conflicts");
+    m_resolve_conflicts_btn = new QPushButton();
 
     connect(m_resolve_conflicts_btn, &QPushButton::pressed, this, [this]() { checkoutAndResolve(); });
 
@@ -230,11 +230,16 @@ void RebaseViewWidget::showConflict(Node* node) {
         m_conflict_widget->hide();
         return;
     case ConflictStatus::RESOLVED_CONFLICT:
+        m_resolve_conflicts_btn->setText("Edit resolution");
+        m_conflict_widget->hide();
+        break;
+
     case ConflictStatus::HAS_CONFLICT:
+        m_resolve_conflicts_btn->setText("Resolve conflict");
+        m_conflict_widget->show();
         break;
     }
 
-    m_conflict_widget->show();
     m_resolve_conflicts_btn->setEnabled(true);
 }
 
@@ -452,6 +457,7 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Actio
 
     // update tree
     act->set_tree(std::move(tree), Action::ConflictStatus::RESOLVED_CONFLICT);
+    m_conflict->clear_conflict();
     return ConflictStatus::RESOLVED_CONFLICT;
 }
 
@@ -1090,7 +1096,10 @@ bool RebaseViewWidget::markResolved() {
     m_conflict->finish_resolving();
     m_conflict->clear_conflict();
 
-    updateActions();
+    updateConflictList(nullptr);
+    updateConflictMarkers();
+
+    updateGraph();
 
     return true;
 }

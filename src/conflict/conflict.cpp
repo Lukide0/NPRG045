@@ -173,7 +173,7 @@ ResolutionResult add_resolved_files(
             = GIT_STATUS_INDEX_NEW | GIT_STATUS_INDEX_MODIFIED | GIT_STATUS_INDEX_DELETED | GIT_STATUS_INDEX_RENAMED;
 
         if ((status & status_mask) == 0) {
-            res.err = "Not staged changes";
+            res.err = "No changes have been staged for resolution";
             return res;
         }
     }
