@@ -24,6 +24,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -114,6 +115,8 @@ void App::registerShortcut(const QString& action_id, QAction* action, const QStr
 App::App() {
 
     g_app = this;
+
+    connect(qApp, &QApplication::aboutToQuit, [] { LOG_INFO("Application shutting down."); });
 
     git_libgit2_init();
 
@@ -619,20 +622,31 @@ void App::startNewRebase(QString commit_id) {
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     env.insert("GIT_SEQUENCE_EDITOR", app_path);
 
-    QProcess git_proc;
-    git_proc.setProgram(git_path);
-    git_proc.setArguments({ "rebase", "--no-rebase-merges", "-i", target, branch_name });
-    git_proc.setWorkingDirectory(QString::fromStdString(m_state.repo_path()));
-    git_proc.setProcessEnvironment(env);
+    m_git_proc = std::make_unique<QProcess>();
+    m_git_proc->setProgram(git_path);
+    m_git_proc->setArguments({ "rebase", "--no-rebase-merges", "-i", target, branch_name });
+    m_git_proc->setWorkingDirectory(QString::fromStdString(m_state.repo_path()));
+    m_git_proc->setProcessEnvironment(env);
 
-    qint64 pid;
-    if (!git_proc.startDetached(&pid)) {
-        DISPLAY_ERROR(this, "Failed to execute git command", git_proc.errorString().toStdString());
+    m_git_proc->setProcessChannelMode(QProcess::ForwardedChannels);
+    m_git_proc->setInputChannelMode(QProcess::ForwardedInputChannel);
+
+    connect(m_git_proc.get(), &QProcess::finished, this, [](int exitCode, QProcess::ExitStatus) {
+        LOG_INFO("Git finished with exit code {}", exitCode);
+        QApplication::exit(exitCode);
+    });
+
+    m_git_proc->start();
+
+    if (!m_git_proc->waitForStarted()) {
+        DISPLAY_ERROR(this, "Failed to execute git command", m_git_proc->errorString().toStdString());
+
+        m_git_proc.reset();
         return;
     }
 
-    // close this application and let git reopen it with the todo file
-    QApplication::quit();
+    setEnabled(false);
+    hide();
 }
 
 void App::updateRebaseSelection(const std::string& branch) {

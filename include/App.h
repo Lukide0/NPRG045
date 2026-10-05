@@ -8,6 +8,7 @@
 #include "state/AppState.h"
 
 #include <cassert>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -30,6 +31,7 @@
 #include <QMap>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QProcess>
 #include <QSettings>
 #include <QStackedLayout>
 #include <QString>
@@ -166,6 +168,7 @@ private:
     std::optional<QString> m_save_file;
 
     QMap<QString, ShortcutAction> m_shortcuts;
+    std::unique_ptr<QProcess> m_git_proc;
 
     /**
      * @brief Sets up the UI.
