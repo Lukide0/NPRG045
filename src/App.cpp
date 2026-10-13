@@ -505,7 +505,7 @@ bool App::loadRebase() {
     auto filepath = m_state.repo_path() + '/' + git::TODO_FILE.c_str();
 
     auto res = git::parse_file(filepath);
-    if (!res.err.empty()) {
+    if (res.has_error()) {
         DISPLAY_ERROR(this, "Failed to parse todo file", res.err);
         return false;
     }
