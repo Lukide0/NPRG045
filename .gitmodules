@@ -2,3 +2,7 @@
     path = vendor/libgit2
     url = https://github.com/libgit2/libgit2.git
 	branch = maint/v1.9
+[submodule "vendor/doctest"]
+	path = vendor/doctest
+	url = https://github.com/doctest/doctest.git
+	branch = release/v2.5

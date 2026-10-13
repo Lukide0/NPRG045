@@ -21,6 +21,7 @@ set(INCLUDE_PATH "${CMAKE_SOURCE_DIR}/include")
 # -----------------------------------------------------------------------------
 # Options
 option(BUILD_EXPERIMENTS "Build the experiments" ON)
+option(BUILD_TESTS "Enable tests" ON)
 
 # -----------------------------------------------------------------------------
 
@@ -52,6 +53,9 @@ add_subdirectory(src)
 add_subdirectory(tools)
 add_subdirectory(resources)
 
+if (BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
 # -----------------------------------------------------------------------------
 # Install
 
@@ -65,4 +69,5 @@ qt_generate_deploy_app_script(
     NO_UNSUPPORTED_PLATFORM_ERROR
 )
 install(SCRIPT ${deploy_script})
+
 
