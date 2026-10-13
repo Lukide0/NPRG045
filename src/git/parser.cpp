@@ -189,7 +189,7 @@ std::optional<RebaseInfoError> get_rebase_info(const std::string& repo, std::str
 
     if (out_head.empty() || out_onto.empty()) {
         return std::make_optional<RebaseInfoError>(
-            RebaseInfoError::EmptyOrCurrupted,
+            RebaseInfoError::EmptyOrCorrupted,
             "Git rebase files are empty or corrupted. The rebase operation may be in an invalid state."
         );
     }

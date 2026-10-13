@@ -95,7 +95,7 @@ ParseResult parse_file(const std::string& filepath);
 struct RebaseInfoError {
     enum Type {
         NotFound,
-        EmptyOrCurrupted,
+        EmptyOrCorrupted,
     } type;
 
     const char* msg;
