@@ -11,7 +11,7 @@ using namespace git;
 TEST_CASE("parse_stream returns no error for an empty stream") {
     std::istringstream input("");
 
-    const auto result = parse_stream(input);
+    const auto result = parse_stream(input, "#");
 
     CHECK_FALSE(result.has_error());
     CHECK(result.err.empty());
@@ -28,7 +28,7 @@ TEST_CASE("parse_stream ignores blank lines, comments and break commands") {
         "edit def456 Fix a bug\n"
     );
 
-    const auto result = parse_stream(input);
+    const auto result = parse_stream(input, "#");
 
     REQUIRE_FALSE(result.has_error());
     REQUIRE(result.actions.size() == 2);
@@ -52,7 +52,7 @@ TEST_CASE("parse_stream parses all supported commit commands") {
         "fixup f666 Fixup commit\n"
     );
 
-    const auto result = parse_stream(input);
+    const auto result = parse_stream(input, "#");
 
     REQUIRE_FALSE(result.has_error());
     REQUIRE(result.actions.size() == 6);
@@ -88,7 +88,7 @@ TEST_CASE("parse_stream handles fixup commit flags") {
         "fixup -c def456 Edit commit message\n"
     );
 
-    const auto result = parse_stream(input);
+    const auto result = parse_stream(input, "#");
 
     REQUIRE_FALSE(result.has_error());
     REQUIRE(result.actions.size() == 2);
@@ -108,7 +108,7 @@ TEST_CASE("parse_stream accepts a custom comment character") {
         "pick abc123 Add a feature\n"
     );
 
-    const auto result = parse_stream(input, ';');
+    const auto result = parse_stream(input, ";");
 
     REQUIRE_FALSE(result.has_error());
     REQUIRE(result.actions.size() == 1);
@@ -125,7 +125,7 @@ TEST_CASE("parse_stream reports an error for an unknown command") {
         "pick ghi789 Another commit\n"
     );
 
-    const auto result = parse_stream(input);
+    const auto result = parse_stream(input, "#");
 
     CHECK(result.has_error());
     CHECK(
@@ -142,7 +142,7 @@ TEST_CASE("parse_stream reports an error for an unknown command") {
 TEST_CASE("parse_stream reports an error when the commit hash is missing") {
     std::istringstream input("pick\n");
 
-    const auto result = parse_stream(input);
+    const auto result = parse_stream(input, "#");
 
     CHECK(result.has_error());
     CHECK(result.err == "Failed to extract commit hash");
@@ -182,7 +182,7 @@ TEST_CASE("parse_stream reports an error for unsupported commands") {
         INFO("Testing command: " << test_case.command);
 
         std::istringstream input(test_case.command);
-        const auto result = parse_stream(input);
+        const auto result = parse_stream(input, "#");
 
         CHECK(result.has_error());
         CHECK(result.err == test_case.expected_error);
@@ -193,7 +193,7 @@ TEST_CASE("parse_stream reports an error for unsupported commands") {
 TEST_CASE("parse_stream reports a missing hash after a fixup flag") {
     std::istringstream input("fixup -C\n");
 
-    const auto result = parse_stream(input);
+    const auto result = parse_stream(input, "#");
 
     CHECK(result.has_error());
     CHECK(result.err == "Failed to extract commit hash");

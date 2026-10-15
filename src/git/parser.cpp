@@ -76,10 +76,10 @@ bool extract_commit_flag(std::string_view& args, std::string& flag) {
     return false;
 }
 
-LineResult parse_line(std::string_view line, char comment_char = '#') {
+LineResult parse_line(std::string_view line, std::string_view comment_char) {
     line = skip_whitespace(line);
 
-    if (line.empty() || line.front() == comment_char) {
+    if (line.empty() || line.starts_with(comment_char)) {
         return { .type = CmdType::NONE, .rest = line };
     }
 
@@ -100,7 +100,7 @@ LineResult parse_line(std::string_view line, char comment_char = '#') {
     return { .type = CmdType::INVALID, .rest = line };
 }
 
-ParseResult parse_stream(std::istream& stream, char comment_char) {
+ParseResult parse_stream(std::istream& stream, std::string_view comment_char) {
     ParseResult res;
 
     std::size_t line_num = 0;
@@ -175,7 +175,7 @@ ParseResult parse_stream(std::istream& stream, char comment_char) {
     return res;
 }
 
-ParseResult parse_file(const std::string& filepath, char comment_char) {
+ParseResult parse_file(const std::string& filepath, std::string_view comment_char) {
     std::ifstream file(filepath);
     if (!file.good()) {
         ParseResult res;

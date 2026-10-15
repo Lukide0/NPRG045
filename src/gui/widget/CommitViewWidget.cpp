@@ -2,6 +2,7 @@
 
 #include "action/Action.h"
 #include "action/ActionManager.h"
+#include "App.h"
 #include "git/diff.h"
 #include "git/GitGraph.h"
 #include "git/types.h"
@@ -97,7 +98,9 @@ void CommitViewWidget::createRows() {
         m_msg->setText(msg);
 
     } else {
-        m_msg->setAction(m_action);
+        const auto& state = App::getAppState();
+
+        m_msg->setAction(m_action, state.repo_comment_string());
     }
 
     std::string hash = git::format_oid_to_str<GIT_OID_MAX_HEXSIZE>(git_commit_id(m_commit));

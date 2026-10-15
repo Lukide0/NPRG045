@@ -11,6 +11,7 @@
 #include <QPushButton>
 #include <QString>
 #include <QWidget>
+#include <string_view>
 
 namespace gui::widget {
 
@@ -41,7 +42,7 @@ public:
     void openInEditor();
     void updateText();
 
-    void setAction(Action* action);
+    void setAction(Action* action, std::string_view comment_str);
 
     Action* getAction() { return m_action; }
 

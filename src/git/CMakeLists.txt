@@ -4,4 +4,5 @@ target_sources(${PROJECT_NAME}
         diff.cpp
         parser.cpp
         commit.cpp
+        comment.cpp
 )

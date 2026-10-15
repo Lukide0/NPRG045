@@ -93,9 +93,9 @@ struct ParseResult {
  *
  * @return Parsed actions and possible error message.
  */
-ParseResult parse_file(const std::string& filepath, char comment_char = '#');
+ParseResult parse_file(const std::string& filepath, std::string_view comment_char);
 
-ParseResult parse_stream(std::istream& stream, char comment_char = '#');
+ParseResult parse_stream(std::istream& stream, std::string_view comment_char);
 
 struct RebaseInfoError {
     enum Type {

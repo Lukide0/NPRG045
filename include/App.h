@@ -108,6 +108,11 @@ public:
     static const std::string& getRepoPath();
 
     /**
+     * @brief Returns the current app state
+     */
+    static const state::AppState& getAppState();
+
+    /**
      * @brief Returns application settings.
      */
     static QSettings getSettings() { return { QSettings::IniFormat, QSettings::UserScope, "gitshuffle" }; }

@@ -75,7 +75,7 @@ CommitMessageWidget::CommitMessageWidget(QWidget* parent)
     connect(m_update_msg, &QPushButton::clicked, this, [this]() { this->updateText(); });
 }
 
-QString create_commit_message(Action* action) {
+QString create_commit_message(Action* action, std::string_view comment_str) {
     std::string msg = git_commit_message(action->get_commit());
 
     switch (action->get_type()) {
@@ -106,7 +106,7 @@ QString create_commit_message(Action* action) {
             break;
         case ActionType::SQUASH:
             count += 1;
-            msg += std::format("# This is the commit message #{}:\n", count);
+            msg += std::format("{} This is the commit message #{}:\n", comment_str, count);
             msg += '\n';
             msg += git_commit_message(curr->get_commit());
             msg += '\n';
@@ -117,13 +117,15 @@ QString create_commit_message(Action* action) {
     }
 
     if (count > 1) {
-        msg = std::format("# This is a combination of {} commits.\n# This is the commit message #1:\n{}", count, msg);
+        msg = std::format(
+            "{} This is a combination of {} commits.\n# This is the commit message #1:\n{}", comment_str, count, msg
+        );
     }
 
     return QString::fromStdString(msg);
 }
 
-void CommitMessageWidget::setAction(Action* action) {
+void CommitMessageWidget::setAction(Action* action, std::string_view comment_str) {
     QString msg;
     m_action = action;
 
@@ -131,7 +133,7 @@ void CommitMessageWidget::setAction(Action* action) {
     if (action->get_type() == ActionType::REWORD && action->has_msg() && msg_id.is_value()) {
         msg = QString::fromStdString(m_manager.get_msg(msg_id.value()));
     } else {
-        msg = create_commit_message(action);
+        msg = create_commit_message(action, comment_str);
     }
 
     m_editor->setReadOnly(!action->can_edit_msg());

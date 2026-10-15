@@ -11,7 +11,6 @@
 #include <git2/oid.h>
 #include <git2/types.h>
 
-#include <array>
 #include <cassert>
 #include <iomanip>
 #include <ostream>
@@ -22,7 +21,6 @@
 namespace action {
 
 struct ActionInfo {
-    std::array<char, 256> buff;
     std::string oid;
     std::string msg;
     std::istringstream new_msg;

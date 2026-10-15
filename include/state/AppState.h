@@ -81,6 +81,7 @@ public:
         std::string path;
         std::string rebase_head;
         std::string rebase_onto;
+        std::string comment_str;
     };
 
     AppState() = default;
@@ -95,6 +96,8 @@ public:
         m_repo.rebase_onto = onto;
     }
 
+    void set_comment_string(const std::string& comment_str) { m_repo.comment_str = comment_str; }
+
     git_repository* repo() { return m_repo.repo; }
 
     [[nodiscard]] const std::string& rebase_head() const { return m_repo.rebase_head; }
@@ -102,6 +105,8 @@ public:
     [[nodiscard]] const std::string& rebase_onto() const { return m_repo.rebase_onto; }
 
     [[nodiscard]] const std::string& repo_path() const { return m_repo.path; }
+
+    [[nodiscard]] const std::string& repo_comment_string() const { return m_repo.comment_str; }
 
     [[nodiscard]] Conflict& conflict() { return m_conflict; }
 

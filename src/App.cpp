@@ -3,6 +3,7 @@
 #include "action/Action.h"
 #include "action/Converter.h"
 #include "conflict/ConflictManager.h"
+#include "git/comment.h"
 #include "git/commit.h"
 #include "git/error.h"
 #include "git/parser.h"
@@ -16,6 +17,7 @@
 #include "gui/widget/SettingsDialog.h"
 #include "gui/widget/WelcomeWidget.h"
 #include "logging/Log.h"
+#include "state/AppState.h"
 #include "state/CommandHistory.h"
 #include "state/State.h"
 
@@ -73,6 +75,8 @@ void App::updateActions() { g_app->m_rebase_view->updateActions(); }
 void App::updateConflicts(action::Action* start) { g_app->m_rebase_view->updateConflicts(start); }
 
 gui::widget::RebaseViewWidget* App::getRebaseViewWidget() { return g_app->m_rebase_view; }
+
+const state::AppState& App::getAppState() { return g_app->m_state; }
 
 const std::string& App::getRepoPath() { return g_app->m_state.repo_path(); }
 
@@ -502,9 +506,19 @@ bool App::openRepo(const std::string& path) {
 }
 
 bool App::loadRebase() {
+
+    auto comment_str = git::get_comment_string(m_state.repo());
+    if (!comment_str.has_value()) {
+        DISPLAY_LIBGIT_ERROR(this, "Reading of Git config failed", comment_str.err_message());
+        m_layout->setCurrentIndex(page_welcome);
+        return false;
+    }
+
     auto filepath = m_state.repo_path() + '/' + git::TODO_FILE.c_str();
 
-    auto res = git::parse_file(filepath);
+    m_state.set_comment_string(comment_str.value());
+
+    auto res = git::parse_file(filepath, comment_str.value());
     if (res.has_error()) {
         DISPLAY_ERROR(this, "Failed to parse todo file", res.err);
         return false;
