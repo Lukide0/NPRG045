@@ -99,7 +99,7 @@ void pick_to_todo(std::ostream& output, ActionInfo& info) { output << "pick " <<
 
 void drop_to_todo(std::ostream& output, ActionInfo& info) { output << "drop " << info.oid << ' ' << info.msg << '\n'; }
 
-void edit_to_todo(std::ostream& output, ActionInfo& info) { output << "drop " << info.oid << ' ' << info.msg << '\n'; }
+void edit_to_todo(std::ostream& output, ActionInfo& info) { output << "edit " << info.oid << ' ' << info.msg << '\n'; }
 
 void reword_to_todo(std::ostream& output, ActionInfo& info) {
     // 1. pick the commit
@@ -116,7 +116,7 @@ void reword_to_todo(std::ostream& output, ActionInfo& info) {
 }
 
 void squash_to_todo(std::ostream& output, ActionInfo& info) {
-    output << "fixup " << info.oid << ' ' << info.msg << '\n';
+    output << "squash " << info.oid << ' ' << info.msg << '\n';
 }
 
 void fixup_to_todo(std::ostream& output, ActionInfo& info) {
