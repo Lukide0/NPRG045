@@ -132,7 +132,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     auto* toolbar_layout = new QHBoxLayout();
     toolbar_layout->addWidget(m_resolve_conflicts_btn);
 
-    m_resolve_conflicts_btn->setEnabled(false);
+    m_resolve_conflicts_btn->hide();
 
     right_layout->addLayout(toolbar_layout);
     right_layout->addWidget(diff_commit_split);
@@ -213,7 +213,7 @@ void RebaseViewWidget::changeItemSelection() {
 void RebaseViewWidget::showConflict(Node* node) {
     using ConflictStatus = Action::ConflictStatus;
 
-    m_resolve_conflicts_btn->setEnabled(false);
+    m_resolve_conflicts_btn->hide();
 
     if (node == nullptr || node->getAction() == nullptr) {
         m_conflict_widget->hide();
@@ -240,7 +240,7 @@ void RebaseViewWidget::showConflict(Node* node) {
         break;
     }
 
-    m_resolve_conflicts_btn->setEnabled(true);
+    m_resolve_conflicts_btn->show();
 }
 
 void RebaseViewWidget::updateConflictMarkers() {
@@ -1007,7 +1007,7 @@ void RebaseViewWidget::checkoutAndResolve() {
 
         LOG_INFO("Checking out index with conflicts");
 
-        m_resolve_conflicts_btn->setEnabled(false);
+        m_resolve_conflicts_btn->hide();
     }
 
     // 4. Apply conflict resolutions
@@ -1050,7 +1050,7 @@ void RebaseViewWidget::checkoutAndResolve() {
                 DISPLAY_LIBGIT_ERROR(this, "Failed to clean working directory", git::get_last_error());
             }
 
-            m_resolve_conflicts_btn->setEnabled(true);
+            m_resolve_conflicts_btn->show();
         }
     }
 }
