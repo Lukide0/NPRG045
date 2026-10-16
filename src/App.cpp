@@ -510,7 +510,6 @@ bool App::loadRebase() {
     auto comment_str = git::get_comment_string(m_state.repo());
     if (!comment_str.has_value()) {
         DISPLAY_LIBGIT_ERROR(this, "Reading of Git config failed", comment_str.err_message());
-        m_layout->setCurrentIndex(page_welcome);
         return false;
     }
 
