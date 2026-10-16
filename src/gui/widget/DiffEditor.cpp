@@ -191,6 +191,7 @@ void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
                 this->selectLines(SelectionType::SELECT);
                 emit this->lineOrFileSelect(this->selectedLineOrFile());
             });
+
             connect(deselect_lines, &QAction::triggered, this, [this]() {
                 this->selectLines(SelectionType::DESELECT);
                 emit this->lineOrFileSelect(this->selectedLineOrFile());
@@ -204,6 +205,7 @@ void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
                 this->selectLine(SelectionType::SELECT);
                 emit this->lineOrFileSelect(this->selectedLineOrFile());
             });
+
             connect(deselect_line, &QAction::triggered, this, [this]() {
                 this->selectLine(SelectionType::DESELECT);
                 emit this->lineOrFileSelect(this->selectedLineOrFile());
@@ -232,6 +234,7 @@ void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
         this->selectFile(SelectionType::SELECT);
         emit this->lineOrFileSelect(this->selectedLineOrFile());
     });
+
     connect(deselect_file, &QAction::triggered, this, [this]() {
         this->selectFile(SelectionType::DESELECT);
         emit this->lineOrFileSelect(this->selectedLineOrFile());
@@ -244,6 +247,11 @@ void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
     delete menu;
 
     event->accept();
+}
+
+QTextBlock DiffEditor::blockAtContextMenuPoint() const {
+    auto viewport_pos = viewport()->mapFromGlobal(m_context_menu_point);
+    return cursorForPosition(viewport_pos).block();
 }
 
 void DiffEditor::selectFile(SelectionType type) {
@@ -270,11 +278,7 @@ void DiffEditor::processLines(std::function<void(const DiffEditorLineData&)> pro
 
 void DiffEditor::selectLine(SelectionType type) {
 
-    auto viewport_pos  = viewport()->mapFromGlobal(m_context_menu_point);
-    QTextCursor cursor = cursorForPosition(viewport_pos);
-
-    auto block = cursor.block();
-
+    auto block = blockAtContextMenuPoint();
     if (!block.isValid()) {
         return;
     }
@@ -332,10 +336,7 @@ void DiffEditor::selectLines(SelectionType type) {
 }
 
 void DiffEditor::selectHunk(SelectionType type) {
-    QTextCursor cursor = textCursor();
-    cursor.clearSelection();
-
-    auto curr_block = cursor.block();
+    auto curr_block = blockAtContextMenuPoint();
     auto* line_data = dynamic_cast<DiffEditorLineData*>(curr_block.userData());
 
     if (!curr_block.isValid() || line_data == nullptr) {

@@ -43,6 +43,8 @@ private:
         DESELECT,
     };
 
+    QTextBlock blockAtContextMenuPoint() const;
+
     void selectLine(SelectionType type);
 
     void selectFile(SelectionType type);
