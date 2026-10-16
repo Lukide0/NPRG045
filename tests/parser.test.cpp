@@ -18,11 +18,10 @@ TEST_CASE("parse_stream returns no error for an empty stream") {
     CHECK(result.actions.empty());
 }
 
-TEST_CASE("parse_stream ignores blank lines, comments and break commands") {
+TEST_CASE("parse_stream ignores blank lines and comments") {
     std::istringstream input(
         "# This is a comment\n"
         "\n"
-        "break\n"
         "pick abc123 Add a feature\n"
         "# Another comment\n"
         "edit def456 Fix a bug\n"
@@ -35,11 +34,11 @@ TEST_CASE("parse_stream ignores blank lines, comments and break commands") {
 
     CHECK(result.actions[0].type == CmdType::PICK);
     CHECK(result.actions[0].hash == "abc123");
-    CHECK(result.actions[0].line == 4);
+    CHECK(result.actions[0].line == 3);
 
     CHECK(result.actions[1].type == CmdType::EDIT);
     CHECK(result.actions[1].hash == "def456");
-    CHECK(result.actions[1].line == 6);
+    CHECK(result.actions[1].line == 5);
 }
 
 TEST_CASE("parse_stream parses all supported commit commands") {
@@ -156,6 +155,10 @@ TEST_CASE("parse_stream reports an error for unsupported commands") {
     };
 
     const std::vector<UnsupportedCase> cases {
+        {
+         .command        = "break",
+         .expected_error = "Break commands (break) are not supported. "
+                              "Please remove or edit this command manually.", },
         {
          .command        = "exec echo hello",
          .expected_error = "Execution commands (exec) are not supported. "

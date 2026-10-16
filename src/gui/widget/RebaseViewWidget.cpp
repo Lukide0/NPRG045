@@ -658,6 +658,11 @@ RebaseViewWidget::update(state::AppState& state, const std::vector<git::CommitAc
     for (auto&& action : actions) {
 
         switch (action.type) {
+        case CmdType::NONE:
+            continue;
+
+        case CmdType::INVALID:
+            UNEXPECTED();
         case CmdType::LABEL:
         case CmdType::EXEC:
         case CmdType::BREAK:
@@ -670,7 +675,13 @@ RebaseViewWidget::update(state::AppState& state, const std::vector<git::CommitAc
                 git::cmd_to_str(action.type),
                 action.line
             );
-        default:
+
+        case CmdType::PICK:
+        case CmdType::REWORD:
+        case CmdType::EDIT:
+        case CmdType::SQUASH:
+        case CmdType::FIXUP:
+        case CmdType::DROP:
             break;
         }
 
@@ -680,10 +691,6 @@ RebaseViewWidget::update(state::AppState& state, const std::vector<git::CommitAc
         }
 
         switch (action.type) {
-        case CmdType::INVALID:
-        case CmdType::NONE:
-            TODO("Invalid command");
-            break;
         case CmdType::PICK:
             m_actions.append(Action(ActionType::PICK, id, m_repo));
             break;
@@ -702,7 +709,14 @@ RebaseViewWidget::update(state::AppState& state, const std::vector<git::CommitAc
         case CmdType::DROP:
             m_actions.append(Action(ActionType::DROP, id, m_repo));
             break;
-        default:
+        case CmdType::INVALID:
+        case CmdType::NONE:
+        case CmdType::EXEC:
+        case CmdType::BREAK:
+        case CmdType::LABEL:
+        case CmdType::RESET:
+        case CmdType::MERGE:
+        case CmdType::UPDATE_REF:
             UNEXPECTED();
         }
     }

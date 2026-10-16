@@ -129,8 +129,10 @@ ParseResult parse_stream(std::istream& stream, std::string_view comment_char) {
             );
 
         case CmdType::NONE:
-        case CmdType::BREAK:
             continue;
+
+        case CmdType::BREAK:
+            return fail("Break commands (break) are not supported. Please remove or edit this command manually.");
 
         case CmdType::EXEC:
             return fail("Execution commands (exec) are not supported. Please remove or edit this command manually.");
