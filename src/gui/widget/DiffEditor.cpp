@@ -140,7 +140,7 @@ bool DiffEditor::selectOnlyFile() const {
     using State = git::diff_files_t::State;
     switch (m_diff.state) {
     case State::DELETED:
-    case State::RENAMED:
+    case State::MOVED:
     case State::COPIED:
         return true;
     default:
@@ -157,7 +157,7 @@ void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
     case State::ADDED:
     case State::DELETED:
     case State::MODIFIED:
-    case State::RENAMED:
+    case State::MOVED:
     case State::COPIED:
         break;
     case State::IGNORED:

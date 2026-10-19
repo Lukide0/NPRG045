@@ -32,7 +32,7 @@ bool PatchSplitter::file_begin(const diff_files_header_t& header, FileState stat
     case State::ADDED:
     case State::MODIFIED:
     case State::DELETED:
-    case State::RENAMED:
+    case State::MOVED:
     case State::COPIED:
         return true;
 
@@ -81,7 +81,7 @@ void PatchSplitter::prepare_header() {
         m_file_header << "+++ /dev/null\n";
         break;
 
-    case State::RENAMED:
+    case State::MOVED:
         m_file_header << "similarity index " << m_header->similarity << "%\n";
         m_file_header << "rename from " << m_header->old_file.path << '\n';
         m_file_header << "rename to " << m_header->new_file.path << '\n';

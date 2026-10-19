@@ -138,7 +138,7 @@ void DiffWidget::update(git::diff_result_t& res, bool editable) {
 }
 
 void DiffWidget::update(Action* action) {
-    using ConflictStatus = conflict::ConflictStatus;
+    using conflict::ConflictStatus;
     clear();
     m_action = action;
 
@@ -208,7 +208,7 @@ QString create_diff_header(const diff_files_t& diff) {
         header += "Modified: ";
         header += QString::fromStdString(diff.new_file.path);
         break;
-    case diff_files_t::State::RENAMED:
+    case diff_files_t::State::MOVED:
         header += "Moved: ";
         header += QString::fromStdString(diff.old_file.path);
         header += " -> ";

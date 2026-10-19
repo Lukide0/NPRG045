@@ -67,7 +67,7 @@ private:
                 .old_file   = create_file(old_file),
                 .state      = diff_files_t::State::UNMODIFIED,
                 .similarity = 0,
-                .hunks      = {},
+                .hunks      = { },
             }
         );
 
@@ -189,7 +189,7 @@ int diff_file_callback(const git_diff_delta* delta, float /*unused*/, void* stat
         file.state = diff_files_t::State::MODIFIED;
         break;
     case GIT_DELTA_RENAMED:
-        file.state      = diff_files_t::State::RENAMED;
+        file.state      = diff_files_t::State::MOVED;
         file.similarity = delta->similarity;
         break;
     case GIT_DELTA_COPIED:
@@ -239,8 +239,8 @@ int diff_hunk_callback(const git_diff_delta* /*unused*/, const git_diff_hunk* hu
 
     file_hunk.header_context = str;
     file_hunk.new_file       = {
-              .offset = hunk->new_start,
-              .count  = hunk->new_lines,
+        .offset = hunk->new_start,
+        .count  = hunk->new_lines,
     };
 
     file_hunk.old_file = {

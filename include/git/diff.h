@@ -85,7 +85,7 @@ struct diff_files_t {
         ADDED,
         DELETED,
         MODIFIED,
-        RENAMED,
+        MOVED,
         COPIED,
         IGNORED,
         UNTRACKED,
@@ -111,8 +111,8 @@ struct diff_files_t {
             return "deleted";
         case State::MODIFIED:
             return "modified";
-        case State::RENAMED:
-            return "renamed";
+        case State::MOVED:
+            return "moved";
         case State::COPIED:
             return "copied";
         case State::IGNORED:

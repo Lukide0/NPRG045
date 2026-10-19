@@ -167,7 +167,7 @@ void CommitViewWidget::prepareDiff() {
             item_text += "Modified ";
             item_text += QString::fromStdString(file_diff.new_file.path);
             break;
-        case diff_files_t::State::RENAMED:
+        case diff_files_t::State::MOVED:
             item_text += "Renamed ";
             item_text += QString::fromStdString(file_diff.old_file.path);
             item_text += " -> ";
