@@ -214,6 +214,7 @@ void RebaseViewWidget::showConflict(Node* node) {
     using ConflictStatus = Action::ConflictStatus;
 
     m_resolve_conflicts_btn->hide();
+    m_diff_widget->show();
 
     if (node == nullptr || node->getAction() == nullptr) {
         m_conflict_widget->hide();
@@ -237,6 +238,7 @@ void RebaseViewWidget::showConflict(Node* node) {
     case ConflictStatus::HAS_CONFLICT:
         m_resolve_conflicts_btn->setText("Resolve conflict");
         m_conflict_widget->show();
+        m_diff_widget->hide();
         break;
     }
 
