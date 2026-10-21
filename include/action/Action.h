@@ -4,6 +4,7 @@
 #include "git/types.h"
 #include "utils/optional_uint.h"
 #include "utils/todo.h"
+#include "utils/unexpected.h"
 
 #include <array>
 #include <cassert>
@@ -57,7 +58,7 @@ static constexpr const char* type_to_str(ActionType type) {
         return "edit";
     }
 
-    TODO("Unknown action type");
+    UNEXPECTED("Unknown action type");
 }
 
 /**
@@ -66,20 +67,6 @@ static constexpr const char* type_to_str(ActionType type) {
 class Action {
 public:
     using ConflictStatus = conflict::ConflictStatus;
-
-    /**
-     * @brief Constructs an Action from a Git commit OID.
-     *
-     * @param type Type of the action.
-     * @param oid Commit object ID.
-     * @param repo Git repository.
-     * @param msg_id Optional message ID.
-     */
-    Action(ActionType type, const git_oid& oid, git_repository* repo, optional_u31 msg_id = optional_u31::none())
-        : m_msg_id(msg_id)
-        , m_type(type) {
-        init_commit(repo, oid);
-    }
 
     /**
      * @brief Constructs an Action from an existing commit.
@@ -106,30 +93,6 @@ public:
     Action* get_prev() { return m_prev; }
 
     [[nodiscard]] const Action* get_prev() const { return m_prev; }
-
-    /**
-     * @brief Sets next action connection.
-     *
-     * @param next Next action.
-     */
-    void set_next_connection(Action* next) {
-        m_next = next;
-        if (m_next != nullptr) {
-            m_next->set_prev(this);
-        }
-    }
-
-    /**
-     * @brief Sets previous action connection.
-     *
-     * @param prev Previous action.
-     */
-    void set_prev_connection(Action* prev) {
-        m_prev = prev;
-        if (m_prev != nullptr) {
-            m_prev->set_next(this);
-        }
-    }
 
     /**
      * @brief Gets commit OID.
@@ -256,9 +219,28 @@ private:
 
     void set_prev(Action* prev) { m_prev = prev; }
 
-    void init_commit(git_repository* repo, const git_oid& oid) {
-        const bool status = git_commit_lookup(&m_commit, repo, &oid) == 0;
-        assert(status && m_commit != nullptr);
+    /**
+     * @brief Sets next action connection.
+     *
+     * @param next Next action.
+     */
+    void set_next_connection(Action* next) {
+        m_next = next;
+        if (m_next != nullptr) {
+            m_next->set_prev(this);
+        }
+    }
+
+    /**
+     * @brief Sets previous action connection.
+     *
+     * @param prev Previous action.
+     */
+    void set_prev_connection(Action* prev) {
+        m_prev = prev;
+        if (m_prev != nullptr) {
+            m_prev->set_next(this);
+        }
     }
 
     friend ActionsManager;

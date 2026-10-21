@@ -690,24 +690,30 @@ RebaseViewWidget::update(state::AppState& state, const std::vector<git::CommitAc
             return "Could not find commit";
         }
 
+        git::commit_t commit;
+        if (git_commit_lookup(&commit, m_repo, &id) != 0) {
+            return "Could not find commit";
+        }
+
+        ActionType type;
         switch (action.type) {
         case CmdType::PICK:
-            m_actions.append(Action(ActionType::PICK, id, m_repo));
+            type = ActionType::PICK;
             break;
         case CmdType::REWORD:
-            m_actions.append(Action(ActionType::REWORD, id, m_repo));
+            type = ActionType::REWORD;
             break;
         case CmdType::EDIT:
-            m_actions.append(Action(ActionType::EDIT, id, m_repo));
+            type = ActionType::EDIT;
             break;
         case CmdType::SQUASH:
-            m_actions.append(Action(ActionType::SQUASH, id, m_repo));
+            type = ActionType::SQUASH;
             break;
         case CmdType::FIXUP:
-            m_actions.append(Action(ActionType::FIXUP, id, m_repo));
+            type = ActionType::FIXUP;
             break;
         case CmdType::DROP:
-            m_actions.append(Action(ActionType::DROP, id, m_repo));
+            type = ActionType::DROP;
             break;
         case CmdType::INVALID:
         case CmdType::NONE:
@@ -719,6 +725,8 @@ RebaseViewWidget::update(state::AppState& state, const std::vector<git::CommitAc
         case CmdType::UPDATE_REF:
             UNEXPECTED();
         }
+
+        m_actions.append(Action { type, std::move(commit) });
     }
 
     prepareActions();
