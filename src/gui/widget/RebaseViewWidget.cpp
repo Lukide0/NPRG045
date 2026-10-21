@@ -158,8 +158,8 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
     connect(m_list_actions, &QListWidget::itemSelectionChanged, this, [this]() { changeItemSelection(); });
 
-    auto handle_old = [&](Node* prev, Node* next) { this->showCommit(prev, next, false); };
-    auto handle_new = [&](Node* prev, Node* next) { this->showCommit(prev, next, true); };
+    auto handle_old = [this](Node* prev, Node* next) { this->showOldCommit(prev, next); };
+    auto handle_new = [this](Node* prev, Node* next) { this->showNewCommit(prev, next); };
 
     m_old_commits_graph->setHandle(handle_old);
     m_new_commits_graph->setHandle(handle_new);
@@ -560,7 +560,7 @@ void RebaseViewWidget::changeActionType(ActionType type) {
     cmd->execute();
 }
 
-void RebaseViewWidget::showCommit(Node* prev, Node* next, bool merge_actions) {
+void RebaseViewWidget::showOldCommit(Node* prev, Node* next) {
     if (next == nullptr) {
         m_commit_view->update(nullptr);
         return;
@@ -570,8 +570,16 @@ void RebaseViewWidget::showCommit(Node* prev, Node* next, bool merge_actions) {
         return;
     }
 
-    if (!merge_actions) {
-        m_commit_view->update(next);
+    m_commit_view->update(next);
+}
+
+void RebaseViewWidget::showNewCommit(Node* prev, Node* next) {
+    if (next == nullptr) {
+        m_commit_view->update(nullptr);
+        return;
+    }
+
+    if (prev == next) {
         return;
     }
 
@@ -581,36 +589,14 @@ void RebaseViewWidget::showCommit(Node* prev, Node* next, bool merge_actions) {
         return;
     }
 
-    Action* end = act;
+    const auto index = static_cast<int>(m_actions.get_index(act));
 
-    for (Action* it = end; it->get_next() != nullptr; it = it->get_next()) {
-        if (it == act) {
-            continue;
-        }
-
-        switch (it->get_type()) {
-        case ActionType::FIXUP:
-        case ActionType::SQUASH:
-            end = it;
-            break;
-
-        case ActionType::DROP:
-            break;
-
-        case ActionType::EDIT:
-        case ActionType::PICK:
-        case ActionType::REWORD:
-            goto EXIT_LOOP;
-        }
+    if (index > m_list_actions->count()) {
+        m_commit_view->update(nullptr);
+        return;
     }
-EXIT_LOOP:
 
-    git_commit* parent_commit = action::ActionsManager::get_parent_commit(act);
-    git::tree_t parent_tree;
-    assert(git_commit_tree(&parent_tree, parent_commit) == 0);
-
-    auto diff = git::prepare_resolution_diff(parent_tree, end, git_commit_owner(parent_commit));
-    m_commit_view->update(next, diff);
+    m_list_actions->setCurrentRow(index);
 }
 
 std::optional<std::string>

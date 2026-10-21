@@ -114,7 +114,9 @@ private:
 
     Node* findOldCommit(const git_oid& oid);
 
-    void showCommit(Node* prev, Node* next, bool merge_actions = false);
+    void showOldCommit(Node* prev, Node* next);
+
+    void showNewCommit(Node* prev, Node* next);
 
     void prepareGraph();
 
