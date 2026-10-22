@@ -171,23 +171,24 @@ void DiffWidget::update(Action* action) {
             break;
         }
 
+        if (parent->get_tree() == nullptr) {
+            return;
+        }
+
+        git_tree* act_tree = action->get_tree();
         switch (action->get_tree_status()) {
         case ConflictStatus::UNKNOWN:
         case ConflictStatus::ERR:
         case ConflictStatus::HAS_CONFLICT:
-            return;
+            res = git::prepare_resolution_diff(parent->get_tree(), action->get_commit());
+            break;
         case ConflictStatus::NO_CONFLICT:
-        case ConflictStatus::RESOLVED_CONFLICT:
+        case ConflictStatus::RESOLVED_CONFLICT: {
+            assert(act_tree != nullptr);
+            res = git::prepare_resolution_diff(parent->get_tree(), action);
             break;
         }
-
-        if (parent->get_tree() == nullptr || action->get_tree() == nullptr) {
-            return;
         }
-
-        git_repository* repo = git_commit_owner(action->get_commit());
-
-        res = git::prepare_resolution_diff(parent->get_tree(), action, repo);
     }
 
     update(res, true);

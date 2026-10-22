@@ -18,7 +18,7 @@ struct SplitError {
     std::string_view title;
     std::string message;
 
-    [[nodiscard]] bool has_error() const { return title.empty(); }
+    [[nodiscard]] bool has_error() const { return !title.empty(); }
 };
 
 /**

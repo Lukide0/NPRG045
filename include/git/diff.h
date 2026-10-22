@@ -184,12 +184,10 @@ prepare_resolution_diff(git_tree* old_tree, git_commit* new_commit, const git_di
  *
  * @param old_tree Base tree.
  * @param new_tree Action representing target state.
- * @param repo Git repository.
  * @param opts Diff options (optional).
  */
-diff_result_t prepare_resolution_diff(
-    git_tree* old_tree, action::Action* new_tree, git_repository* repo, const git_diff_options* opts = nullptr
-);
+diff_result_t
+prepare_resolution_diff(git_tree* old_tree, action::Action* new_tree, const git_diff_options* opts = nullptr);
 
 /**
  * @brief Converts raw git diff into structured file diffs.

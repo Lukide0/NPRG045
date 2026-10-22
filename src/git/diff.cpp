@@ -81,8 +81,12 @@ diff_result_t prepare_resolution_diff(git_tree* old_tree, git_commit* new_commit
         repo = git_tree_owner(old_tree);
     }
 
-    if (new_commit != nullptr && repo == nullptr) {
+    if (repo == nullptr && new_commit != nullptr) {
         repo = git_commit_owner(new_commit);
+    }
+
+    if (repo == nullptr) {
+        return { .state = diff_result_t::State::FAILED_TO_CREATE_DIFF, .diff = { } };
     }
 
     if (new_commit == nullptr) {
@@ -106,9 +110,16 @@ diff_result_t prepare_resolution_diff(git_tree* old_tree, git_commit* new_commit
     return prepare_diff(old_tree, resolution_tree, repo, opts);
 }
 
-diff_result_t prepare_resolution_diff(
-    git_tree* old_tree, action::Action* new_tree, git_repository* repo, const git_diff_options* opts
-) {
+diff_result_t prepare_resolution_diff(git_tree* old_tree, action::Action* new_tree, const git_diff_options* opts) {
+    git_repository* repo = nullptr;
+    if (old_tree != nullptr) {
+        repo = git_tree_owner(old_tree);
+    }
+
+    if (repo == nullptr) {
+        repo = git_commit_owner(new_tree->get_commit());
+    }
+
     auto& manager             = conflict::ConflictManager::get();
     git_tree* resolution_tree = manager.get_trees_resolution(old_tree, new_tree->get_commit());
 
