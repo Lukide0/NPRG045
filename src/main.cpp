@@ -3,6 +3,7 @@
 #include "build.h"
 #include "gui/style/load_style.h"
 #include "logging/Log.h"
+#include <git2/global.h>
 #include <QApplication>
 #include <QCommandLineOption>
 #include <QCommandLineParser>
@@ -74,14 +75,19 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    App main_window;
+    int exit_code;
+    {
+        App main_window;
 
-    if (parser.isSet(edit_todo)) {
-        const QString file = parser.value(edit_todo);
-        main_window.openRepoCLI(file.toStdString());
+        if (parser.isSet(edit_todo)) {
+            const QString file = parser.value(edit_todo);
+            main_window.openRepoCLI(file.toStdString());
+        }
+
+        main_window.show();
+        exit_code = QApplication::exec();
     }
 
-    main_window.show();
-
-    return QApplication::exec();
+    git_libgit2_shutdown();
+    return exit_code;
 }

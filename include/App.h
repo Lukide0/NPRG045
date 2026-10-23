@@ -65,7 +65,7 @@ public:
      */
     bool openRepo(const std::string& path);
 
-    ~App() override { git_libgit2_shutdown(); }
+    ~App() override = default;
 
     /**
      * @brief Opens a repository and disables loading or opening other repositories.

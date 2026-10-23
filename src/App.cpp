@@ -540,12 +540,14 @@ bool App::prepareRebaseSelection() {
         return false;
     }
 
-    git::reference_t branch_ref;
     git_branch_t branch_type;
 
     std::vector<std::string> branches;
 
-    while (git_branch_next(&branch_ref, &branch_type, branch_iter) == 0) {
+    git_reference* branch_raw_ref;
+    while (git_branch_next(&branch_raw_ref, &branch_type, branch_iter) == 0) {
+        git::reference_t branch_ref { branch_raw_ref };
+
         const char* name;
 
         if (git_branch_name(&name, branch_ref) != 0) {

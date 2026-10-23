@@ -4,13 +4,17 @@
 #include <cassert>
 #include <cstddef>
 
+#include <functional>
+#include <git2/branch.h>
 #include <git2/buffer.h>
 #include <git2/commit.h>
 #include <git2/graph.h>
 #include <git2/oid.h>
+#include <git2/refs.h>
 #include <git2/remote.h>
 #include <git2/revwalk.h>
 #include <git2/types.h>
+#include <string>
 
 namespace git {
 
@@ -108,22 +112,20 @@ bool iterate_branch_commits(git_repository* repo, const char* branch_name, std::
 }
 
 void try_fetch_commits(
-    git_repository* repo, const char* branch_name, git_reference* local_ref, git_reference** out_upstream
+    git_repository* repo, const char* branch_name, reference_t& local_branch, reference_t& upstream_branch
 ) {
-    *out_upstream = nullptr;
-
     buffer_t remote_name { GIT_BUF_INIT };
 
-    if (git_branch_lookup(&local_ref, repo, branch_name, GIT_BRANCH_LOCAL) != 0) {
+    if (git_branch_lookup(&local_branch, repo, branch_name, GIT_BRANCH_LOCAL) != 0) {
         return;
     }
 
     // no upstream
-    if (git_branch_upstream(out_upstream, local_ref) != 0) {
+    if (git_branch_upstream(&upstream_branch, local_branch) != 0) {
         return;
     }
 
-    if (git_branch_remote_name(&remote_name, repo, git_reference_name(*out_upstream)) != 0) {
+    if (git_branch_remote_name(&remote_name, repo, git_reference_name(upstream_branch)) != 0) {
         return;
     }
 
@@ -136,11 +138,9 @@ void try_fetch_commits(
         return;
     }
 
-    git_reference* original_upstream = *out_upstream;
-    if (git_branch_upstream(out_upstream, local_ref) == 0) {
-        git_reference_free(original_upstream);
-    } else {
-        *out_upstream = original_upstream;
+    git_reference* upstream = nullptr;
+    if (git_branch_upstream(&upstream, local_branch) == 0) {
+        upstream_branch.reset(upstream);
     }
 }
 
@@ -154,11 +154,7 @@ branch_state_t check_branch(git_repository* repo, const char* branch_name) {
         .ahead  = 0,
     };
 
-    if (git_branch_lookup(&local_ref, repo, branch_name, GIT_BRANCH_LOCAL) != 0) {
-        return result;
-    }
-
-    try_fetch_commits(repo, branch_name, local_ref, &upstream_ref);
+    try_fetch_commits(repo, branch_name, local_ref, upstream_ref);
 
     // no upstream
     if (upstream_ref == nullptr) {

@@ -52,6 +52,9 @@ template <typename T, destructor_t<T> Destructor> class ptr_object_t {
 public:
     ptr_object_t() = default;
 
+    explicit ptr_object_t(T* ptr)
+        : m_obj(ptr) { }
+
     ptr_object_t(ptr_object_t&& other)
         : m_obj(other.m_obj) {
         other.m_obj = nullptr;
@@ -87,13 +90,15 @@ public:
         return tmp;
     }
 
-    void destroy() {
+    void reset(T* new_obj = nullptr) {
         if (m_obj != nullptr) {
             Destructor(m_obj);
         }
 
-        m_obj = nullptr;
+        m_obj = new_obj;
     }
+
+    void destroy() { reset(nullptr); }
 
     T** operator&() { return &m_obj; }
 
@@ -199,12 +204,23 @@ private:
 inline bool get_commit_from_hash(commit_t& out_commit, const char* hash, git_repository* repo) {
 
     git_object* obj = nullptr;
-
-    if (git_revparse_single(&obj, repo, hash) != 0 || git_commit_lookup(&out_commit, repo, git_object_id(obj)) != 0) {
-        git_object_free(obj);
+    if (git_revparse_single(&obj, repo, hash) != 0) {
         return false;
     }
 
+    git_commit* raw_commit = nullptr;
+
+    const int res = git_commit_lookup(&raw_commit, repo, git_object_id(obj));
+
+    git_object_free(obj);
+    if (res != 0) {
+        if (raw_commit != nullptr) {
+            git_commit_free(raw_commit);
+        }
+        return false;
+    }
+
+    out_commit.reset(raw_commit);
     return true;
 }
 
