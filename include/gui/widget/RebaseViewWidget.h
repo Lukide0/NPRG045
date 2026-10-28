@@ -1,11 +1,11 @@
 #pragma once
 
-#include "action/Action.h"
-#include "action/ActionManager.h"
 #include "conflict/ConflictManager.h"
-#include "git/GitGraph.h"
-#include "git/parser.h"
-#include "git/types.h"
+#include "core/action/Action.h"
+#include "core/action/ActionsManager.h"
+#include "core/git/GitGraph.h"
+#include "core/git/parser.h"
+#include "core/git/types.h"
 #include "gui/widget/CommitViewWidget.h"
 #include "gui/widget/ConflictWidget.h"
 #include "gui/widget/DiffWidget.h"
@@ -87,8 +87,6 @@ private:
     CommitViewWidget* m_commit_view;
     DiffWidget* m_diff_widget;
     ConflictWidget* m_conflict_widget;
-
-    QPushButton* m_resolve_conflicts_btn;
 
     bool m_ignore_move = false;
 

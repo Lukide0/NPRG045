@@ -1,4 +1,4 @@
-#include "git/paths.h"
+#include "core/git/paths.h"
 
 #include <filesystem>
 #include <string>

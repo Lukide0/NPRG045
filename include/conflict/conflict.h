@@ -1,7 +1,7 @@
 #pragma once
 
 #include "conflict/ConflictManager.h"
-#include "git/types.h"
+#include "core/git/types.h"
 
 #include <cstdint>
 #include <functional>

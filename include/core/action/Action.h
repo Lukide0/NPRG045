@@ -1,13 +1,15 @@
 #pragma once
 
 #include "conflict/conflict.h"
-#include "git/types.h"
+#include "core/git/types.h"
 #include "utils/optional_uint.h"
 #include "utils/todo.h"
 #include "utils/unexpected.h"
 
 #include <array>
 #include <cassert>
+#include <optional>
+#include <string>
 #include <utility>
 
 #include <git2/commit.h>
@@ -73,11 +75,11 @@ public:
      *
      * @param type Type of the action.
      * @param commit Git commit object.
-     * @param msg_id Optional message ID.
+     * @param msg Optional message.
      */
-    Action(ActionType type, git::commit_t&& commit, optional_u31 msg_id = optional_u31::none())
+    Action(ActionType type, git::commit_t&& commit, std::optional<std::string> msg = std::nullopt)
         : m_commit(std::move(commit))
-        , m_msg_id(msg_id)
+        , m_edited_msg(std::move(msg))
         , m_type(type) { }
 
     /**
@@ -109,7 +111,7 @@ public:
     /**
      * @brief Gets optional message ID.
      */
-    [[nodiscard]] optional_u31 get_msg_id() const { return m_msg_id; }
+    [[nodiscard]] auto get_msg() const { return m_edited_msg; }
 
     /**
      * @brief Checks if message can be edited.
@@ -141,7 +143,7 @@ public:
         case ActionType::EDIT:
             return false;
         case ActionType::REWORD:
-            return true;
+            return m_edited_msg.has_value();
         }
 
         return false;
@@ -198,11 +200,11 @@ public:
     void set_type(ActionType type) { m_type = type; }
 
     /**
-     * @brief Sets message ID.
+     * @brief Sets message
      *
-     * @param msg_id Message ID.
+     * @param msg_id Message.
      */
-    void set_msg_id(optional_u31 msg_id) { m_msg_id = msg_id; }
+    void set_msg(const std::string& msg) { m_edited_msg = msg; }
 
 private:
     Action* m_next = nullptr;
@@ -212,7 +214,7 @@ private:
     git::tree_t m_tree;
     ConflictStatus m_tree_conflict = ConflictStatus::UNKNOWN;
 
-    optional_u31 m_msg_id;
+    std::optional<std::string> m_edited_msg;
     ActionType m_type;
 
     void set_next(Action* next) { m_next = next; }

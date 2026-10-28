@@ -1,9 +1,9 @@
 #include "state/State.h"
 
-#include "action/Action.h"
-#include "action/ActionManager.h"
 #include "conflict/ConflictManager.h"
-#include "git/types.h"
+#include "core/action/Action.h"
+#include "core/action/ActionsManager.h"
+#include "core/git/types.h"
 
 #include <filesystem>
 #include <optional>
@@ -99,11 +99,9 @@ void save_actions(QDomElement& root, QDomDocument& doc) {
             break;
         }
 
-        auto msg_id = act.get_msg_id();
-
-        if (msg_id.is_value() && act.has_msg()) {
-            const auto msg = QString::fromStdString(manager.get_msg(msg_id.value()));
-            save_message(msg, doc, action);
+        auto msg = act.get_msg();
+        if (act.has_msg()) {
+            save_message(QString::fromStdString(*msg), doc, action);
         }
 
         actions.appendChild(action);

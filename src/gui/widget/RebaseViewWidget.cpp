@@ -1,16 +1,15 @@
 #include "gui/widget/RebaseViewWidget.h"
 
-#include "action/Action.h"
-#include "action/ActionManager.h"
 #include "conflict/conflict.h"
 #include "conflict/conflict_iterator.h"
 #include "conflict/ConflictManager.h"
-#include "git/diff.h"
-#include "git/error.h"
-#include "git/GitGraph.h"
-#include "git/head.h"
-#include "git/parser.h"
-#include "git/types.h"
+#include "core/action/Action.h"
+#include "core/action/ActionsManager.h"
+#include "core/git/error.h"
+#include "core/git/GitGraph.h"
+#include "core/git/head.h"
+#include "core/git/parser.h"
+#include "core/git/types.h"
 #include "gui/error.h"
 #include "gui/style/GlobalStyle.h"
 #include "gui/style/StyleManager.h"
@@ -25,7 +24,6 @@
 #include "gui/widget/ScrollListWidget.h"
 #include "logging/Log.h"
 #include "state/CommandHistory.h"
-#include "utils/todo.h"
 #include "utils/unexpected.h"
 
 #include <cassert>
@@ -124,17 +122,6 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
 
     m_conflict_widget->hide();
 
-    // Buttons
-    m_resolve_conflicts_btn = new QPushButton();
-
-    connect(m_resolve_conflicts_btn, &QPushButton::pressed, this, [this]() { checkoutAndResolve(); });
-
-    auto* toolbar_layout = new QHBoxLayout();
-    toolbar_layout->addWidget(m_resolve_conflicts_btn);
-
-    m_resolve_conflicts_btn->hide();
-
-    right_layout->addLayout(toolbar_layout);
     right_layout->addWidget(diff_commit_split);
 
     diff_conflict_split->addWidget(m_diff_widget);
@@ -150,6 +137,12 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     palette.setColor(QPalette::Highlight, GlobalStyle::get_color(GlobalStyle::HIGHLIGHT));
     m_list_actions->setPalette(palette);
 
+    auto handle_old = [this](Node* prev, Node* next) { this->showOldCommit(prev, next); };
+    auto handle_new = [this](Node* prev, Node* next) { this->showNewCommit(prev, next); };
+
+    m_old_commits_graph->setHandle(handle_old);
+    m_new_commits_graph->setHandle(handle_new);
+
     connect(&style::StyleManager::get_global_style(), &GlobalStyle::changed, this, [this]() {
         auto p = m_list_actions->palette();
         p.setColor(QPalette::Highlight, GlobalStyle::get_color(GlobalStyle::HIGHLIGHT));
@@ -157,13 +150,6 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     });
 
     connect(m_list_actions, &QListWidget::itemSelectionChanged, this, [this]() { changeItemSelection(); });
-
-    auto handle_old = [this](Node* prev, Node* next) { this->showOldCommit(prev, next); };
-    auto handle_new = [this](Node* prev, Node* next) { this->showNewCommit(prev, next); };
-
-    m_old_commits_graph->setHandle(handle_old);
-    m_new_commits_graph->setHandle(handle_new);
-
     connect(
         m_list_actions->model(),
         &QAbstractItemModel::rowsMoved,
@@ -187,6 +173,15 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
             );
 
             this->moveAction(source_row, destination_row);
+        }
+    );
+
+    connect(
+        m_conflict_widget,
+        &ConflictWidget::resolveRequested,
+        this,
+        []([[maybe_unused]] const QString& path, [[maybe_unused]] const conflict::ConflictEntry& entry) {
+
         }
     );
 }
@@ -213,7 +208,6 @@ void RebaseViewWidget::changeItemSelection() {
 void RebaseViewWidget::showConflict(Node* node) {
     using ConflictStatus = Action::ConflictStatus;
 
-    m_resolve_conflicts_btn->hide();
     m_diff_widget->show();
 
     if (node == nullptr || node->getAction() == nullptr) {
@@ -231,18 +225,14 @@ void RebaseViewWidget::showConflict(Node* node) {
         m_conflict_widget->hide();
         return;
     case ConflictStatus::RESOLVED_CONFLICT:
-        m_resolve_conflicts_btn->setText("Edit resolution");
-        m_conflict_widget->hide();
+        m_conflict_widget->show();
         break;
 
     case ConflictStatus::HAS_CONFLICT:
-        m_resolve_conflicts_btn->setText("Resolve conflict");
         m_conflict_widget->show();
         m_diff_widget->hide();
         break;
     }
-
-    m_resolve_conflicts_btn->show();
 }
 
 void RebaseViewWidget::updateConflictMarkers() {
@@ -376,8 +366,11 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Actio
 
     m_conflict->set_conflict(act, std::move(conflict_index));
 
+    ConflictWidget::ConflictFiles files;
+    ConflictWidget::FileList resolved_files;
+
     // clang-format off
-    bool iterator_status = conflict::iterate(m_conflict->index(), [this](conflict::entry_data_t entry) -> bool {
+    bool iterator_status = conflict::iterate(m_conflict->index(), [&](conflict::entry_data_t entry) -> bool {
 
         const char* path = nullptr;
 
@@ -408,20 +401,11 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Actio
 
         m_conflict->add(path, conflict_entry);
 
-        if (!m_conflict_manager.is_resolved(conflict_entry)) {
-            auto conflict_diff = git::create_conflict_diff(m_repo, entry.ancestor, entry.our, entry.their);
-
-            LOG_WARN("Conflict in '{}'", path);
-
-            if (!conflict_diff.has_value()) {
-                std::string err = "Failed to construct diff. Reason: ";
-                err += git::get_last_error();
-                LOG_ERROR(err);
-
-                m_conflict_widget->addConflictFile(path, err);
-            } else {
-                m_conflict_widget->addConflictFile(path, conflict_diff.value());
-            }
+        QString qpath = QString::fromStdString(path);
+        files.push_back({.path=qpath, .entry=conflict_entry});
+        if (m_conflict_manager.is_resolved(conflict_entry))
+        {
+            resolved_files.push_back(qpath);
         }
 
         return true;
@@ -432,6 +416,9 @@ Action::ConflictStatus RebaseViewWidget::updateConflictAction(Action* act, Actio
         LOG_ERROR("Conflict iterator error: {}", git::get_last_error());
         return ConflictStatus::UNKNOWN;
     }
+
+    m_conflict_widget->setConflictFiles(files);
+    m_conflict_widget->setResolvedFiles(resolved_files);
 
     // check if all conflicts were resolved
     if (m_conflict_widget->hasConflict()) {
@@ -1002,8 +989,6 @@ void RebaseViewWidget::checkoutAndResolve() {
         }
 
         LOG_INFO("Checking out index with conflicts");
-
-        m_resolve_conflicts_btn->hide();
     }
 
     // 4. Apply conflict resolutions
@@ -1045,8 +1030,6 @@ void RebaseViewWidget::checkoutAndResolve() {
             if (!git::set_repository_head(m_repo, m_head.get())) {
                 DISPLAY_LIBGIT_ERROR(this, "Failed to clean working directory", git::get_last_error());
             }
-
-            m_resolve_conflicts_btn->show();
         }
     }
 }

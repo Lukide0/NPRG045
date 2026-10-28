@@ -1,6 +1,6 @@
-#include "git/parser.h"
+#include "core/git/parser.h"
 
-#include "git/paths.h"
+#include "core/git/paths.h"
 
 #include <array>
 #include <cctype>

@@ -1,8 +1,8 @@
-#include "git/diff.h"
+#include "core/git/diff.h"
 
-#include "action/Action.h"
+#include "core/action/Action.h"
 #include "conflict/ConflictManager.h"
-#include "git/types.h"
+#include "core/git/types.h"
 #include "utils/unexpected.h"
 
 #include <cassert>

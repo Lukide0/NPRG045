@@ -1,37 +1,63 @@
 #pragma once
 
-#include "git/diff.h"
-#include "gui/clear_layout.h"
+#include "conflict/ConflictManager.h"
+#include "gui/model/ConflictTreeModel.h"
 
 #include <cstdint>
 #include <string>
 
+#include <QLabel>
 #include <QListWidget>
+#include <QPlainTextEdit>
 #include <QScrollArea>
+#include <QStatusBar>
+#include <QString>
+#include <QStringList>
+#include <QTreeView>
 #include <QVBoxLayout>
 #include <QWidget>
 
 namespace gui::widget {
 
 class ConflictWidget : public QWidget {
+    Q_OBJECT
 public:
+    using ConflictFile  = model::ConflictTreeModel::ConflictFile;
+    using ConflictFiles = QList<ConflictFile>;
+    using FileList      = QStringList;
+
     ConflictWidget(QWidget* parent = nullptr);
 
-    void addConflictFile(const std::string& path, const std::string& diff_text);
-    void addConflictFile(const std::string& path, const git::conflict_diff_t& diff);
+    void setConflictFiles(const ConflictFiles& files);
 
-    [[nodiscard]] bool hasConflict() const { return m_conflicts != 0; }
+    void setResolvedFiles(const FileList& files);
 
-    void clearConflicts() {
-        clear_layout(m_files);
-        m_conflicts = 0;
-    }
+    void setResolved(const std::string& path, bool resolved = true);
+    void setResolved(const QString& path, bool resolved = true);
+
+    [[nodiscard]] bool hasConflict() const;
+
+    void clearConflicts();
+
+signals:
+    void resolveRequested(const QString& path, const conflict::ConflictEntry& entry);
 
 private:
+    model::ConflictTreeModel* m_model;
+    QTreeView* m_view;
+    QLabel* m_summary;
+    QLabel* m_status_count;
+    QStatusBar* m_status_bar;
+
     std::uint32_t m_conflicts = 0;
     QVBoxLayout* m_layout;
     QScrollArea* m_scrollarea;
     QVBoxLayout* m_files;
+
+    void updateSummary(int unresolved, int total);
+    void showSelection(const QModelIndex& current);
+
+    void resolveConflict(const QModelIndex& idx);
 };
 
 }

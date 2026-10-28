@@ -1,7 +1,7 @@
 #pragma once
 
-#include "action/Action.h"
-#include "action/ActionManager.h"
+#include "core/action/Action.h"
+#include "core/action/ActionsManager.h"
 
 #include <functional>
 #include <string>

@@ -1,6 +1,5 @@
 #include "gui/widget/graph/Node.h"
 
-#include "action/ActionManager.h"
 #include "gui/style/ConflictStyle.h"
 #include "gui/style/GlobalStyle.h"
 #include "gui/style/StyleManager.h"
@@ -129,14 +128,11 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* /*option*/, 
     std::string msg = m_commit_msg;
 
     if (m_action != nullptr && m_action->has_msg()) {
-        auto id = m_action->get_msg_id();
-        if (id.is_value()) {
-            msg = action::ActionsManager::get().get_msg(id.value());
+        msg = *m_action->get_msg();
 
-            std::size_t index = msg.find('\n');
-            if (index != std::string::npos) {
-                msg = msg.substr(0, index);
-            }
+        std::size_t index = msg.find('\n');
+        if (index != std::string::npos) {
+            msg = msg.substr(0, index);
         }
     }
 

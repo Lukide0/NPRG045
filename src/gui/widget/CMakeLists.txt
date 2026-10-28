@@ -7,8 +7,8 @@ target_sources(${PROJECT_NAME} PRIVATE
         ${INCLUDE_PATH}/gui/widget/RebaseSelectionWidget.h
         RebaseSelectionWidget.cpp
 
+        ${INCLUDE_PATH}/gui/widget/ConflictWidget.h
         ConflictWidget.cpp
-        ${INCLUDE_PATH}/gui/widget/ConflictHighlighter.h
 
         DiffWidget.cpp
         DiffEditor.cpp

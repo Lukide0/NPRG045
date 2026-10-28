@@ -1,7 +1,7 @@
 #include "patch/PatchSplitter.h"
 
-#include "git/diff.h"
-#include "git/types.h"
+#include "core/git/diff.h"
+#include "core/git/types.h"
 #include "utils/todo.h"
 
 #include <iostream>

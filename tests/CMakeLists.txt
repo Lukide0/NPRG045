@@ -11,7 +11,7 @@ target_include_directories(rebase_parser_tests PRIVATE
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/vendor/doctest
 )
-target_compile_features(rebase_parser_tests PRIVATE cxx_std_20)
+target_compile_features(rebase_parser_tests PRIVATE cxx_std_23)
 
 add_test(
     NAME rebase_parser_tests

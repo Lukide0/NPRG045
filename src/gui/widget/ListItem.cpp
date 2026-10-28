@@ -1,6 +1,6 @@
 #include "gui/widget/ListItem.h"
 
-#include "action/Action.h"
+#include "core/action/Action.h"
 #include "App.h"
 #include "gui/style/ConflictStyle.h"
 #include "gui/style/StyleManager.h"

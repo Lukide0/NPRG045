@@ -1,6 +1,6 @@
 #include "gui/color.h"
 
-#include "git/diff.h"
+#include "core/git/diff.h"
 #include "gui/style/DiffStyle.h"
 #include "utils/unexpected.h"
 

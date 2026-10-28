@@ -1,6 +1,6 @@
 #pragma once
 
-#include "git/diff.h"
+#include "core/git/diff.h"
 #include "gui/style/DiffStyle.h"
 
 #include <QColor>

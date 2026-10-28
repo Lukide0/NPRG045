@@ -1,32 +1,18 @@
-#include "action/ActionManager.h"
+#include "core/action/ActionsManager.h"
 
-#include "action/Action.h"
-#include "git/types.h"
+#include "core/action/Action.h"
+#include "core/git/types.h"
 #include "utils/unexpected.h"
 
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <string>
 #include <utility>
-#include <vector>
 
 #include <git2/oid.h>
 #include <git2/types.h>
 
 namespace action {
-
-std::uint32_t ActionsManager::add_msg(const std::string& msg) {
-    std::uint32_t index = m_msg.size();
-    m_msg.emplace_back(msg);
-    return index;
-}
-
-std::uint32_t ActionsManager::add_msg(std::string&& msg) {
-    std::uint32_t index = m_msg.size();
-    m_msg.emplace_back(std::move(msg));
-    return index;
-}
 
 git::commit_t ActionsManager::split(Action* act, git::commit_t&& prev, git::commit_t&& next) {
 
@@ -165,7 +151,6 @@ void ActionsManager::clear() {
         delete p;
     }
 
-    m_msg.clear();
     m_head = nullptr;
     m_tail = nullptr;
 }

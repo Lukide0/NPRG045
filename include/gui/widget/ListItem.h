@@ -1,6 +1,6 @@
 #pragma once
 
-#include "action/Action.h"
+#include "core/action/Action.h"
 #include "conflict/conflict.h"
 #include "gui/widget/graph/Node.h"
 #include "logging/Log.h"

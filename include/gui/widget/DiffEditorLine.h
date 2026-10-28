@@ -1,6 +1,6 @@
 #pragma once
 
-#include "git/diff.h"
+#include "core/git/diff.h"
 #include "gui/widget/DiffEditor.h"
 #include <QSize>
 #include <QTextBlockUserData>

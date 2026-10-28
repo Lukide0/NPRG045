@@ -1,8 +1,8 @@
 #pragma once
 
-#include "action/Action.h"
-#include "git/diff.h"
-#include "git/types.h"
+#include "core/action/Action.h"
+#include "core/git/diff.h"
+#include "core/git/types.h"
 #include "gui/style/DiffStyle.h"
 #include "gui/widget/DiffEditor.h"
 #include "gui/widget/DiffFile.h"

@@ -5,4 +5,5 @@ target_sources(${PROJECT_NAME}
         parser.cpp
         commit.cpp
         comment.cpp
+        RepoSession.cpp
 )

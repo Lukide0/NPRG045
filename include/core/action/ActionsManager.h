@@ -1,14 +1,12 @@
 #pragma once
 
 #include "Action.h"
-#include "git/types.h"
+#include "core/git/types.h"
 
 #include <cstddef>
 #include <cstdint>
-#include <string>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
 #include <git2/oid.h>
 #include <git2/types.h>
@@ -66,7 +64,13 @@ public:
 
     ActionsManager()                      = default;
     ActionsManager(const ActionsManager&) = delete;
-    ActionsManager(ActionsManager&&)      = delete;
+
+    ActionsManager(ActionsManager&& other)
+        : m_head(std::exchange(other.m_head, nullptr))
+        , m_tail(std::exchange(other.m_tail, nullptr))
+        , m_root_commit(std::exchange(other.m_root_commit, nullptr))
+
+    { }
 
     ~ActionsManager() { clear(); }
 
@@ -82,26 +86,6 @@ public:
      * @return Reference to created action.
      */
     template <action_type Act> Action& append(Act&& action);
-
-    /**
-     * @brief Gets message by index.
-     *
-     * @param index Message index.
-     */
-    [[nodiscard]] const std::string& get_msg(std::uint32_t index) const { return m_msg[index]; }
-
-    std::string& get_msg(std::uint32_t index) { return m_msg[index]; }
-
-    /**
-     * @brief Adds a copy of a message.
-     *
-     * @param msg Message text.
-     *
-     * @return Index of inserted message.
-     */
-    std::uint32_t add_msg(const std::string& msg);
-
-    std::uint32_t add_msg(std::string&& msg);
 
     /**
      * @brief Splits an action into two actions.
@@ -214,8 +198,6 @@ public:
 private:
     Action* m_head = nullptr;
     Action* m_tail = nullptr;
-
-    std::vector<std::string> m_msg;
 
     git_commit* m_root_commit = nullptr;
 };

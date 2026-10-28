@@ -1,5 +1,5 @@
 #include "gui/widget/WelcomeWidget.h"
-#include "git/types.h"
+#include "core/git/types.h"
 
 #include <git2/repository.h>
 #include <git2/types.h>

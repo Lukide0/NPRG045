@@ -1,7 +1,7 @@
 #pragma once
 
-#include "action/Action.h"
-#include "git/types.h"
+#include "core/action/Action.h"
+#include "core/git/types.h"
 
 #include <cstdint>
 #include <optional>

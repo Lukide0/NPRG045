@@ -1,5 +1,5 @@
-#include "git/commit.h"
-#include "git/types.h"
+#include "core/git/commit.h"
+#include "core/git/types.h"
 
 #include <cassert>
 #include <cstddef>

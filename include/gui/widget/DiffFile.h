@@ -1,6 +1,6 @@
 #pragma once
 
-#include "git/diff.h"
+#include "core/git/diff.h"
 #include "gui/editor_height.h"
 #include "gui/style/GlobalStyle.h"
 #include "gui/style/StyleManager.h"

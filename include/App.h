@@ -1,7 +1,7 @@
 #pragma once
 
-#include "action/Action.h"
-#include "git/types.h"
+#include "core/action/Action.h"
+#include "core/git/types.h"
 #include "gui/widget/RebaseSelectionWidget.h"
 #include "gui/widget/RebaseViewWidget.h"
 #include "gui/widget/WelcomeWidget.h"
@@ -169,6 +169,7 @@ private:
     static constexpr int page_rebase_select = 2;
 
     state::AppState m_state;
+    action::ActionsManager m_actions;
 
     std::optional<QString> m_save_file;
 

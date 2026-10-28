@@ -1,14 +1,14 @@
 #include "App.h"
 
-#include "action/Action.h"
-#include "action/Converter.h"
 #include "conflict/ConflictManager.h"
-#include "git/comment.h"
-#include "git/commit.h"
-#include "git/error.h"
-#include "git/parser.h"
-#include "git/paths.h"
-#include "git/types.h"
+#include "core/action/Action.h"
+#include "core/action/Converter.h"
+#include "core/git/comment.h"
+#include "core/git/commit.h"
+#include "core/git/error.h"
+#include "core/git/parser.h"
+#include "core/git/paths.h"
+#include "core/git/types.h"
 #include "gui/error.h"
 #include "gui/style/StyleManager.h"
 #include "gui/widget/ListItem.h"
@@ -757,15 +757,14 @@ void App::loadSaveFile() {
     m_state.set_repo(std::move(repo), save_data->repo_path);
     m_state.set_rebase(save_data->head, save_data->onto);
 
-    auto& act_manager = action::ActionsManager::get();
-    act_manager.clear();
+    m_actions.clear();
 
     for (auto&& [act, msg] : save_data->actions) {
         if (!msg.empty()) {
-            act.set_msg_id(optional_u31::some(act_manager.add_msg(msg)));
+            act.set_msg(msg);
         }
 
-        act_manager.append(std::move(act));
+        m_actions.append(std::move(act));
     }
 
     auto& conflict_manager = conflict::ConflictManager::get();
@@ -838,9 +837,8 @@ bool App::saveTodoFile(bool insert_break) {
 
     LOG_INFO("Saving todo file: {}", filepath);
 
-    auto& manager = action::ActionsManager::get();
     bool status
-        = action::Converter::actions_to_todo(todo_file, manager, conflict::ConflictManager::get(), insert_break);
+        = action::Converter::actions_to_todo(todo_file, m_actions, conflict::ConflictManager::get(), insert_break);
 
     if (!status) {
         DISPLAY_ERROR(this, "Save error", "Failed to save rebase instructions");

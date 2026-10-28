@@ -1,5 +1,5 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-#include "git/parser.h"
+#include "core/git/parser.h"
 #include <doctest/doctest.h>
 
 #include <sstream>

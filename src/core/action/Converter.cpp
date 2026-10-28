@@ -1,10 +1,10 @@
-#include "action/Converter.h"
+#include "core/action/Converter.h"
 
-#include "action/Action.h"
-#include "action/ActionManager.h"
 #include "conflict/ConflictManager.h"
-#include "git/commit.h"
-#include "git/types.h"
+#include "core/action/Action.h"
+#include "core/action/ActionsManager.h"
+#include "core/git/commit.h"
+#include "core/git/types.h"
 #include "logging/Log.h"
 
 #include <git2/commit.h>
@@ -33,9 +33,8 @@ struct ConverterContext {
     Action* last_action = nullptr;
 };
 
-std::pair<ActionInfo, bool> get_action_info(
-    ConverterContext& ctx, Action& act, action::ActionsManager& manager, conflict::ConflictManager& conflict_manager
-) {
+std::pair<ActionInfo, bool>
+get_action_info(ConverterContext& ctx, Action& act, conflict::ConflictManager& conflict_manager) {
 
     ActionInfo info;
 
@@ -82,8 +81,7 @@ std::pair<ActionInfo, bool> get_action_info(
     }
 
     if (act.has_msg()) {
-        auto msg_id      = act.get_msg_id().value();
-        std::string& msg = manager.get_msg(msg_id);
+        auto msg = *act.get_msg();
 
         if (msg.empty()) {
             return std::make_pair<ActionInfo, bool>(std::move(info), false);
@@ -139,7 +137,7 @@ bool Converter::actions_to_todo(
     }
 
     for (auto& act : manager) {
-        auto&& [info, status] = get_action_info(ctx, act, manager, conflict_manager);
+        auto&& [info, status] = get_action_info(ctx, act, conflict_manager);
 
         ctx.last_action = &act;
 

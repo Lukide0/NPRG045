@@ -1,7 +1,7 @@
 #pragma once
 
 #include "conflict/conflict_iterator.h"
-#include "git/types.h"
+#include "core/git/types.h"
 
 #include <map>
 #include <span>

@@ -1,10 +1,10 @@
 #include "conflict/conflict.h"
 
-#include "action/Action.h"
-#include "action/ActionManager.h"
+#include "core/action/Action.h"
+#include "core/action/ActionsManager.h"
 #include "conflict/ConflictManager.h"
-#include "git/error.h"
-#include "git/types.h"
+#include "core/git/error.h"
+#include "core/git/types.h"
 
 #include <algorithm>
 #include <cassert>

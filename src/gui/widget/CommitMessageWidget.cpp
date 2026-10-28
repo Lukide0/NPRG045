@@ -1,8 +1,8 @@
 #include "gui/widget/CommitMessageWidget.h"
 
-#include "action/Action.h"
-#include "action/ActionManager.h"
-#include "git/types.h"
+#include "core/action/Action.h"
+#include "core/action/ActionsManager.h"
+#include "core/git/types.h"
 #include "gui/error.h"
 #include "gui/file.h"
 #include "utils/optional_uint.h"
@@ -19,6 +19,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QString>
+#include <string_view>
 
 namespace gui::widget {
 
@@ -54,16 +55,7 @@ CommitMessageWidget::CommitMessageWidget(QWidget* parent)
         }
 
         auto text = m_editor->toPlainText().toStdString();
-
-        auto id = m_action->get_msg_id();
-        if (id.is_none()) {
-            id = optional_u31::some(m_manager.add_msg(text));
-        } else {
-            auto& str = m_manager.get_msg(id.value());
-            str       = text;
-        }
-
-        m_action->set_msg_id(id);
+        m_action->set_msg(text);
 
         if (m_handle != nullptr) {
             m_handle(text);
@@ -129,9 +121,8 @@ void CommitMessageWidget::setAction(Action* action, std::string_view comment_str
     QString msg;
     m_action = action;
 
-    auto msg_id = action->get_msg_id();
-    if (action->get_type() == ActionType::REWORD && action->has_msg() && msg_id.is_value()) {
-        msg = QString::fromStdString(m_manager.get_msg(msg_id.value()));
+    if (action->can_edit_msg() && action->has_msg()) {
+        msg = QString::fromStdString(*action->get_msg());
     } else {
         msg = create_commit_message(action, comment_str);
     }

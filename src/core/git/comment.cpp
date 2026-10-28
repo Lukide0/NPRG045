@@ -1,5 +1,5 @@
-#include "git/comment.h"
-#include "git/error.h"
+#include "core/git/comment.h"
+#include "core/git/error.h"
 #include <git2/config.h>
 #include <git2/repository.h>
 #include <git2/types.h>

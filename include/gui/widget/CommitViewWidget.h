@@ -1,8 +1,8 @@
 #pragma once
 
-#include "action/Action.h"
-#include "action/ActionManager.h"
-#include "git/diff.h"
+#include "core/action/Action.h"
+#include "core/action/ActionsManager.h"
+#include "core/git/diff.h"
 #include "gui/widget/CommitMessageWidget.h"
 #include "gui/widget/DiffWidget.h"
 #include "gui/widget/graph/Node.h"

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Action.h"
-#include "ActionManager.h"
+#include "ActionsManager.h"
 #include "conflict/ConflictManager.h"
 
 #include <ostream>

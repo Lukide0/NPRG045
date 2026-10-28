@@ -1,9 +1,9 @@
 #include "patch/split.h"
 
-#include "action/Action.h"
-#include "action/ActionManager.h"
-#include "git/error.h"
-#include "git/types.h"
+#include "core/action/Action.h"
+#include "core/action/ActionsManager.h"
+#include "core/git/error.h"
+#include "core/git/types.h"
 #include "logging/Log.h"
 
 #include <cassert>

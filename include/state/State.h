@@ -1,8 +1,8 @@
 #pragma once
 
-#include "action/Action.h"
+#include "core/action/Action.h"
 #include "conflict/ConflictManager.h"
-#include "git/types.h"
+#include "core/git/types.h"
 #include "state/AppState.h"
 
 #include <filesystem>

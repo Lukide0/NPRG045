@@ -1,8 +1,8 @@
 #pragma once
 
-#include "action/Action.h"
+#include "core/action/Action.h"
 #include "conflict/conflict.h"
-#include "git/types.h"
+#include "core/git/types.h"
 
 #include <git2/oid.h>
 #include <string>

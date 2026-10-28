@@ -7,7 +7,7 @@ function(create_executable name)
 
     qt_add_executable("${name}" ${ARG_SOURCES})
 
-    target_compile_features("${name}" PRIVATE cxx_std_20)
+    target_compile_features("${name}" PRIVATE cxx_std_23)
 
     target_include_directories("${name}" PRIVATE "${ARG_INCLUDE_DIR}")
     if(NOT ARG_DONT_INCLUDE)
