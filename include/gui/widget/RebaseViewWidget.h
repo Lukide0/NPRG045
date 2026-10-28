@@ -35,7 +35,7 @@ namespace gui::widget {
 
 class RebaseViewWidget : public QWidget {
 public:
-    RebaseViewWidget(QWidget* parent = nullptr);
+    RebaseViewWidget(action::ActionsManager& actions, conflict::ConflictManager& conflicts, QWidget* parent = nullptr);
 
     std::optional<std::string> update(state::AppState& state, const std::vector<git::CommitAction>& actions);
     std::optional<std::string> update(state::AppState& state);

@@ -1,9 +1,10 @@
 #include "gui/widget/DiffWidget.h"
 
-#include "core/action/Action.h"
-#include "core/action/ActionsManager.h"
 #include "App.h"
 #include "conflict/conflict.h"
+#include "conflict/ConflictManager.h"
+#include "core/action/Action.h"
+#include "core/action/ActionsManager.h"
 #include "core/git/diff.h"
 #include "core/git/error.h"
 #include "core/git/types.h"
@@ -54,8 +55,10 @@ using git::diff_result_t;
 
 using action::Action;
 
-DiffWidget::DiffWidget(QWidget* parent)
-    : QWidget(parent) {
+DiffWidget::DiffWidget(action::ActionsManager& actions, conflict::ConflictManager& conflicts, QWidget* parent)
+    : QWidget(parent)
+    , m_manager(actions)
+    , m_conflicts(conflicts) {
 
     m_scrollarea = new QScrollArea(this);
     m_scrollarea->setWidgetResizable(true);
@@ -150,7 +153,7 @@ void DiffWidget::update(Action* action) {
 
     diff_result_t res;
     if (parent == nullptr) {
-        git_commit* root_commit = action::ActionsManager::get().get_root_commit();
+        git_commit* root_commit = m_manager.get_root_commit();
         git_repository* repo    = git_commit_owner(root_commit);
 
         git::tree_t root_tree;
@@ -180,12 +183,12 @@ void DiffWidget::update(Action* action) {
         case ConflictStatus::UNKNOWN:
         case ConflictStatus::ERR:
         case ConflictStatus::HAS_CONFLICT:
-            res = git::prepare_resolution_diff(parent->get_tree(), action->get_commit());
+            res = git::prepare_resolution_diff(parent->get_tree(), action->get_commit(), m_conflicts);
             break;
         case ConflictStatus::NO_CONFLICT:
         case ConflictStatus::RESOLVED_CONFLICT: {
             assert(act_tree != nullptr);
-            res = git::prepare_resolution_diff(parent->get_tree(), action);
+            res = git::prepare_resolution_diff(parent->get_tree(), action, m_conflicts);
             break;
         }
         }
@@ -403,15 +406,16 @@ void DiffWidget::splitCommitEvent() {
     git::commit_t first_commit;
     git::commit_t second_commit;
 
-    patch::SplitError err = patch::split(first_commit, second_commit, m_action, diff);
+    patch::SplitError err = patch::split(first_commit, second_commit, m_manager, m_action, diff);
     if (err.has_error()) {
         DISPLAY_LIBGIT_ERROR(this, "Failed to create split", std::format("{}: {}.", err.title, err.message));
         return;
     }
 
-    std::size_t index = action::ActionsManager::get().get_index(m_action);
+    std::size_t index = m_manager.get_index(m_action);
 
-    auto cmd = std::make_unique<CommitSplitCommand>(index, std::move(first_commit), std::move(second_commit));
+    auto cmd
+        = std::make_unique<CommitSplitCommand>(index, std::move(first_commit), std::move(second_commit), m_manager);
     cmd->execute();
 
     state::CommandHistory::Add(std::move(cmd));
@@ -421,10 +425,9 @@ void CommitSplitCommand::execute() {
 
     LOG_INFO("Splitting commit");
 
-    auto& manager = action::ActionsManager::get();
-    auto* act     = manager.get_action(m_index);
+    auto* act = m_manager.get_action(m_index);
 
-    m_commit = manager.split(act, std::move(m_split.first), std::move(m_split.second));
+    m_commit = m_manager.split(act, std::move(m_split.first), std::move(m_split.second));
 
     App::updateActions();
 }
@@ -432,10 +435,9 @@ void CommitSplitCommand::execute() {
 void CommitSplitCommand::undo() {
 
     LOG_INFO("Reverting the commit split operation");
-    auto& manager = action::ActionsManager::get();
-    auto* act     = manager.get_action(m_index);
+    auto* act = m_manager.get_action(m_index);
 
-    m_split = manager.merge_next(act, std::move(m_commit));
+    m_split = m_manager.merge_next(act, std::move(m_commit));
 
     App::updateActions();
 }

@@ -26,9 +26,9 @@ namespace gui::widget {
 using action::Action;
 using action::ActionType;
 
-CommitMessageWidget::CommitMessageWidget(QWidget* parent)
+CommitMessageWidget::CommitMessageWidget(action::ActionsManager& actions, QWidget* parent)
     : QWidget(parent)
-    , m_manager(action::ActionsManager::get()) {
+    , m_manager(actions) {
     m_layout = new QHBoxLayout();
     setLayout(m_layout);
 

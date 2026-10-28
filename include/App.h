@@ -1,5 +1,6 @@
 #pragma once
 
+#include "conflict/ConflictManager.h"
 #include "core/action/Action.h"
 #include "core/git/types.h"
 #include "gui/widget/RebaseSelectionWidget.h"
@@ -170,6 +171,7 @@ private:
 
     state::AppState m_state;
     action::ActionsManager m_actions;
+    conflict::ConflictManager m_conflicts;
 
     std::optional<QString> m_save_file;
 

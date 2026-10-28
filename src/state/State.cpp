@@ -4,6 +4,7 @@
 #include "core/action/Action.h"
 #include "core/action/ActionsManager.h"
 #include "core/git/types.h"
+#include "state/AppState.h"
 
 #include <filesystem>
 #include <optional>
@@ -61,8 +62,7 @@ void save_message(const QString& msg, QDomDocument& doc, QDomElement& action) {
     }
 }
 
-void save_actions(QDomElement& root, QDomDocument& doc) {
-    auto& manager = action::ActionsManager::get();
+void save_actions(const action::ActionsManager& manager, QDomElement& root, QDomDocument& doc) {
 
     auto* cmt = manager.get_root_commit();
 
@@ -172,8 +172,7 @@ bool load_actions(QDomElement& root, SaveData& save_data, git_repository* repo) 
     return true;
 }
 
-void save_conflicts(QDomElement& root, QDomDocument& doc) {
-    auto& manager = conflict::ConflictManager::get();
+void save_conflicts(const conflict::ConflictManager& manager, QDomElement& root, QDomDocument& doc) {
 
     QDomElement conflicts = doc.createElement(CONFLICTS_NODE);
 
@@ -257,7 +256,12 @@ void load_conflicts(QDomElement& root, SaveData& save_data, git_repository* repo
     }
 }
 
-bool State::save(const std::filesystem::path& path, const AppState& state) {
+bool State::save(
+    const std::filesystem::path& path,
+    const AppState& state,
+    const action::ActionsManager& actions,
+    const conflict::ConflictManager& conflicts
+) {
 
     QDomDocument doc;
 
@@ -271,9 +275,9 @@ bool State::save(const std::filesystem::path& path, const AppState& state) {
 
     doc.appendChild(root);
 
-    save_actions(root, doc);
+    save_actions(actions, root, doc);
 
-    save_conflicts(root, doc);
+    save_conflicts(conflicts, root, doc);
 
     QFile file(QString::fromStdU32String(path.u32string()));
     if (!file.open(QFile::WriteOnly)) {

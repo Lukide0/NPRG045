@@ -1,8 +1,8 @@
 #include "conflict/conflict.h"
 
+#include "conflict/ConflictManager.h"
 #include "core/action/Action.h"
 #include "core/action/ActionsManager.h"
-#include "conflict/ConflictManager.h"
 #include "core/git/error.h"
 #include "core/git/types.h"
 
@@ -230,6 +230,7 @@ int collect_delta(const git_diff_delta* delta, float /*unused*/, void* payload) 
 }
 
 bool iterate_actions(
+    action::ActionsManager& actions,
     action::Action& conflict_action,
     git_repository* repo,
     std::span<const git_oid> files,
@@ -253,7 +254,6 @@ bool iterate_actions(
     }
 
     git_tree* new_tree   = conflict_tree;
-    auto& actions        = action::ActionsManager::get();
     std::uint32_t act_id = actions.get_action_index(action);
 
     git::tree_t root_tree;

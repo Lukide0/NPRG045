@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/action/Action.h"
 #include "conflict/ConflictManager.h"
+#include "core/action/Action.h"
 #include "core/git/types.h"
 #include "state/AppState.h"
 
@@ -39,10 +39,17 @@ public:
      *
      * @param path Output file path.
      * @param state Application state.
+     * @param actions Actions manager.
+     * @param conflicts Conflict resolution manager.
      *
      * @return True if save succeeded.
      */
-    static bool save(const std::filesystem::path& path, const AppState& state);
+    static bool save(
+        const std::filesystem::path& path,
+        const AppState& state,
+        const action::ActionsManager& actions,
+        const conflict::ConflictManager& conflicts
+    );
 
     /**
      * @brief Loads application state from a file.

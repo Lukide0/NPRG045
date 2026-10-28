@@ -294,7 +294,7 @@ void App::setup() {
     m_layout = new QStackedLayout();
     main->setLayout(m_layout);
 
-    m_rebase_view    = new gui::widget::RebaseViewWidget();
+    m_rebase_view    = new gui::widget::RebaseViewWidget(m_actions, m_conflicts);
     m_welcome_widget = new gui::widget::WelcomeWidget();
     m_rebase_select  = new gui::widget::RebaseSelectionWidget();
 
@@ -723,7 +723,7 @@ bool App::saveSaveFile(bool choose_file) {
 
     LOG_INFO("Saving: {}", m_save_file->toStdString());
 
-    if (!state::State::save(m_save_file.value().toStdU32String(), m_state)) {
+    if (!state::State::save(m_save_file.value().toStdU32String(), m_state, m_actions, m_conflicts)) {
         DISPLAY_ERROR(this, "Save error", "Failed to save");
         return false;
     }
@@ -767,15 +767,14 @@ void App::loadSaveFile() {
         m_actions.append(std::move(act));
     }
 
-    auto& conflict_manager = conflict::ConflictManager::get();
-    conflict_manager.clear();
+    m_conflicts.clear();
 
     for (auto&& [entry, blob] : save_data->conflicts) {
-        conflict_manager.add_resolution(entry, blob);
+        m_conflicts.add_resolution(entry, blob);
     }
 
     for (auto&& [conflict, tree] : save_data->conflict_trees) {
-        conflict_manager.add_trees_resolution(conflict, std::move(tree));
+        m_conflicts.add_trees_resolution(conflict, std::move(tree));
     }
 
     state::CommandHistory::Clear();
@@ -837,8 +836,7 @@ bool App::saveTodoFile(bool insert_break) {
 
     LOG_INFO("Saving todo file: {}", filepath);
 
-    bool status
-        = action::Converter::actions_to_todo(todo_file, m_actions, conflict::ConflictManager::get(), insert_break);
+    bool status = action::Converter::actions_to_todo(todo_file, m_actions, m_conflicts, insert_break);
 
     if (!status) {
         DISPLAY_ERROR(this, "Save error", "Failed to save rebase instructions");

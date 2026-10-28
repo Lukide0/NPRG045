@@ -175,14 +175,6 @@ public:
      */
     void clear() { m_conflicts.clear(); }
 
-    /**
-     * @brief Gets global ConflictManager instance.
-     */
-    static ConflictManager& get() {
-        static ConflictManager manager;
-        return manager;
-    }
-
 private:
     std::map<ConflictEntry, std::string> m_conflicts;
 

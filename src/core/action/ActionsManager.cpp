@@ -172,7 +172,7 @@ git_commit* ActionsManager::get_parent_commit(Action* act) {
 
     auto* parent = act->get_prev();
     if (parent == nullptr) {
-        return get().get_root_commit();
+        return get_root_commit();
     } else {
         return parent->get_commit();
     }

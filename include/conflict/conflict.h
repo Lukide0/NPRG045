@@ -14,7 +14,9 @@
 #include <git2/types.h>
 
 namespace action {
+
 class Action;
+class ActionsManager;
 
 }
 
@@ -110,6 +112,7 @@ ResolutionResult add_resolved_files(
 /**
  * @brief Iterates over conflict action and execute callback per item.
  *
+ * @param actions Actions manager.
  * @param conflict_action Conflict action.
  * @param repo Git repository.
  * @param files List of file OIDs.
@@ -119,6 +122,7 @@ ResolutionResult add_resolved_files(
  * @return True if iteration completed successfully.
  */
 bool iterate_actions(
+    action::ActionsManager& actions,
     action::Action& conflict_action,
     git_repository* repo,
     std::span<const git_oid> files,

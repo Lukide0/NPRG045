@@ -71,11 +71,13 @@ namespace gui::widget {
 using action::Action;
 using action::ActionType;
 
-RebaseViewWidget::RebaseViewWidget(QWidget* parent)
+RebaseViewWidget::RebaseViewWidget(
+    action::ActionsManager& actions, conflict::ConflictManager& conflicts, QWidget* parent
+)
     : QWidget(parent)
     , m_graph(git::GitGraph<Node*>::empty())
-    , m_actions(action::ActionsManager::get())
-    , m_conflict_manager(conflict::ConflictManager::get()) {
+    , m_actions(actions)
+    , m_conflict_manager(conflicts) {
     using style::GlobalStyle;
 
     m_actions.clear();
@@ -116,8 +118,8 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     graphs_split->addWidget(m_new_commits_graph);
 
     //-- RIGHT LAYOUT -------------------------------------------------------//
-    m_diff_widget     = new DiffWidget();
-    m_commit_view     = new CommitViewWidget(m_diff_widget);
+    m_diff_widget     = new DiffWidget(m_actions, m_conflict_manager);
+    m_commit_view     = new CommitViewWidget(m_actions, m_diff_widget);
     m_conflict_widget = new ConflictWidget();
 
     m_conflict_widget->hide();
@@ -250,6 +252,7 @@ void RebaseViewWidget::updateConflictMarkers() {
     }
 
     conflict::iterate_actions(
+        m_actions,
         *m_conflict->action(),
         m_repo,
         m_conflict->files(),
@@ -1078,11 +1081,10 @@ bool RebaseViewWidget::markResolved() {
         tree_id                 = git_commit_tree_id(root_commit);
     }
 
-    auto& conflict_manager  = conflict::ConflictManager::get();
     conflict.commit_id      = git::format_oid_to_str<git::OID_SIZE>(&m_conflict->action()->get_oid());
     conflict.parent_tree_id = git::format_oid_to_str<git::OID_SIZE>(tree_id);
 
-    conflict_manager.add_trees_resolution(conflict, std::move(tree));
+    m_conflict_manager.add_trees_resolution(conflict, std::move(tree));
 
     LOG_INFO("Saving conflict resolution");
 

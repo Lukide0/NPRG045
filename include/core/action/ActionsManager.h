@@ -143,7 +143,7 @@ public:
     /**
      * @brief Gets root commit.
      */
-    git_commit* get_root_commit() { return m_root_commit; }
+    [[nodiscard]] git_commit* get_root_commit() const { return m_root_commit; }
 
     /**
      * @brief Gets first action.
@@ -166,17 +166,9 @@ public:
     static void swap_commits(Action* act, git::commit_t& commit) { std::swap(act->m_commit, commit); }
 
     /**
-     * @brief Gets global manager instance.
-     */
-    static ActionsManager& get() {
-        static ActionsManager manager;
-        return manager;
-    }
-
-    /**
      * @brief Gets parent commit of an action.
      */
-    static git_commit* get_parent_commit(Action* act);
+    git_commit* get_parent_commit(Action* act);
 
     /**
      * @brief Gets nearest picked parent action.

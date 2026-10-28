@@ -1,5 +1,6 @@
 #pragma once
 
+#include "conflict/ConflictManager.h"
 #include "core/action/Action.h"
 #include "core/git/diff.h"
 #include "core/git/types.h"
@@ -24,7 +25,7 @@ namespace gui::widget {
 
 class DiffWidget : public QWidget {
 public:
-    DiffWidget(QWidget* parent = nullptr);
+    DiffWidget(action::ActionsManager& actions, conflict::ConflictManager& conflicts, QWidget* parent = nullptr);
     ~DiffWidget() override = default;
 
     void update(action::Action* act);
@@ -41,6 +42,8 @@ public:
 
 private:
     action::Action* m_action = nullptr;
+    action::ActionsManager& m_manager;
+    conflict::ConflictManager& m_conflicts;
 
     std::vector<git::diff_files_t> m_diffs;
     std::vector<DiffFile*> m_files;
@@ -72,9 +75,12 @@ private:
 
 class CommitSplitCommand : public state::Command {
 public:
-    CommitSplitCommand(std::size_t index, git::commit_t&& first, git::commit_t&& second)
+    CommitSplitCommand(
+        std::size_t index, git::commit_t&& first, git::commit_t&& second, action::ActionsManager& manager
+    )
         : m_index(index)
-        , m_split(std::move(first), std::move(second)) { }
+        , m_split(std::move(first), std::move(second))
+        , m_manager(manager) { }
 
     ~CommitSplitCommand() override = default;
 
@@ -85,6 +91,7 @@ private:
     std::size_t m_index;
     std::pair<git::commit_t, git::commit_t> m_split;
     git::commit_t m_commit;
+    action::ActionsManager& m_manager;
 };
 
 }

@@ -26,11 +26,18 @@ struct SplitError {
  *
  * @param out_first Resulting first commit.
  * @param out_second Resulting second commit.
+ * @param actions Actions manager.
  * @param act Action associated with the split.
  * @param patch Diff patch used for splitting.
  *
  * @return Error status.
  */
-SplitError split(git::commit_t& out_first, git::commit_t& out_second, action::Action* act, git::diff_t& patch);
+SplitError split(
+    git::commit_t& out_first,
+    git::commit_t& out_second,
+    action::ActionsManager& actions,
+    action::Action* act,
+    git::diff_t& patch
+);
 
 }

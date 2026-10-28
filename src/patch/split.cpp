@@ -118,12 +118,18 @@ SplitError split(
     return { };
 }
 
-SplitError split(git::commit_t& out_first, git::commit_t& out_second, Action* act, git::diff_t& patch) {
+SplitError split(
+    git::commit_t& out_first,
+    git::commit_t& out_second,
+    action::ActionsManager& actions,
+    Action* act,
+    git::diff_t& patch
+) {
     git_commit* commit   = act->get_commit();
     git_repository* repo = git_commit_owner(commit);
 
     Action* parent_act        = act->get_prev();
-    git_commit* parent_commit = action::ActionsManager::get_parent_commit(act);
+    git_commit* parent_commit = actions.get_parent_commit(act);
     assert(parent_commit != nullptr);
 
     if (parent_act == nullptr) {

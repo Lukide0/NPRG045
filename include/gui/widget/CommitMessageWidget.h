@@ -19,7 +19,7 @@ class CommitMessageWidget : public QWidget {
 public:
     using Action = action::Action;
 
-    CommitMessageWidget(QWidget* parent = nullptr);
+    CommitMessageWidget(action::ActionsManager& actions, QWidget* parent = nullptr);
 
     void enableEdit() {
         m_editor->setReadOnly(false);

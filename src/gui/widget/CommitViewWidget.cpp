@@ -1,8 +1,8 @@
 #include "gui/widget/CommitViewWidget.h"
 
+#include "App.h"
 #include "core/action/Action.h"
 #include "core/action/ActionsManager.h"
-#include "App.h"
 #include "core/git/diff.h"
 #include "core/git/GitGraph.h"
 #include "core/git/types.h"
@@ -43,8 +43,8 @@ using git::diff_files_t;
 using git::diff_line_t;
 using git::GitGraph;
 
-CommitViewWidget::CommitViewWidget(DiffWidget* diff)
-    : m_manager(action::ActionsManager::get())
+CommitViewWidget::CommitViewWidget(action::ActionsManager& actions, DiffWidget* diff)
+    : m_manager(actions)
     , m_diff(diff) {
 
     m_layout = new QHBoxLayout();
@@ -79,7 +79,7 @@ void CommitViewWidget::createRows() {
         return;
     }
 
-    m_msg = new CommitMessageWidget();
+    m_msg = new CommitMessageWidget(m_manager);
 
     if (m_action == nullptr || !m_action->can_edit_msg()) {
         m_msg->disableEdit();

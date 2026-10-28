@@ -1,5 +1,6 @@
 #pragma once
 
+#include "conflict/ConflictManager.h"
 #include "core/action/Action.h"
 #include "core/git/types.h"
 
@@ -174,20 +175,30 @@ diff_result_t prepare_diff(git_commit* old_commit, git_commit* new_commit, const
  *
  * @param old_tree Base tree.
  * @param new_commit Target commit.
+ * @param conflicts Conflict resolution manager.
  * @param opts Diff options (optional).
  */
-diff_result_t
-prepare_resolution_diff(git_tree* old_tree, git_commit* new_commit, const git_diff_options* opts = nullptr);
+diff_result_t prepare_resolution_diff(
+    git_tree* old_tree,
+    git_commit* new_commit,
+    conflict::ConflictManager& conflicts,
+    const git_diff_options* opts = nullptr
+);
 
 /**
  * @brief Creates a resolution diff from an action.
  *
  * @param old_tree Base tree.
  * @param new_tree Action representing target state.
+ * @param conflicts Conflict resolution manager.
  * @param opts Diff options (optional).
  */
-diff_result_t
-prepare_resolution_diff(git_tree* old_tree, action::Action* new_tree, const git_diff_options* opts = nullptr);
+diff_result_t prepare_resolution_diff(
+    git_tree* old_tree,
+    action::Action* new_tree,
+    conflict::ConflictManager& conflicts,
+    const git_diff_options* opts = nullptr
+);
 
 /**
  * @brief Converts raw git diff into structured file diffs.

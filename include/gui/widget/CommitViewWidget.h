@@ -24,7 +24,7 @@ namespace gui::widget {
 class CommitViewWidget : public QWidget {
 
 public:
-    CommitViewWidget(DiffWidget* diff);
+    CommitViewWidget(action::ActionsManager& actions, DiffWidget* diff);
 
     void update(Node* node);
     void update(Node* node, action::Action* act);
