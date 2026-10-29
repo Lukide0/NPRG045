@@ -1,4 +1,4 @@
-#include "conflict/conflict_iterator.h"
+#include "core/conflict/conflict_iterator.h"
 
 #include "core/git/types.h"
 
@@ -7,7 +7,7 @@
 #include <git2/index.h>
 #include <git2/types.h>
 
-namespace conflict {
+namespace core::conflict {
 
 bool iterate(git_index* index, std::function<bool(entry_data_t)> entry) {
 

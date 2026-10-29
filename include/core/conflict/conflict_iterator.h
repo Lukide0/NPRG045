@@ -5,7 +5,7 @@
 #include <git2/index.h>
 #include <git2/types.h>
 
-namespace conflict {
+namespace core::conflict {
 
 /**
  * @brief Represents a triple of index entries.

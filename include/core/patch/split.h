@@ -6,7 +6,7 @@
 #include <string_view>
 #include <utility>
 
-namespace patch {
+namespace core::patch {
 
 struct SplitError {
     SplitError() = default;

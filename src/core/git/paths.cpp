@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <string>
 
-namespace git {
+namespace core::git {
 
 std::string repo_path_from_todo(const std::string& path) {
     using fs_path = std::filesystem::path;

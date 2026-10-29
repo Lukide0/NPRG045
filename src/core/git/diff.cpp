@@ -1,7 +1,7 @@
 #include "core/git/diff.h"
 
-#include "conflict/ConflictManager.h"
 #include "core/action/Action.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/types.h"
 #include "utils/unexpected.h"
 
@@ -20,7 +20,7 @@
 #include <git2/tree.h>
 #include <git2/types.h>
 
-namespace git {
+namespace core::git {
 
 // NOTE: This callback is called once per file
 int diff_file_callback(const git_diff_delta* delta, float /*unused*/, void* state_raw);

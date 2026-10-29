@@ -8,7 +8,7 @@
 #include <git2/oid.h>
 #include <git2/types.h>
 
-namespace git {
+namespace core::git {
 
 /**
  * @brief Creates a new Git commit.

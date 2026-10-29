@@ -12,7 +12,7 @@
 #include <git2/oid.h>
 #include <git2/types.h>
 
-namespace action {
+namespace core::action {
 
 git::commit_t ActionsManager::split(Action* act, git::commit_t&& prev, git::commit_t&& next) {
 
@@ -26,6 +26,8 @@ git::commit_t ActionsManager::split(Action* act, git::commit_t&& prev, git::comm
 
     tmp->set_next_connection(next_act);
     tmp->set_prev_connection(act);
+
+    m_size += 1;
 
     return commit;
 }
@@ -42,6 +44,8 @@ std::pair<git::commit_t, git::commit_t> ActionsManager::merge_next(Action* act, 
     act->set_next_connection(next->get_next());
 
     delete next;
+
+    m_size -= 1;
 
     return commits;
 }
@@ -139,8 +143,7 @@ Action* ActionsManager::move(std::uint32_t from, std::uint32_t to) {
         return from_prev;
     }
 
-    // unreachable
-    UNEXPECTED();
+    std::unreachable();
 }
 
 void ActionsManager::clear() {
@@ -153,6 +156,7 @@ void ActionsManager::clear() {
 
     m_head = nullptr;
     m_tail = nullptr;
+    m_size = 0;
 }
 
 [[nodiscard]] std::size_t ActionsManager::get_index(const_iterator_t iter) const {
@@ -165,7 +169,7 @@ void ActionsManager::clear() {
     return i;
 }
 
-git_commit* ActionsManager::get_parent_commit(Action* act) {
+git_commit* ActionsManager::get_parent_commit(Action* act) const {
     if (act == nullptr) {
         return nullptr;
     }

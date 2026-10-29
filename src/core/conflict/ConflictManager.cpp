@@ -1,6 +1,6 @@
-#include "conflict/ConflictManager.h"
+#include "core/conflict/ConflictManager.h"
 
-#include "conflict/conflict_iterator.h"
+#include "core/conflict/conflict_iterator.h"
 #include "core/git/types.h"
 
 #include <cassert>
@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstring>
 #include <ctime>
+#include <optional>
 #include <span>
 #include <string>
 #include <utility>
@@ -21,7 +22,7 @@
 #include <git2/tree.h>
 #include <git2/types.h>
 
-namespace conflict {
+namespace core::conflict {
 
 bool ConflictManager::is_resolved(
     const git_index_entry* ancestor, const git_index_entry* their, const git_index_entry* our
@@ -98,12 +99,30 @@ bool ConflictManager::apply_resolution(
 
     const std::string& resolution_id = it->second;
 
-    const git_index_entry* ancestor = nullptr;
-    const git_index_entry* our      = nullptr;
-    const git_index_entry* their    = nullptr;
+    std::optional<git_index_entry> ancestor;
+    std::optional<git_index_entry> our;
+    std::optional<git_index_entry> their;
 
-    if (git_index_conflict_get(&ancestor, &our, &their, index, path.c_str()) != 0) {
-        return false;
+    {
+        const git_index_entry* ancestor_ptr = nullptr;
+        const git_index_entry* our_ptr      = nullptr;
+        const git_index_entry* their_ptr    = nullptr;
+
+        if (git_index_conflict_get(&ancestor_ptr, &our_ptr, &their_ptr, index, path.c_str()) != 0) {
+            return false;
+        }
+
+        if (ancestor_ptr != nullptr) {
+            ancestor = *ancestor_ptr;
+        }
+
+        if (our_ptr != nullptr) {
+            our = *our_ptr;
+        }
+
+        if (their_ptr != nullptr) {
+            their = *their_ptr;
+        }
     }
 
     if (git_index_conflict_remove(index, path.c_str()) != 0) {
@@ -144,7 +163,7 @@ bool ConflictManager::apply_resolution(
     time_now.seconds     = static_cast<int>(std::time(nullptr));
     time_now.nanoseconds = 0;
 
-    if (our != nullptr) {
+    if (our.has_value()) {
         new_entry.mode  = our->mode;
         new_entry.ctime = our->ctime;
         new_entry.mtime = our->mtime;
@@ -152,7 +171,7 @@ bool ConflictManager::apply_resolution(
         new_entry.ino   = our->ino;
         new_entry.uid   = our->uid;
         new_entry.gid   = our->gid;
-    } else if (their != nullptr) {
+    } else if (their.has_value()) {
         new_entry.mode  = their->mode;
         new_entry.ctime = their->ctime;
         new_entry.mtime = their->mtime;
@@ -163,7 +182,7 @@ bool ConflictManager::apply_resolution(
     } else {
         std::uint32_t filemode = GIT_FILEMODE_BLOB;
 
-        if (ancestor != nullptr) {
+        if (ancestor.has_value()) {
             filemode = ancestor->mode;
         }
         new_entry.mode  = filemode;
@@ -181,6 +200,13 @@ bool ConflictManager::apply_resolution(
 
     return true;
 }
+
+const std::string* ConflictManager::get_resolution(const ConflictEntry& entry) const {
+    auto it = m_conflicts.find(entry);
+    return it != m_conflicts.end() ? &it->second : nullptr;
+}
+
+bool ConflictManager::remove_resolution(const ConflictEntry& entry) { return m_conflicts.erase(entry) != 0; }
 
 void ConflictManager::add_resolution(const ConflictEntry& entry, std::string id) { m_conflicts[entry] = id; }
 

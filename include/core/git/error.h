@@ -4,7 +4,7 @@
 
 #include <git2/errors.h>
 
-namespace git {
+namespace core::git {
 
 /**
  * @brief Retrieves the last Git error message.

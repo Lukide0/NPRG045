@@ -1,8 +1,8 @@
 #include "App.h"
 
-#include "conflict/ConflictManager.h"
 #include "core/action/Action.h"
 #include "core/action/Converter.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/comment.h"
 #include "core/git/commit.h"
 #include "core/git/error.h"
@@ -72,7 +72,7 @@ void App::updateGraph() { g_app->m_rebase_view->updateGraph(); }
 
 void App::updateActions() { g_app->m_rebase_view->updateActions(); }
 
-void App::updateConflicts(action::Action* start) { g_app->m_rebase_view->updateConflicts(start); }
+void App::updateConflicts(core::action::Action* start) { g_app->m_rebase_view->updateConflicts(start); }
 
 gui::widget::RebaseViewWidget* App::getRebaseViewWidget() { return g_app->m_rebase_view; }
 
@@ -167,8 +167,8 @@ void App::setupShortcuts() {
 
         constexpr auto action_types = gui::widget::ListItem::items;
 
-        for (action::ActionType type : action_types) {
-            const char* name = action::type_to_str(type);
+        for (core::action::ActionType type : action_types) {
+            const char* name = core::action::type_to_str(type);
             QString desc     = QString("Change focused action type to '%1'").arg(name);
             QString id       = QString("actions.change_%1").arg(name);
 
@@ -185,7 +185,7 @@ void App::setupShortcuts() {
         connect(actions_change, &QAction::triggered, this, [this]() { m_rebase_view->changeActionType(); });
 
         connect(actions_change_pick, &QAction::triggered, this, [this]() {
-            m_rebase_view->changeActionType(action::ActionType::PICK);
+            m_rebase_view->changeActionType(core::action::ActionType::PICK);
         });
     }
 }
@@ -439,7 +439,7 @@ void App::openRepoCLI(const std::string& path) {
 
     std::string repo_path = path;
     if (!std::filesystem::is_directory(path)) {
-        repo_path = git::repo_path_from_todo(path);
+        repo_path = core::git::repo_path_from_todo(path);
     }
 
     if (!openRepo(repo_path)) {
@@ -462,10 +462,10 @@ bool App::openRepo(const std::string& path) {
 
     state::CommandHistory::Clear();
 
-    git::repository_t new_repo;
+    core::git::repository_t new_repo;
     if (git_repository_open(&new_repo, path.c_str()) != 0) {
 
-        DISPLAY_LIBGIT_ERROR(this, "Failed to open repository", git::get_last_error());
+        DISPLAY_LIBGIT_ERROR(this, "Failed to open repository", core::git::get_last_error());
 
         m_layout->setCurrentIndex(page_welcome);
         return false;
@@ -473,14 +473,15 @@ bool App::openRepo(const std::string& path) {
 
     m_state.set_repo(std::move(new_repo), path);
 
-    std::string head, onto;
-    auto err = git::get_rebase_info(path, head, onto);
+    std::string head;
+    std::string onto;
+    auto err = core::git::get_rebase_info(path, head, onto);
 
     m_state.set_rebase(head, onto);
 
     if (err.has_value()) {
 
-        if (err->type == git::RebaseInfoError::NotFound) {
+        if (err->type == core::git::RebaseInfoError::NotFound) {
             m_layout->setCurrentIndex(page_rebase_select);
 
             if (!prepareRebaseSelection()) {
@@ -507,17 +508,17 @@ bool App::openRepo(const std::string& path) {
 
 bool App::loadRebase() {
 
-    auto comment_str = git::get_comment_string(m_state.repo());
+    auto comment_str = core::git::get_comment_string(m_state.repo());
     if (!comment_str.has_value()) {
         DISPLAY_LIBGIT_ERROR(this, "Reading of Git config failed", comment_str.err_message());
         return false;
     }
 
-    auto filepath = m_state.repo_path() + '/' + git::TODO_FILE.c_str();
+    auto filepath = m_state.repo_path() + '/' + core::git::TODO_FILE.c_str();
 
     m_state.set_comment_string(comment_str.value());
 
-    auto res = git::parse_file(filepath, comment_str.value());
+    auto res = core::git::parse_file(filepath, comment_str.value());
     if (res.has_error()) {
         DISPLAY_ERROR(this, "Failed to parse todo file", res.err);
         return false;
@@ -534,7 +535,7 @@ bool App::loadRebase() {
 
 bool App::prepareRebaseSelection() {
 
-    git::branch_iterator_t branch_iter;
+    core::git::branch_iterator_t branch_iter;
 
     if (git_branch_iterator_new(&branch_iter, m_state.repo(), GIT_BRANCH_LOCAL) != 0) {
         return false;
@@ -546,7 +547,7 @@ bool App::prepareRebaseSelection() {
 
     git_reference* branch_raw_ref;
     while (git_branch_next(&branch_raw_ref, &branch_type, branch_iter) == 0) {
-        git::reference_t branch_ref { branch_raw_ref };
+        core::git::reference_t branch_ref { branch_raw_ref };
 
         const char* name;
 
@@ -576,7 +577,7 @@ void App::startNewRebase(QString commit_id) {
         return;
     }
 
-    git::commit_t commit;
+    core::git::commit_t commit;
     if (git_commit_lookup(&commit, m_state.repo(), &oid) != 0) {
         return;
     }
@@ -656,7 +657,7 @@ void App::startNewRebase(QString commit_id) {
     if (!m_git_proc->waitForStarted()) {
         DISPLAY_ERROR(this, "Failed to execute git command", m_git_proc->errorString().toStdString());
 
-        m_git_proc.reset();
+        m_git_proc = nullptr;
         return;
     }
 
@@ -672,14 +673,14 @@ void App::updateRebaseSelection(const std::string& branch) {
     m_rebase_select->clearCommits();
     m_rebase_select->clearMessage();
 
-    git::branch_state_t state = git::check_branch(m_state.repo(), branch.c_str());
+    core::git::branch_state_t state = core::git::check_branch(m_state.repo(), branch.c_str());
     if (state.behind > 0) {
         m_rebase_select->setMessage(
             QString("Warning: branch '%1' is %2 commit(s) behind upstream").arg(branch).arg(state.behind)
         );
     }
 
-    git::iterate_branch_commits(m_state.repo(), branch.c_str(), [this](git_commit* commit) {
+    core::git::iterate_branch_commits(m_state.repo(), branch.c_str(), [this](git_commit* commit) {
         const auto* id     = git_commit_id(commit);
         std::string id_str = git_oid_tostr_s(id);
 
@@ -688,7 +689,7 @@ void App::updateRebaseSelection(const std::string& branch) {
             return;
         }
 
-        std::string name = std::format("[{}]: {}", git::format_oid_to_str(id), summary);
+        std::string name = std::format("[{}]: {}", core::git::format_oid_to_str(id), summary);
 
         m_rebase_select->addCommit(name, id_str);
     });
@@ -745,7 +746,7 @@ void App::loadSaveFile() {
 
     LOG_INFO("Loading: {}", filepath.toStdString());
 
-    git::repository_t repo;
+    core::git::repository_t repo;
     auto save_data = state::State::load(filepath.toStdU32String(), &repo);
     if (!save_data.has_value()) {
         DISPLAY_ERROR(this, "Load save error", "Failed to load save file");
@@ -794,7 +795,7 @@ bool App::saveTodoFile(bool insert_break) {
     const std::string& expected_head = m_state.rebase_head();
     const std::string& expected_onto = m_state.rebase_onto();
 
-    auto err = git::get_rebase_info(m_state.repo_path(), head, onto);
+    auto err = core::git::get_rebase_info(m_state.repo_path(), head, onto);
     if (err.has_value()) {
         DISPLAY_ERROR(
             this,
@@ -824,7 +825,7 @@ bool App::saveTodoFile(bool insert_break) {
         return false;
     }
 
-    auto filepath = m_state.repo_path() + '/' + git::TODO_FILE.c_str();
+    auto filepath = m_state.repo_path() + '/' + core::git::TODO_FILE.c_str();
 
     std::ofstream todo_file(filepath);
     if (!todo_file.good()) {
@@ -836,7 +837,7 @@ bool App::saveTodoFile(bool insert_break) {
 
     LOG_INFO("Saving todo file: {}", filepath);
 
-    bool status = action::Converter::actions_to_todo(todo_file, m_actions, m_conflicts, insert_break);
+    bool status = core::action::Converter::actions_to_todo(todo_file, m_actions, m_conflicts, insert_break);
 
     if (!status) {
         DISPLAY_ERROR(this, "Save error", "Failed to save rebase instructions");

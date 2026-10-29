@@ -8,7 +8,7 @@
 #include <git2/repository.h>
 #include <git2/types.h>
 
-namespace git {
+namespace core::git {
 
 /**
  * @brief Sets the repository HEAD to a detached object and checks it out.

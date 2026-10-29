@@ -28,8 +28,8 @@
 
 namespace gui::widget {
 
-using action::Action;
-using action::ActionType;
+using core::action::Action;
+using core::action::ActionType;
 
 ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action& action)
     : m_action(action)
@@ -40,7 +40,7 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
     m_combo = new QComboBox();
 
     for (auto&& item : items) {
-        m_combo->addItem(action::type_to_str(item), static_cast<int>(item));
+        m_combo->addItem(core::action::type_to_str(item), static_cast<int>(item));
     }
 
     m_combo->setFixedHeight(22);
@@ -101,7 +101,7 @@ ListItem::ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, Action&
             return;
         }
 
-        LOG_INFO("Changing action type: from {} to {}", action::type_to_str(prev_type), action::type_to_str(curr_type));
+        LOG_INFO("Changing action type: from {} to {}", core::action::type_to_str(prev_type), core::action::type_to_str(curr_type));
 
         m_action.set_type(curr_type);
 

@@ -1,13 +1,15 @@
 #include "gui/widget/DiffWidget.h"
 
 #include "App.h"
-#include "conflict/conflict.h"
-#include "conflict/ConflictManager.h"
 #include "core/action/Action.h"
 #include "core/action/ActionsManager.h"
+#include "core/conflict/conflict.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/diff.h"
 #include "core/git/error.h"
 #include "core/git/types.h"
+#include "core/patch/PatchSplitter.h"
+#include "core/patch/split.h"
 #include "gui/clear_layout.h"
 #include "gui/error.h"
 #include "gui/style/DiffStyle.h"
@@ -15,8 +17,6 @@
 #include "gui/widget/DiffEditorLine.h"
 #include "gui/widget/DiffFile.h"
 #include "logging/Log.h"
-#include "patch/PatchSplitter.h"
-#include "patch/split.h"
 #include "state/CommandHistory.h"
 
 #include <cstddef>
@@ -48,14 +48,14 @@
 
 namespace gui::widget {
 
-using git::diff_files_t;
-using git::diff_hunk_t;
-using git::diff_line_t;
-using git::diff_result_t;
+using core::git::diff_files_t;
+using core::git::diff_hunk_t;
+using core::git::diff_line_t;
+using core::git::diff_result_t;
 
-using action::Action;
+using core::action::Action;
 
-DiffWidget::DiffWidget(action::ActionsManager& actions, conflict::ConflictManager& conflicts, QWidget* parent)
+DiffWidget::DiffWidget(core::action::ActionsManager& actions, core::conflict::ConflictManager& conflicts, QWidget* parent)
     : QWidget(parent)
     , m_manager(actions)
     , m_conflicts(conflicts) {
@@ -98,34 +98,34 @@ void DiffWidget::update(git_commit* commit) {
     }
 
     diff_result_t res;
-    git::commit_t parent_commit;
+    core::git::commit_t parent_commit;
     std::uint32_t parents = git_commit_parentcount(commit);
 
     if (parents == 0) {
-        res = git::prepare_diff(nullptr, commit);
+        res = core::git::prepare_diff(nullptr, commit);
     } else if (parents > 1 || git_commit_parent(&parent_commit, commit, 0) != 0) {
         res.state = diff_result_t::FAILED_TO_CREATE_DIFF;
     } else {
-        res = git::prepare_diff(parent_commit, commit);
+        res = core::git::prepare_diff(parent_commit, commit);
     }
 
     update(res, false);
 }
 
-void DiffWidget::update(git::diff_result_t& res, bool editable) {
+void DiffWidget::update(core::git::diff_result_t& res, bool editable) {
     switch (res.state) {
     case diff_result_t::FAILED_TO_RETRIEVE_TREE:
-        DISPLAY_LIBGIT_ERROR(this, "Failed to retrieve tree from commit", git::get_last_error());
+        DISPLAY_LIBGIT_ERROR(this, "Failed to retrieve tree from commit", core::git::get_last_error());
         return;
 
     case diff_result_t::FAILED_TO_CREATE_DIFF:
-        DISPLAY_LIBGIT_ERROR(this, "Failed to create diff", git::get_last_error());
+        DISPLAY_LIBGIT_ERROR(this, "Failed to create diff", core::git::get_last_error());
         return;
     case diff_result_t::OK:
         break;
     }
 
-    m_diffs = git::create_diff(res.diff);
+    m_diffs = core::git::create_diff(res.diff);
     for (std::size_t i = 0; i < m_diffs.size(); ++i) {
         if (i != 0) {
             auto* line = new QFrame(this);
@@ -141,7 +141,7 @@ void DiffWidget::update(git::diff_result_t& res, bool editable) {
 }
 
 void DiffWidget::update(Action* action) {
-    using conflict::ConflictStatus;
+    using core::conflict::ConflictStatus;
     clear();
     m_action = action;
 
@@ -156,12 +156,12 @@ void DiffWidget::update(Action* action) {
         git_commit* root_commit = m_manager.get_root_commit();
         git_repository* repo    = git_commit_owner(root_commit);
 
-        git::tree_t root_tree;
+        core::git::tree_t root_tree;
         if (git_commit_tree(&root_tree, root_commit) != 0) {
-            DISPLAY_LIBGIT_ERROR(this, "failed to retrieve tree from commit", git::get_last_error());
+            DISPLAY_LIBGIT_ERROR(this, "failed to retrieve tree from commit", core::git::get_last_error());
             return;
         }
-        res = git::prepare_diff(root_tree.get(), action->get_tree(), repo);
+        res = core::git::prepare_diff(root_tree.get(), action->get_tree(), repo);
 
     } else {
         switch (parent->get_tree_status()) {
@@ -183,12 +183,12 @@ void DiffWidget::update(Action* action) {
         case ConflictStatus::UNKNOWN:
         case ConflictStatus::ERR:
         case ConflictStatus::HAS_CONFLICT:
-            res = git::prepare_resolution_diff(parent->get_tree(), action->get_commit(), m_conflicts);
+            res = core::git::prepare_resolution_diff(parent->get_tree(), action->get_commit(), m_conflicts);
             break;
         case ConflictStatus::NO_CONFLICT:
         case ConflictStatus::RESOLVED_CONFLICT: {
             assert(act_tree != nullptr);
-            res = git::prepare_resolution_diff(parent->get_tree(), action, m_conflicts);
+            res = core::git::prepare_resolution_diff(parent->get_tree(), action, m_conflicts);
             break;
         }
         }
@@ -248,7 +248,7 @@ void DiffWidget::createFileDiff(const diff_files_t& diff, bool editable) {
         return;
     }
 
-    file_diff->setDiff(git::diff_header(diff));
+    file_diff->setDiff(core::git::diff_header(diff));
     file_diff->setHeader(header);
 
     std::vector<section_t> sections;
@@ -351,12 +351,12 @@ void DiffWidget::addLineDiff(
 }
 
 void DiffWidget::splitCommitEvent() {
-    using FileState = patch::PatchSplitter::FileState;
+    using FileState = core::patch::PatchSplitter::FileState;
 
     std::string patch_text;
 
     {
-        patch::PatchSplitter splitter;
+        core::patch::PatchSplitter splitter;
 
         for (auto&& file : m_files) {
             const DiffEditor* editor = file->getEditor();
@@ -395,18 +395,18 @@ void DiffWidget::splitCommitEvent() {
         patch_text = splitter.get_patch();
     }
 
-    git::diff_t diff;
+    core::git::diff_t diff;
 
     int state = git_diff_from_buffer(&diff, patch_text.c_str(), patch_text.size());
     if (state != 0) {
-        DISPLAY_LIBGIT_ERROR(this, "Failed to create diff", git::get_last_error());
+        DISPLAY_LIBGIT_ERROR(this, "Failed to create diff", core::git::get_last_error());
         return;
     }
 
-    git::commit_t first_commit;
-    git::commit_t second_commit;
+    core::git::commit_t first_commit;
+    core::git::commit_t second_commit;
 
-    patch::SplitError err = patch::split(first_commit, second_commit, m_manager, m_action, diff);
+    core::patch::SplitError err = core::patch::split(first_commit, second_commit, m_manager, m_action, diff);
     if (err.has_error()) {
         DISPLAY_LIBGIT_ERROR(this, "Failed to create split", std::format("{}: {}.", err.title, err.message));
         return;

@@ -26,9 +26,9 @@ public:
     [[nodiscard]] Result<std::optional<RebaseInfo>> rebase_info() const;
 
 private:
-    RepoSession(::git::repository_t&& repo, std::string path, std::string comment_str);
+    RepoSession(git::repository_t&& repo, std::string path, std::string comment_str);
 
-    ::git::repository_t m_repo;
+    git::repository_t m_repo;
     std::string m_path;
     std::string m_comment_str;
 };

@@ -24,7 +24,7 @@ public:
     static constexpr const char* NOT_SELECTED_PREFIX = "\uf1db ";
     static constexpr const char* SELECTED_PREFIX     = "\uf192 ";
 
-    DiffFile(const git::diff_files_t& diff, QWidget* parent = nullptr)
+    DiffFile(const core::git::diff_files_t& diff, QWidget* parent = nullptr)
         : QWidget(parent) {
         using style::GlobalStyle;
 
@@ -83,9 +83,9 @@ public:
 
     void setHeader(const QString& filepath) { m_label->setText(NOT_SELECTED_PREFIX + filepath); }
 
-    void setDiff(git::diff_files_header_t diff) { m_diff = std::move(diff); }
+    void setDiff(core::git::diff_files_header_t diff) { m_diff = std::move(diff); }
 
-    [[nodiscard]] const git::diff_files_header_t& getDiff() const { return m_diff; }
+    [[nodiscard]] const core::git::diff_files_header_t& getDiff() const { return m_diff; }
 
     DiffEditor* getEditor() { return m_editor; }
 
@@ -95,7 +95,7 @@ private:
     QVBoxLayout* m_layout;
     QLabel* m_label;
     DiffEditor* m_editor;
-    git::diff_files_header_t m_diff;
+    core::git::diff_files_header_t m_diff;
     bool m_selected = false;
 };
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "conflict/ConflictManager.h"
 #include "core/action/Action.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/diff.h"
 #include "core/git/types.h"
 #include "gui/style/DiffStyle.h"
@@ -25,27 +25,27 @@ namespace gui::widget {
 
 class DiffWidget : public QWidget {
 public:
-    DiffWidget(action::ActionsManager& actions, conflict::ConflictManager& conflicts, QWidget* parent = nullptr);
+    DiffWidget(core::action::ActionsManager& actions, core::conflict::ConflictManager& conflicts, QWidget* parent = nullptr);
     ~DiffWidget() override = default;
 
-    void update(action::Action* act);
+    void update(core::action::Action* act);
     void update(git_commit* commit);
-    void update(git::diff_result_t& res, bool editable);
+    void update(core::git::diff_result_t& res, bool editable);
 
     void clear();
 
-    [[nodiscard]] const std::vector<git::diff_files_t>& getDiffs() const { return m_diffs; }
+    [[nodiscard]] const std::vector<core::git::diff_files_t>& getDiffs() const { return m_diffs; }
 
     DiffFile* getDiffFile(std::size_t i) { return m_files[i]; }
 
     void ensureEditorVisible(DiffFile* file);
 
 private:
-    action::Action* m_action = nullptr;
-    action::ActionsManager& m_manager;
-    conflict::ConflictManager& m_conflicts;
+    core::action::Action* m_action = nullptr;
+    core::action::ActionsManager& m_manager;
+    core::conflict::ConflictManager& m_conflicts;
 
-    std::vector<git::diff_files_t> m_diffs;
+    std::vector<core::git::diff_files_t> m_diffs;
     std::vector<DiffFile*> m_files;
     QVBoxLayout* m_scroll_layout;
     QVBoxLayout* m_layout;
@@ -61,12 +61,12 @@ private:
         QTextBlock block;
     };
 
-    void createFileDiff(const git::diff_files_t& diff, bool editable);
-    void addHunkDiff(const git::diff_hunk_t& hunk, std::vector<section_t>& sections);
+    void createFileDiff(const core::git::diff_files_t& diff, bool editable);
+    void addHunkDiff(const core::git::diff_hunk_t& hunk, std::vector<section_t>& sections);
     void addLineDiff(
         QTextCursor& cursor,
-        const git::diff_hunk_t& hunk,
-        const git::diff_line_t& line,
+        const core::git::diff_hunk_t& hunk,
+        const core::git::diff_line_t& line,
         std::vector<section_t>& sections
     );
 
@@ -76,7 +76,7 @@ private:
 class CommitSplitCommand : public state::Command {
 public:
     CommitSplitCommand(
-        std::size_t index, git::commit_t&& first, git::commit_t&& second, action::ActionsManager& manager
+        std::size_t index, core::git::commit_t&& first, core::git::commit_t&& second, core::action::ActionsManager& manager
     )
         : m_index(index)
         , m_split(std::move(first), std::move(second))
@@ -89,9 +89,9 @@ public:
 
 private:
     std::size_t m_index;
-    std::pair<git::commit_t, git::commit_t> m_split;
-    git::commit_t m_commit;
-    action::ActionsManager& m_manager;
+    std::pair<core::git::commit_t, core::git::commit_t> m_split;
+    core::git::commit_t m_commit;
+    core::action::ActionsManager& m_manager;
 };
 
 }

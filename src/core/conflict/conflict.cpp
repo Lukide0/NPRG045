@@ -1,8 +1,8 @@
-#include "conflict/conflict.h"
+#include "core/conflict/conflict.h"
 
-#include "conflict/ConflictManager.h"
 #include "core/action/Action.h"
 #include "core/action/ActionsManager.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/error.h"
 #include "core/git/types.h"
 
@@ -30,7 +30,7 @@
 #include <git2/strarray.h>
 #include <git2/types.h>
 
-namespace conflict {
+namespace core::conflict {
 
 using Result = std::pair<ConflictStatus, git::index_t>;
 
@@ -44,7 +44,7 @@ Result drop_check(git_tree* onto_tree) {
     return { ConflictStatus::NO_CONFLICT, std::move(index) };
 }
 
-Result pick_check(git_commit* commit, git_tree* onto_tree) {
+Result pick_check(const git_commit* commit, const git_tree* onto_tree) {
     git::index_t index;
     git::tree_t act_tree;
     git::tree_t ancestor_tree;

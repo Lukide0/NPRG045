@@ -5,7 +5,7 @@
 #include <git2/types.h>
 #include <string>
 
-namespace git {
+namespace core::git {
 
 struct BestMatch {
     std::string value;

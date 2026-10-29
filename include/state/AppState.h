@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/action/Action.h"
-#include "conflict/ConflictManager.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/types.h"
 #include <git2/oid.h>
 #include <git2/types.h>
@@ -14,7 +14,7 @@ class AppState {
 public:
     class Conflict {
     public:
-        void set_conflict(action::Action* act, git::index_t&& index) {
+        void set_conflict(core::action::Action* act, core::git::index_t&& index) {
             m_action = act;
             m_index  = std::move(index);
         }
@@ -36,7 +36,7 @@ public:
             m_conflict_files.clear();
         }
 
-        void add(const std::string& path, const conflict::ConflictEntry& entry) {
+        void add(const std::string& path, const core::conflict::ConflictEntry& entry) {
             m_conflict_paths.push_back(path);
             m_conflict_entries.push_back(entry);
         }
@@ -45,11 +45,11 @@ public:
 
         git_index* index() { return m_index; }
 
-        [[nodiscard]] const action::Action* action() const { return m_action; }
+        [[nodiscard]] const core::action::Action* action() const { return m_action; }
 
-        action::Action* action() { return m_action; }
+        core::action::Action* action() { return m_action; }
 
-        [[nodiscard]] action::Action* parent_action() {
+        [[nodiscard]] core::action::Action* parent_action() {
             if (m_action != nullptr) {
                 return m_action->get_prev();
             } else {
@@ -67,16 +67,16 @@ public:
 
     private:
         bool m_resolving         = false;
-        action::Action* m_action = nullptr;
-        git::index_t m_index;
+        core::action::Action* m_action = nullptr;
+        core::git::index_t m_index;
 
         std::vector<std::string> m_conflict_paths;
-        std::vector<conflict::ConflictEntry> m_conflict_entries;
+        std::vector<core::conflict::ConflictEntry> m_conflict_entries;
         std::vector<git_oid> m_conflict_files;
     };
 
     struct Repo {
-        git::repository_t repo;
+        core::git::repository_t repo;
 
         std::string path;
         std::string rebase_head;
@@ -86,7 +86,7 @@ public:
 
     AppState() = default;
 
-    void set_repo(git::repository_t&& repo, const std::string& path) {
+    void set_repo(core::git::repository_t&& repo, const std::string& path) {
         m_repo.repo = std::move(repo);
         m_repo.path = path;
     }

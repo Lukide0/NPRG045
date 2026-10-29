@@ -19,7 +19,7 @@ class DiffEditorLineData;
 class DiffEditor : public QPlainTextEdit {
     Q_OBJECT
 public:
-    DiffEditor(const git::diff_files_t& diff, QWidget* parent = nullptr);
+    DiffEditor(const core::git::diff_files_t& diff, QWidget* parent = nullptr);
 
     void diffLinePaintEvent(QPaintEvent* event);
     int diffLineWidth();
@@ -43,7 +43,7 @@ private:
         DESELECT,
     };
 
-    QTextBlock blockAtContextMenuPoint() const;
+    [[nodiscard]] QTextBlock blockAtContextMenuPoint() const;
 
     void selectLine(SelectionType type);
 
@@ -70,7 +70,7 @@ private:
     [[nodiscard]] bool selectOnlyFile() const;
 
 private:
-    const git::diff_files_t& m_diff;
+    const core::git::diff_files_t& m_diff;
 
     DiffEditorLine* m_line;
     bool m_context_menu           = false;

@@ -1,8 +1,8 @@
 #include "state/State.h"
 
-#include "conflict/ConflictManager.h"
 #include "core/action/Action.h"
 #include "core/action/ActionsManager.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/types.h"
 #include "state/AppState.h"
 
@@ -27,6 +27,7 @@
 #include <QTextStream>
 
 namespace state {
+using core::git::OID_SIZE;
 
 constexpr const char* ROOT_NODE             = "save_data";
 constexpr const char* ROOT_COMMIT           = "root";
@@ -62,12 +63,14 @@ void save_message(const QString& msg, QDomDocument& doc, QDomElement& action) {
     }
 }
 
-void save_actions(const action::ActionsManager& manager, QDomElement& root, QDomDocument& doc) {
+void save_actions(const core::action::ActionsManager& manager, QDomElement& root, QDomDocument& doc) {
 
     auto* cmt = manager.get_root_commit();
 
     QDomElement root_commit = doc.createElement(ROOT_COMMIT);
-    root_commit.setAttribute("hash", QString::fromStdString(git::format_oid_to_str<git::OID_SIZE>(git_commit_id(cmt))));
+    root_commit.setAttribute(
+        "hash", QString::fromStdString(core::git::format_oid_to_str<OID_SIZE>(git_commit_id(cmt)))
+    );
     root.appendChild(root_commit);
 
     QDomElement actions = doc.createElement(ACTIONS_NODE);
@@ -76,25 +79,25 @@ void save_actions(const action::ActionsManager& manager, QDomElement& root, QDom
         QDomElement action = doc.createElement(ACTION_NODE);
 
         const git_oid& id = act.get_oid();
-        action.setAttribute("hash", QString::fromStdString(git::format_oid_to_str<git::OID_SIZE>(&id)));
+        action.setAttribute("hash", QString::fromStdString(core::git::format_oid_to_str<core::git::OID_SIZE>(&id)));
 
         switch (act.get_type()) {
-        case action::ActionType::PICK:
+        case core::action::ActionType::PICK:
             action.setAttribute("type", "pick");
             break;
-        case action::ActionType::SQUASH:
+        case core::action::ActionType::SQUASH:
             action.setAttribute("type", "squash");
             break;
-        case action::ActionType::FIXUP:
+        case core::action::ActionType::FIXUP:
             action.setAttribute("type", "fixup");
             break;
-        case action::ActionType::REWORD:
+        case core::action::ActionType::REWORD:
             action.setAttribute("type", "reword");
             break;
-        case action::ActionType::EDIT:
+        case core::action::ActionType::EDIT:
             action.setAttribute("type", "edit");
             break;
-        case action::ActionType::DROP:
+        case core::action::ActionType::DROP:
             action.setAttribute("type", "drop");
             break;
         }
@@ -119,7 +122,7 @@ bool load_actions(QDomElement& root, SaveData& save_data, git_repository* repo) 
 
     auto root_commit_hash = root_commit.attribute("hash").toStdString();
 
-    if (!git::get_commit_from_hash(save_data.root, root_commit_hash.c_str(), repo)) {
+    if (!core::git::get_commit_from_hash(save_data.root, root_commit_hash.c_str(), repo)) {
         return false;
     }
 
@@ -136,20 +139,20 @@ bool load_actions(QDomElement& root, SaveData& save_data, git_repository* repo) 
         QDomElement el = node.toElement();
 
         QString type_str = el.attribute("type");
-        action::ActionType type;
+        core::action::ActionType type;
 
         if (type_str == "pick") {
-            type = action::ActionType::PICK;
+            type = core::action::ActionType::PICK;
         } else if (type_str == "edit") {
-            type = action::ActionType::EDIT;
+            type = core::action::ActionType::EDIT;
         } else if (type_str == "drop") {
-            type = action::ActionType::DROP;
+            type = core::action::ActionType::DROP;
         } else if (type_str == "fixup") {
-            type = action::ActionType::FIXUP;
+            type = core::action::ActionType::FIXUP;
         } else if (type_str == "reword") {
-            type = action::ActionType::REWORD;
+            type = core::action::ActionType::REWORD;
         } else if (type_str == "squash") {
-            type = action::ActionType::SQUASH;
+            type = core::action::ActionType::SQUASH;
         } else {
             return false;
         }
@@ -159,20 +162,20 @@ bool load_actions(QDomElement& root, SaveData& save_data, git_repository* repo) 
             return false;
         }
 
-        git::commit_t action_commit;
-        if (!git::get_commit_from_hash(action_commit, hash.c_str(), repo)) {
+        core::git::commit_t action_commit;
+        if (!core::git::get_commit_from_hash(action_commit, hash.c_str(), repo)) {
             return false;
         }
 
         auto msg = load_message(el);
 
-        save_data.actions.emplace_back(action::Action(type, std::move(action_commit)), msg);
+        save_data.actions.emplace_back(core::action::Action(type, std::move(action_commit)), msg);
     }
 
     return true;
 }
 
-void save_conflicts(const conflict::ConflictManager& manager, QDomElement& root, QDomDocument& doc) {
+void save_conflicts(const core::conflict::ConflictManager& manager, QDomElement& root, QDomDocument& doc) {
 
     QDomElement conflicts = doc.createElement(CONFLICTS_NODE);
 
@@ -196,7 +199,9 @@ void save_conflicts(const conflict::ConflictManager& manager, QDomElement& root,
 
         commits.setAttribute("parent_tree", QString::fromStdString(conflict.parent_tree_id));
         commits.setAttribute("commit", QString::fromStdString(conflict.commit_id));
-        commits.setAttribute("tree", QString::fromStdString(git::format_oid_to_str<git::OID_SIZE>(tree_id)));
+        commits.setAttribute(
+            "tree", QString::fromStdString(core::git::format_oid_to_str<core::git::OID_SIZE>(tree_id))
+        );
 
         conflict_commits.appendChild(commits);
     }
@@ -216,7 +221,7 @@ void load_conflicts(QDomElement& root, SaveData& save_data, git_repository* repo
 
         QDomElement conflict = node.toElement();
 
-        conflict::ConflictEntry entry;
+        core::conflict::ConflictEntry entry;
         entry.their_id    = conflict.attribute("their").toStdString();
         entry.our_id      = conflict.attribute("our").toStdString();
         entry.ancestor_id = conflict.attribute("ancestor").toStdString();
@@ -236,7 +241,7 @@ void load_conflicts(QDomElement& root, SaveData& save_data, git_repository* repo
 
         QDomElement commits = node.toElement();
 
-        conflict::ConflictTrees entry;
+        core::conflict::ConflictTrees entry;
         entry.parent_tree_id = commits.attribute("parent_tree").toStdString();
         entry.commit_id      = commits.attribute("commit").toStdString();
 
@@ -247,7 +252,7 @@ void load_conflicts(QDomElement& root, SaveData& save_data, git_repository* repo
             continue;
         }
 
-        git::tree_t tree;
+        core::git::tree_t tree;
         if (git_tree_lookup(&tree, repo, &oid) != 0) {
             continue;
         }
@@ -259,8 +264,8 @@ void load_conflicts(QDomElement& root, SaveData& save_data, git_repository* repo
 bool State::save(
     const std::filesystem::path& path,
     const AppState& state,
-    const action::ActionsManager& actions,
-    const conflict::ConflictManager& conflicts
+    const core::action::ActionsManager& actions,
+    const core::conflict::ConflictManager& conflicts
 ) {
 
     QDomDocument doc;

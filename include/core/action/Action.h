@@ -1,22 +1,19 @@
 #pragma once
 
-#include "conflict/conflict.h"
+#include "core/conflict/conflict.h"
 #include "core/git/types.h"
-#include "utils/optional_uint.h"
-#include "utils/todo.h"
-#include "utils/unexpected.h"
 
 #include <array>
 #include <cassert>
 #include <optional>
 #include <string>
-#include <utility>
 
 #include <git2/commit.h>
 #include <git2/oid.h>
 #include <git2/types.h>
+#include <utility>
 
-namespace action {
+namespace core::action {
 
 class ActionsManager;
 
@@ -60,7 +57,7 @@ static constexpr const char* type_to_str(ActionType type) {
         return "edit";
     }
 
-    UNEXPECTED("Unknown action type");
+    std::unreachable();
 }
 
 /**

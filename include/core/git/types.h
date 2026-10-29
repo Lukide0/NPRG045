@@ -9,6 +9,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -33,7 +34,7 @@
 #include <git2/tree.h>
 #include <git2/types.h>
 
-namespace git {
+namespace core::git {
 
 /**
  * @brief Size of a Git OID string representation.
@@ -50,15 +51,15 @@ template <typename T> using destructor_t = void (*)(T*);
  */
 template <typename T, destructor_t<T> Destructor> class ptr_object_t {
 public:
+    static constexpr auto destructor = Destructor;
+
     ptr_object_t() = default;
 
     explicit ptr_object_t(T* ptr)
         : m_obj(ptr) { }
 
     ptr_object_t(ptr_object_t&& other)
-        : m_obj(other.m_obj) {
-        other.m_obj = nullptr;
-    }
+        : m_obj(std::exchange(other.m_obj, nullptr)) { }
 
     ptr_object_t& operator=(ptr_object_t&& other) {
         std::swap(m_obj, other.m_obj);
@@ -107,6 +108,50 @@ public:
 private:
     T* m_obj = nullptr;
 };
+
+namespace detail {
+
+    template <typename T> struct shared_ptr_helper;
+
+    template <typename T, auto Destructor> struct shared_ptr_helper<ptr_object_t<T, Destructor>> {
+        using type                       = T;
+        static constexpr auto destructor = Destructor;
+    };
+
+    template <typename T>
+    concept ptr_object = requires { typename shared_ptr_helper<std::remove_cvref_t<T>>::type; };
+
+}
+
+template <detail::ptr_object T>
+using shared_ptr_object_t = std::shared_ptr<typename detail::shared_ptr_helper<std::remove_cvref_t<T>>::type>;
+
+template <detail::ptr_object T>
+[[nodiscard]]
+shared_ptr_object_t<T> make_shared_ptr_object(typename detail::shared_ptr_helper<std::remove_cvref_t<T>>::type* ptr) {
+    using helper = detail::shared_ptr_helper<std::remove_cvref_t<T>>;
+
+    if (ptr == nullptr) {
+        return { };
+    }
+
+    return shared_ptr_object_t<T>(ptr, helper::destructor);
+}
+
+template <detail::ptr_object T>
+[[nodiscard]]
+shared_ptr_object_t<T> make_shared_ptr_object(T&& object)
+    requires(!std::is_lvalue_reference_v<T> && !std::is_const_v<T>)
+{
+    using helper = detail::shared_ptr_helper<std::remove_cvref_t<T>>;
+    auto* ptr    = object.release();
+
+    if (ptr == nullptr) {
+        return { };
+    }
+
+    return shared_ptr_object_t<T> { ptr, helper::destructor };
+}
 
 /**
  * @brief Value-owning wrapper for Git-related objects.
@@ -202,7 +247,6 @@ private:
  * @return True if lookup succeeded.
  */
 inline bool get_commit_from_hash(commit_t& out_commit, const char* hash, git_repository* repo) {
-
     git_object* obj = nullptr;
     if (git_revparse_single(&obj, repo, hash) != 0) {
         return false;

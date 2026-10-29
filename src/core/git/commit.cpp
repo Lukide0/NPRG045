@@ -16,7 +16,7 @@
 #include <git2/types.h>
 #include <string>
 
-namespace git {
+namespace core::git {
 
 bool create_commit(
     git_oid* out_oid,

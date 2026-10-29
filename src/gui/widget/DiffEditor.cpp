@@ -24,9 +24,9 @@
 
 namespace gui::widget {
 
-using git::diff_line_t;
+using core::git::diff_line_t;
 
-DiffEditor::DiffEditor(const git::diff_files_t& diff, QWidget* parent)
+DiffEditor::DiffEditor(const core::git::diff_files_t& diff, QWidget* parent)
     : QPlainTextEdit(parent)
     , m_diff(diff) {
 
@@ -137,7 +137,7 @@ void DiffEditor::onSelectionChanged() {
 }
 
 bool DiffEditor::selectOnlyFile() const {
-    using State = git::diff_files_t::State;
+    using State = core::git::diff_files_t::State;
     switch (m_diff.state) {
     case State::DELETED:
     case State::MOVED:
@@ -149,7 +149,7 @@ bool DiffEditor::selectOnlyFile() const {
 }
 
 void DiffEditor::contextMenuEvent(QContextMenuEvent* event) {
-    using State = git::diff_files_t::State;
+    using State = core::git::diff_files_t::State;
 
     bool show_context_menu = m_context_menu;
 

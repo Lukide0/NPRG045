@@ -1,7 +1,7 @@
 #pragma once
 
-#include "conflict/ConflictManager.h"
 #include "core/action/Action.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/types.h"
 #include "state/AppState.h"
 
@@ -19,10 +19,10 @@ namespace state {
  * @brief Serializable application state.
  */
 struct SaveData {
-    std::vector<std::pair<action::Action, std::string>> actions;
-    std::vector<std::pair<conflict::ConflictEntry, std::string>> conflicts;
-    std::vector<std::pair<conflict::ConflictTrees, git::tree_t>> conflict_trees;
-    git::commit_t root;
+    std::vector<std::pair<core::action::Action, std::string>> actions;
+    std::vector<std::pair<core::conflict::ConflictEntry, std::string>> conflicts;
+    std::vector<std::pair<core::conflict::ConflictTrees, core::git::tree_t>> conflict_trees;
+    core::git::commit_t root;
 
     std::string repo_path;
     std::string head;
@@ -47,8 +47,8 @@ public:
     static bool save(
         const std::filesystem::path& path,
         const AppState& state,
-        const action::ActionsManager& actions,
-        const conflict::ConflictManager& conflicts
+        const core::action::ActionsManager& actions,
+        const core::conflict::ConflictManager& conflicts
     );
 
     /**

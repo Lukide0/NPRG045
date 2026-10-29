@@ -12,7 +12,6 @@
 #include "gui/widget/graph/Node.h"
 #include "gui/widget/NamedListWidget.h"
 #include "gui/widget/SLabel.h"
-#include "utils/unexpected.h"
 
 #include <git2/commit.h>
 #include <git2/diff.h>
@@ -38,12 +37,12 @@
 
 namespace gui::widget {
 
-using action::Action;
-using git::diff_files_t;
-using git::diff_line_t;
-using git::GitGraph;
+using core::action::Action;
+using core::git::diff_files_t;
+using core::git::diff_line_t;
+using core::git::GitGraph;
 
-CommitViewWidget::CommitViewWidget(action::ActionsManager& actions, DiffWidget* diff)
+CommitViewWidget::CommitViewWidget(core::action::ActionsManager& actions, DiffWidget* diff)
     : m_manager(actions)
     , m_diff(diff) {
 
@@ -103,7 +102,7 @@ void CommitViewWidget::createRows() {
         m_msg->setAction(m_action, state.repo_comment_string());
     }
 
-    std::string hash = git::format_oid_to_str<GIT_OID_MAX_HEXSIZE>(git_commit_id(m_commit));
+    std::string hash = core::git::format_oid_to_str<core::git::OID_SIZE>(git_commit_id(m_commit));
 
     const git_signature* autor   = git_commit_author(m_commit);
     const git_time_t commit_time = git_commit_time(m_commit);
@@ -153,7 +152,7 @@ void CommitViewWidget::prepareDiff() {
         case diff_files_t::State::CONFLICTED:
         case diff_files_t::State::IGNORED:
         case diff_files_t::State::TYPECHANGE:
-            UNEXPECTED("Unexpected state");
+            std::unreachable();
 
         case diff_files_t::State::ADDED:
             item_text += "New ";
@@ -195,7 +194,7 @@ void CommitViewWidget::update(Node* node) {
     }
 }
 
-void CommitViewWidget::update(Node* node, action::Action* act) {
+void CommitViewWidget::update(Node* node, core::action::Action* act) {
     m_node   = node;
     m_action = act;
 
@@ -213,7 +212,7 @@ void CommitViewWidget::update(Node* node, action::Action* act) {
     updateInfo();
 }
 
-void CommitViewWidget::update(Node* node, git::diff_result_t& diff) {
+void CommitViewWidget::update(Node* node, core::git::diff_result_t& diff) {
     m_node   = node;
     m_action = nullptr;
     m_commit = nullptr;

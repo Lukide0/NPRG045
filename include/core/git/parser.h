@@ -7,7 +7,7 @@
 #include <string_view>
 #include <vector>
 
-namespace git {
+namespace core::git {
 
 /**
  * @brief Type of rebase command.

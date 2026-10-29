@@ -1,6 +1,6 @@
 #pragma once
 
-#include "conflict/ConflictManager.h"
+#include "core/conflict/ConflictManager.h"
 #include "gui/model/ConflictTreeModel.h"
 
 #include <cstdint>
@@ -40,7 +40,7 @@ public:
     void clearConflicts();
 
 signals:
-    void resolveRequested(const QString& path, const conflict::ConflictEntry& entry);
+    void resolveRequested(const QString& path, const core::conflict::ConflictEntry& entry);
 
 private:
     model::ConflictTreeModel* m_model;

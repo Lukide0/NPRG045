@@ -17,9 +17,9 @@ namespace gui::widget {
 
 class CommitMessageWidget : public QWidget {
 public:
-    using Action = action::Action;
+    using Action = core::action::Action;
 
-    CommitMessageWidget(action::ActionsManager& actions, QWidget* parent = nullptr);
+    CommitMessageWidget(core::action::ActionsManager& actions, QWidget* parent = nullptr);
 
     void enableEdit() {
         m_editor->setReadOnly(false);
@@ -57,7 +57,7 @@ private:
 
     Action* m_action = nullptr;
     QString m_filepath;
-    action::ActionsManager& m_manager;
+    core::action::ActionsManager& m_manager;
     std::function<void(const std::string&)> m_handle = nullptr;
 
     void setEditorText(const QString& text) {

@@ -23,10 +23,10 @@
 
 namespace gui::widget {
 
-using action::Action;
-using action::ActionType;
+using core::action::Action;
+using core::action::ActionType;
 
-CommitMessageWidget::CommitMessageWidget(action::ActionsManager& actions, QWidget* parent)
+CommitMessageWidget::CommitMessageWidget(core::action::ActionsManager& actions, QWidget* parent)
     : QWidget(parent)
     , m_manager(actions) {
     m_layout = new QHBoxLayout();
@@ -139,7 +139,7 @@ void CommitMessageWidget::openInEditor() {
         return;
     }
 
-    auto filename = QString::fromStdString(git::format_oid_to_str(&m_action->get_oid()));
+    auto filename = QString::fromStdString(core::git::format_oid_to_str(&m_action->get_oid()));
 
     // already opened
     if (!m_filepath.isEmpty()) {

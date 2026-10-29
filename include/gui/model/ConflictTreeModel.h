@@ -1,5 +1,5 @@
 #pragma once
-#include "conflict/ConflictManager.h"
+#include "core/conflict/ConflictManager.h"
 #include <QAbstractItemModel>
 #include <QHash>
 #include <QObject>
@@ -38,13 +38,13 @@ public:
 
     struct ConflictFile {
         QString path;
-        conflict::ConflictEntry entry;
+        core::conflict::ConflictEntry entry;
     };
 
     explicit ConflictTreeModel(QObject* parent = nullptr);
 
     /// Adds one file and announces it (rowsInserted + counters). Returns false if already present / empty.
-    bool addPath(const QString& fullPath, const conflict::ConflictEntry& entry);
+    bool addPath(const QString& fullPath, const core::conflict::ConflictEntry& entry);
 
     /// Replaces the whole content in one step: a single modelReset and a single countsChanged.
     void setPaths(const QList<ConflictFile>& files);
@@ -72,7 +72,7 @@ public:
      * Returns the ConflictEntry associated with a file.
      * Directory nodes and invalid indexes return std::nullopt.
      */
-    [[nodiscard]] std::optional<conflict::ConflictEntry> entryAt(const QModelIndex& idx) const;
+    [[nodiscard]] std::optional<core::conflict::ConflictEntry> entryAt(const QModelIndex& idx) const;
 
     // --- QAbstractItemModel ---
 
@@ -82,7 +82,7 @@ public:
 
     [[nodiscard]] int rowCount(const QModelIndex& parent = { }) const override;
 
-    [[nodiscard]] int columnCount(const QModelIndex& = { }) const override;
+    [[nodiscard]] int columnCount(const QModelIndex& /*parent*/ = { }) const override;
 
     [[nodiscard]] QVariant data(const QModelIndex& idx, int role) const override;
 
@@ -104,7 +104,7 @@ private:
         Node* parent = nullptr;
 
         // Present for file nodes that represent conflicts.
-        std::optional<conflict::ConflictEntry> conflict_entry;
+        std::optional<core::conflict::ConflictEntry> conflict_entry;
 
         // Cached count of unresolved files in this subtree.
         int unresolved_count = 0;

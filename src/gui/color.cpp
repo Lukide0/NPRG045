@@ -8,7 +8,7 @@
 
 namespace gui {
 
-using git::diff_line_t;
+using core::git::diff_line_t;
 
 style::DiffStyle::Style convert_to_diff_color(diff_line_t::Type type) {
     switch (type) {

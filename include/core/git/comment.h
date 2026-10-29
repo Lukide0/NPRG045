@@ -7,7 +7,7 @@
 #include <string_view>
 #include <utility>
 
-namespace git {
+namespace core::git {
 
 class CommentResult {
 public:

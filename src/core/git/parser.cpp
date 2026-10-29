@@ -12,7 +12,7 @@
 #include <string_view>
 #include <utility>
 
-namespace git {
+namespace core::git {
 
 struct LineResult {
     CmdType type;

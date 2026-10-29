@@ -1,5 +1,5 @@
 #include "gui/model/ConflictTreeModel.h"
-#include "conflict/ConflictManager.h"
+#include "core/conflict/ConflictManager.h"
 
 #include <QAbstractItemModel>
 #include <QList>
@@ -22,7 +22,7 @@ ConflictTreeModel::ConflictTreeModel(QObject* parent)
     : QAbstractItemModel(parent)
     , m_root(std::make_unique<Node>()) { }
 
-bool ConflictTreeModel::addPath(const QString& fullPath, const conflict::ConflictEntry& entry) {
+bool ConflictTreeModel::addPath(const QString& fullPath, const core::conflict::ConflictEntry& entry) {
     Chain chain = makeChain(fullPath);
     if (chain.top == nullptr) {
         return false;
@@ -141,7 +141,7 @@ void ConflictTreeModel::setResolvedFiles(const QStringList& paths) {
     return idx.siblingAtColumn(NameColumn).data(PathRole).toString();
 }
 
-[[nodiscard]] std::optional<conflict::ConflictEntry> ConflictTreeModel::entryAt(const QModelIndex& idx) const {
+[[nodiscard]] std::optional<core::conflict::ConflictEntry> ConflictTreeModel::entryAt(const QModelIndex& idx) const {
 
     if (!idx.isValid() || idx.model() != this) {
         return std::nullopt;

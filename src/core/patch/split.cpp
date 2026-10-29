@@ -1,10 +1,9 @@
-#include "patch/split.h"
+#include "core/patch/split.h"
 
 #include "core/action/Action.h"
 #include "core/action/ActionsManager.h"
 #include "core/git/error.h"
 #include "core/git/types.h"
-#include "logging/Log.h"
 
 #include <cassert>
 
@@ -16,7 +15,7 @@
 #include <git2/tree.h>
 #include <git2/types.h>
 
-namespace patch {
+namespace core::patch {
 
 using action::Action;
 

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "conflict/ConflictManager.h"
 #include "core/action/Action.h"
 #include "core/action/ActionsManager.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/GitGraph.h"
 #include "core/git/parser.h"
 #include "core/git/types.h"
@@ -35,9 +35,11 @@ namespace gui::widget {
 
 class RebaseViewWidget : public QWidget {
 public:
-    RebaseViewWidget(action::ActionsManager& actions, conflict::ConflictManager& conflicts, QWidget* parent = nullptr);
+    RebaseViewWidget(
+        core::action::ActionsManager& actions, core::conflict::ConflictManager& conflicts, QWidget* parent = nullptr
+    );
 
-    std::optional<std::string> update(state::AppState& state, const std::vector<git::CommitAction>& actions);
+    std::optional<std::string> update(state::AppState& state, const std::vector<core::git::CommitAction>& actions);
     std::optional<std::string> update(state::AppState& state);
 
     void updateGraph();
@@ -70,9 +72,9 @@ public:
 
     void changeActionType();
 
-    void changeActionType(action::ActionType type);
+    void changeActionType(core::action::ActionType type);
 
-    void updateConflicts(action::Action* start) {
+    void updateConflicts(core::action::Action* start) {
         updateConflictList(start);
         updateConflictMarkers();
     }
@@ -92,13 +94,13 @@ private:
 
     Node* m_last_node = nullptr;
 
-    git::GitGraph<Node*> m_graph;
-    action::ActionsManager& m_actions;
-    conflict::ConflictManager& m_conflict_manager;
+    core::git::GitGraph<Node*> m_graph;
+    core::action::ActionsManager& m_actions;
+    core::conflict::ConflictManager& m_conflict_manager;
 
     /* GIT */
     git_repository* m_repo;
-    git::reference_t m_head;
+    core::git::reference_t m_head;
     Node* m_root_node;
 
     state::AppState::Conflict* m_conflict = nullptr;
@@ -106,7 +108,7 @@ private:
 private:
     std::optional<std::string> prepareGitGraph(git_repository* repo, const std::string& head, const std::string& onto);
 
-    void prepareItem(ListItem* item, action::Action& action);
+    void prepareItem(ListItem* item, core::action::Action& action);
 
     void prepareActions();
 
@@ -130,11 +132,11 @@ private:
     void changeItemSelection();
     void showConflict(Node* node);
 
-    void updateConflictList(action::Action* start);
+    void updateConflictList(core::action::Action* start);
 
     void updateConflictMarkers();
 
-    ListItem::ConflictStatus updateConflictAction(action::Action* act, action::Action* parent_act);
+    core::conflict::ConflictStatus updateConflictAction(core::action::Action* act, core::action::Action* parent_act);
 
     void checkoutAndResolve();
 

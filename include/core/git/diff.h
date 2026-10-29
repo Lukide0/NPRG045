@@ -1,10 +1,11 @@
 #pragma once
 
-#include "conflict/ConflictManager.h"
 #include "core/action/Action.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/types.h"
 
 #include <cstdint>
+#include <git2/index.h>
 #include <optional>
 #include <string>
 #include <vector>
@@ -13,7 +14,7 @@
 #include <git2/oid.h>
 #include <git2/types.h>
 
-namespace git {
+namespace core::git {
 
 /**
  * @brief Result of a diff preparation operation.

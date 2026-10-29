@@ -11,7 +11,7 @@
 #include <git2/oid.h>
 #include <git2/types.h>
 
-namespace action {
+namespace core::action {
 
 /**
  * @brief Concept that restricts types to Action.
@@ -69,6 +69,7 @@ public:
         : m_head(std::exchange(other.m_head, nullptr))
         , m_tail(std::exchange(other.m_tail, nullptr))
         , m_root_commit(std::exchange(other.m_root_commit, nullptr))
+        , m_size(std::exchange(other.m_size, 0))
 
     { }
 
@@ -103,7 +104,7 @@ public:
      * @param from Source index.
      * @param to Destination index.
      *
-     * @return Neighboring action after move.
+     * @return The last unaffected action after move.
      */
     Action* move(std::uint32_t from, std::uint32_t to);
 
@@ -168,7 +169,7 @@ public:
     /**
      * @brief Gets parent commit of an action.
      */
-    git_commit* get_parent_commit(Action* act);
+    git_commit* get_parent_commit(Action* act) const;
 
     /**
      * @brief Gets nearest picked parent action.
@@ -187,11 +188,14 @@ public:
      */
     std::uint32_t get_action_index(Action* find);
 
+    [[nodiscard]] std::size_t size() const { return m_size; }
+
 private:
     Action* m_head = nullptr;
     Action* m_tail = nullptr;
 
     git_commit* m_root_commit = nullptr;
+    std::size_t m_size        = 0;
 };
 
 template <action_type Act> Action& ActionsManager::append(Act&& action) {
@@ -204,6 +208,7 @@ template <action_type Act> Action& ActionsManager::append(Act&& action) {
         m_head = ptr;
     }
     m_tail = ptr;
+    m_size += 1;
 
     return *ptr;
 }

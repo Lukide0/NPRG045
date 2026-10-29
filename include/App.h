@@ -1,7 +1,7 @@
 #pragma once
 
-#include "conflict/ConflictManager.h"
 #include "core/action/Action.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/types.h"
 #include "gui/widget/RebaseSelectionWidget.h"
 #include "gui/widget/RebaseViewWidget.h"
@@ -96,7 +96,7 @@ public:
      *
      * @details If @c start is @c nullptr, the update begins from the first action.
      */
-    static void updateConflicts(action::Action* start = nullptr);
+    static void updateConflicts(core::action::Action* start = nullptr);
 
     /**
      * @brief Returns the rebase view widget.
@@ -170,8 +170,8 @@ private:
     static constexpr int page_rebase_select = 2;
 
     state::AppState m_state;
-    action::ActionsManager m_actions;
-    conflict::ConflictManager m_conflicts;
+    core::action::ActionsManager m_actions;
+    core::conflict::ConflictManager m_conflicts;
 
     std::optional<QString> m_save_file;
 

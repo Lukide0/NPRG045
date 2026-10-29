@@ -17,7 +17,7 @@
 #include <git2/revwalk.h>
 #include <git2/types.h>
 
-namespace git {
+namespace core::git {
 
 /**
  * @brief Node inside a Git graph.

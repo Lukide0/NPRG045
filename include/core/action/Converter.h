@@ -1,12 +1,12 @@
 #pragma once
 
-#include "Action.h"
-#include "ActionsManager.h"
-#include "conflict/ConflictManager.h"
+#include "core/action/Action.h"
+#include "core/action/ActionsManager.h"
+#include "core/conflict/ConflictManager.h"
 
 #include <ostream>
 
-namespace action {
+namespace core::action {
 
 /**
  * @brief Converts actions into a Git todo format and writes them to an output stream.

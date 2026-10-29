@@ -1,4 +1,4 @@
-#include "patch/PatchSplitter.h"
+#include "core/patch/PatchSplitter.h"
 
 #include "core/git/diff.h"
 #include "core/git/types.h"
@@ -9,7 +9,7 @@
 #include <QMessageBox>
 #include <QString>
 
-namespace patch {
+namespace core::patch {
 
 using git::diff_files_header_t;
 using git::diff_files_t;

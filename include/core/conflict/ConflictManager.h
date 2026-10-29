@@ -1,6 +1,6 @@
 #pragma once
 
-#include "conflict/conflict_iterator.h"
+#include "core/conflict/conflict_iterator.h"
 #include "core/git/types.h"
 
 #include <map>
@@ -10,7 +10,7 @@
 #include <git2/index.h>
 #include <git2/types.h>
 
-namespace conflict {
+namespace core::conflict {
 
 /**
  * @brief Represents a file-level conflict entry.
@@ -169,6 +169,20 @@ public:
      * @brief Gets all tree conflict resolutions.
      */
     [[nodiscard]] const auto& get_tree_conflicts() const { return m_trees; }
+
+    /**
+     * @brief Gets the recorded resolution of a conflict.
+     *
+     * @return Blob id of the resolved file (empty string: the file is deleted), or nullptr if there is none.
+     */
+    [[nodiscard]] const std::string* get_resolution(const ConflictEntry& entry) const;
+
+    /**
+     * @brief Removes the recorded resolution of a conflict.
+     *
+     * @return True if there was one.
+     */
+    bool remove_resolution(const ConflictEntry& entry);
 
     /**
      * @brief Clears all stored conflicts.

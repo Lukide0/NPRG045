@@ -14,8 +14,8 @@ enum class ColorType {
     INFO,
 };
 
-style::DiffStyle::Style convert_to_diff_color(git::diff_line_t::Type type);
+style::DiffStyle::Style convert_to_diff_color(core::git::diff_line_t::Type type);
 
-char convert_to_symbol(git::diff_line_t::Type type);
+char convert_to_symbol(core::git::diff_line_t::Type type);
 
 }

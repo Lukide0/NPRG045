@@ -1,6 +1,6 @@
 #pragma once
 
-#include "conflict/ConflictManager.h"
+#include "core/conflict/ConflictManager.h"
 #include "core/git/types.h"
 
 #include <cstdint>
@@ -13,14 +13,14 @@
 #include <git2/oid.h>
 #include <git2/types.h>
 
-namespace action {
+namespace core::action {
 
 class Action;
 class ActionsManager;
 
 }
 
-namespace conflict {
+namespace core::conflict {
 
 /**
  * @brief Represents the status of a conflict.
@@ -89,6 +89,13 @@ std::pair<ConflictStatus, git::index_t> cherrypick_check(action::Action* act, gi
  * @return Pair of conflict status and resulting index.
  */
 std::pair<ConflictStatus, git::index_t> cherrypick_check(action::Action* act, action::Action* parent_act);
+
+/**
+ * @brief Cherry-picks the commit onto a tree in memory (nothing is written to the repository state).
+ *
+ * The ancestor is the commit's own parent, so a root commit uses an empty tree and a merge commit is an error.
+ */
+std::pair<ConflictStatus, git::index_t> pick_check(const git_commit* commit, const git_tree* onto_tree);
 
 /**
  * @brief Applies resolved files to the index.

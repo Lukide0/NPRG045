@@ -5,7 +5,7 @@
 #include <sstream>
 #include <string>
 
-namespace patch {
+namespace core::patch {
 
 /**
  * @brief Splits a diff patch into selected and unselected parts.
@@ -41,7 +41,7 @@ public:
      * @param hunk Parent hunk.
      * @param selected Whether the line is selected.
      */
-    void process(const git::diff_line_t& line, const git::diff_hunk_t& hunk, bool selected);
+    void process(const core::git::diff_line_t& line, const git::diff_hunk_t& hunk, bool selected);
 
     /**
      * @brief Ends processing of current file.

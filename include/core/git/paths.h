@@ -3,7 +3,7 @@
 #include "utils/strings.h"
 #include <string>
 
-namespace git {
+namespace core::git {
 
 /**
  * @brief Prefix for Git rebase-merge directory.

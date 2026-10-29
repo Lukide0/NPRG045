@@ -24,11 +24,11 @@ namespace gui::widget {
 class CommitViewWidget : public QWidget {
 
 public:
-    CommitViewWidget(action::ActionsManager& actions, DiffWidget* diff);
+    CommitViewWidget(core::action::ActionsManager& actions, DiffWidget* diff);
 
     void update(Node* node);
-    void update(Node* node, action::Action* act);
-    void update(Node* node, git::diff_result_t& diff);
+    void update(Node* node, core::action::Action* act);
+    void update(Node* node, core::git::diff_result_t& diff);
 
     void update();
 
@@ -38,10 +38,10 @@ private:
     NamedListWidget* m_changes;
     CommitMessageWidget* m_msg;
 
-    action::ActionsManager& m_manager;
+    core::action::ActionsManager& m_manager;
     DiffWidget* m_diff;
     Node* m_node             = nullptr;
-    action::Action* m_action = nullptr;
+    core::action::Action* m_action = nullptr;
     git_commit* m_commit     = nullptr;
 
     void createRows();

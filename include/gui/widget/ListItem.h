@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/action/Action.h"
-#include "conflict/conflict.h"
+#include "core/conflict/conflict.h"
 #include "gui/widget/graph/Node.h"
 #include "logging/Log.h"
 #include "state/Command.h"
@@ -26,10 +26,10 @@ class RebaseViewWidget;
 class ListItem : public QWidget {
     Q_OBJECT
 public:
-    using ActionType = action::ActionType;
+    using ActionType = core::action::ActionType;
 
-    static constexpr auto items = action::action_types;
-    using ConflictStatus        = conflict::ConflictStatus;
+    static constexpr auto items = core::action::action_types;
+    using ConflictStatus        = core::conflict::ConflictStatus;
 
     static constexpr int indexOf(ActionType type) {
         for (int i = 0; i < static_cast<int>(items.size()); ++i) {
@@ -41,13 +41,13 @@ public:
         return -1;
     }
 
-    ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, action::Action& action);
+    ListItem(RebaseViewWidget* rebase, QListWidget* list, int row, core::action::Action& action);
 
     QComboBox* getComboBox() { return m_combo; }
 
-    [[nodiscard]] const action::Action& getCommitAction() const { return m_action; }
+    [[nodiscard]] const core::action::Action& getCommitAction() const { return m_action; }
 
-    [[nodiscard]] action::Action& getCommitAction() { return m_action; }
+    [[nodiscard]] core::action::Action& getCommitAction() { return m_action; }
 
     void setNode(Node* node) { m_node = node; }
 
@@ -61,7 +61,7 @@ public:
 
     void setActionType(ActionType type) {
         LOG_INFO(
-            "Changing action type: from {} to {}", action::type_to_str(m_action.get_type()), action::type_to_str(type)
+            "Changing action type: from {} to {}", core::action::type_to_str(m_action.get_type()), core::action::type_to_str(type)
         );
         auto index = indexOf(type);
         assert(index != -1);
@@ -92,8 +92,8 @@ public:
 
 private:
     Node* m_node = nullptr;
-    action::Action& m_action;
-    conflict::ConflictStatus m_conflict;
+    core::action::Action& m_action;
+    core::conflict::ConflictStatus m_conflict;
 
     RebaseViewWidget* m_rebase;
     QListWidget* m_parent;
@@ -127,7 +127,7 @@ private:
 
 class ListItemChangedCommand : public state::Command {
 public:
-    ListItemChangedCommand(QListWidget* parent, int row, action::ActionType prev, action::ActionType curr);
+    ListItemChangedCommand(QListWidget* parent, int row, core::action::ActionType prev, core::action::ActionType curr);
     ~ListItemChangedCommand() override = default;
 
     void execute() override;
@@ -136,9 +136,9 @@ public:
 private:
     QListWidget* m_parent;
     int m_row;
-    action::ActionType m_prev;
-    action::ActionType m_curr;
+    core::action::ActionType m_prev;
+    core::action::ActionType m_curr;
 
-    void set_type(action::ActionType type);
+    void set_type(core::action::ActionType type);
 };
 }
