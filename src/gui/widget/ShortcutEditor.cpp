@@ -143,7 +143,7 @@ void ShortcutEditor::onEditShortcut(int row, [[maybe_unused]] int column) {
             QMessageBox::warning(
                 this,
                 "Shortcut Conflict",
-                QString("This shortcut is already assigned to '%1'.\nPlease choose a different shortcut.")
+                QStringLiteral("This shortcut is already assigned to '%1'.\nPlease choose a different shortcut.")
                     .arg(it.value().description)
             );
             return;

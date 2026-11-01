@@ -1,10 +1,7 @@
 #include "gui/widget/DiffWidget.h"
 
-#include "App.h"
 #include "core/action/Action.h"
-#include "core/action/ActionsManager.h"
 #include "core/conflict/conflict.h"
-#include "core/conflict/ConflictManager.h"
 #include "core/git/diff.h"
 #include "core/git/error.h"
 #include "core/git/types.h"
@@ -16,13 +13,10 @@
 #include "gui/widget/DiffEditor.h"
 #include "gui/widget/DiffEditorLine.h"
 #include "gui/widget/DiffFile.h"
-#include "logging/Log.h"
-#include "state/CommandHistory.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <format>
-#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -55,10 +49,8 @@ using core::git::diff_result_t;
 
 using core::action::Action;
 
-DiffWidget::DiffWidget(core::action::ActionsManager& actions, core::conflict::ConflictManager& conflicts, QWidget* parent)
-    : QWidget(parent)
-    , m_manager(actions)
-    , m_conflicts(conflicts) {
+DiffWidget::DiffWidget(QWidget* parent)
+    : QWidget(parent) {
 
     m_scrollarea = new QScrollArea(this);
     m_scrollarea->setWidgetResizable(true);
@@ -68,7 +60,6 @@ DiffWidget::DiffWidget(core::action::ActionsManager& actions, core::conflict::Co
     m_scroll_layout = new QVBoxLayout(m_scroll_content);
     m_scroll_layout->setSizeConstraint(QLayout::SetMinAndMaxSize);
     m_scroll_layout->setContentsMargins(0, 0, 0, 0);
-    m_scroll_layout->addStretch();
 
     m_scrollarea->setWidget(m_scroll_content);
 
@@ -78,22 +69,62 @@ DiffWidget::DiffWidget(core::action::ActionsManager& actions, core::conflict::Co
     setLayout(m_layout);
 }
 
+void DiffWidget::setSession(core::rebase::RebaseSession* session, app::rebase::RebaseController* controller) {
+    m_controller = controller;
+    m_rebase     = session;
+}
+
 void DiffWidget::ensureEditorVisible(DiffFile* file) {
+    if (file == nullptr) {
+        return;
+    }
+
     auto* bar = m_scrollarea->verticalScrollBar();
     bar->setValue(file->y());
 }
 
 void DiffWidget::clear() {
     clear_layout(m_scroll_layout);
-
     m_files.clear();
-    m_action = nullptr;
+    m_diffs.clear();
 }
 
-void DiffWidget::update(git_commit* commit) {
+void DiffWidget::setCurrentStep(core::rebase::RebaseAnalysisConstPtr analysis, int row) {
+    using core::conflict::ConflictState;
+
     clear();
 
-    if (commit == nullptr) {
+    if (m_rebase == nullptr) {
+        return;
+    }
+
+    m_analysis = analysis;
+
+    // invalid row
+    if (analysis == nullptr || row < 0 || static_cast<std::size_t>(row) >= analysis->steps.size()) {
+        return;
+    }
+
+    const auto& step = analysis->steps[row];
+    // conflict or unknown
+    if (!step.has_parent_tree || !step.has_result()) {
+        return;
+    }
+
+    m_step = &step;
+
+    if (row - 1 >= 0) {
+        m_prev_step = &m_analysis->steps[row - 1];
+    }
+
+    diff_result_t res = core::git::prepare_resolution_diff(&step.parent_tree_id, step, m_rebase->conflicts());
+    update(res, true);
+}
+
+void DiffWidget::setCurrentCommit(git_commit* commit) {
+    clear();
+
+    if (commit == nullptr || m_rebase == nullptr) {
         return;
     }
 
@@ -101,12 +132,20 @@ void DiffWidget::update(git_commit* commit) {
     core::git::commit_t parent_commit;
     std::uint32_t parents = git_commit_parentcount(commit);
 
-    if (parents == 0) {
+    switch (parents) {
+    case 0:
         res = core::git::prepare_diff(nullptr, commit);
-    } else if (parents > 1 || git_commit_parent(&parent_commit, commit, 0) != 0) {
+        break;
+    case 1:
+        if (git_commit_parent(&parent_commit, commit, 0) != 0) {
+            res.state = diff_result_t::FAILED_TO_CREATE_DIFF;
+        } else {
+            res = core::git::prepare_diff(parent_commit, commit);
+        }
+        break;
+    default:
         res.state = diff_result_t::FAILED_TO_CREATE_DIFF;
-    } else {
-        res = core::git::prepare_diff(parent_commit, commit);
+        break;
     }
 
     update(res, false);
@@ -138,63 +177,12 @@ void DiffWidget::update(core::git::diff_result_t& res, bool editable) {
         const auto& file_diff = m_diffs[i];
         createFileDiff(file_diff, editable);
     }
-}
 
-void DiffWidget::update(Action* action) {
-    using core::conflict::ConflictStatus;
-    clear();
-    m_action = action;
-
-    if (action == nullptr) {
-        return;
+    for (auto* file : m_files) {
+        file->updateEditorSize();
     }
 
-    Action* parent = action->get_prev();
-
-    diff_result_t res;
-    if (parent == nullptr) {
-        git_commit* root_commit = m_manager.get_root_commit();
-        git_repository* repo    = git_commit_owner(root_commit);
-
-        core::git::tree_t root_tree;
-        if (git_commit_tree(&root_tree, root_commit) != 0) {
-            DISPLAY_LIBGIT_ERROR(this, "failed to retrieve tree from commit", core::git::get_last_error());
-            return;
-        }
-        res = core::git::prepare_diff(root_tree.get(), action->get_tree(), repo);
-
-    } else {
-        switch (parent->get_tree_status()) {
-        case ConflictStatus::UNKNOWN:
-        case ConflictStatus::ERR:
-        case ConflictStatus::HAS_CONFLICT:
-            return;
-        case ConflictStatus::NO_CONFLICT:
-        case ConflictStatus::RESOLVED_CONFLICT:
-            break;
-        }
-
-        if (parent->get_tree() == nullptr) {
-            return;
-        }
-
-        git_tree* act_tree = action->get_tree();
-        switch (action->get_tree_status()) {
-        case ConflictStatus::UNKNOWN:
-        case ConflictStatus::ERR:
-        case ConflictStatus::HAS_CONFLICT:
-            res = core::git::prepare_resolution_diff(parent->get_tree(), action->get_commit(), m_conflicts);
-            break;
-        case ConflictStatus::NO_CONFLICT:
-        case ConflictStatus::RESOLVED_CONFLICT: {
-            assert(act_tree != nullptr);
-            res = core::git::prepare_resolution_diff(parent->get_tree(), action, m_conflicts);
-            break;
-        }
-        }
-    }
-
-    update(res, true);
+    m_scroll_layout->addStretch(1);
 }
 
 QString create_diff_header(const diff_files_t& diff) {
@@ -275,9 +263,7 @@ void DiffWidget::createFileDiff(const diff_files_t& diff, bool editable) {
     m_curr_editor->setExtraSelections(text_sections);
     m_scroll_layout->addWidget(file_diff);
     m_files.push_back(file_diff);
-    m_curr_editor->enableContextMenu(m_action != nullptr);
-
-    file_diff->updateEditorHeight();
+    m_curr_editor->enableContextMenu(editable);
 
     connect(m_curr_editor, &DiffEditor::extendContextMenu, this, [this](QMenu* menu) {
         menu->addSeparator();
@@ -406,39 +392,14 @@ void DiffWidget::splitCommitEvent() {
     core::git::commit_t first_commit;
     core::git::commit_t second_commit;
 
-    core::patch::SplitError err = core::patch::split(first_commit, second_commit, m_manager, m_action, diff);
+    core::patch::SplitError err
+        = core::patch::split(*m_rebase, first_commit, second_commit, *m_step, m_prev_step, diff);
     if (err.has_error()) {
         DISPLAY_LIBGIT_ERROR(this, "Failed to create split", std::format("{}: {}.", err.title, err.message));
         return;
     }
 
-    std::size_t index = m_manager.get_index(m_action);
-
-    auto cmd
-        = std::make_unique<CommitSplitCommand>(index, std::move(first_commit), std::move(second_commit), m_manager);
-    cmd->execute();
-
-    state::CommandHistory::Add(std::move(cmd));
+    m_controller->splitAction(static_cast<int>(m_step->index), std::move(first_commit), std::move(second_commit));
 }
 
-void CommitSplitCommand::execute() {
-
-    LOG_INFO("Splitting commit");
-
-    auto* act = m_manager.get_action(m_index);
-
-    m_commit = m_manager.split(act, std::move(m_split.first), std::move(m_split.second));
-
-    App::updateActions();
-}
-
-void CommitSplitCommand::undo() {
-
-    LOG_INFO("Reverting the commit split operation");
-    auto* act = m_manager.get_action(m_index);
-
-    m_split = m_manager.merge_next(act, std::move(m_commit));
-
-    App::updateActions();
-}
 }

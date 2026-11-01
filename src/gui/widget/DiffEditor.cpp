@@ -31,10 +31,13 @@ DiffEditor::DiffEditor(const core::git::diff_files_t& diff, QWidget* parent)
     , m_diff(diff) {
 
     m_line = new DiffEditorLine(this);
+
     setLineWrapMode(QPlainTextEdit::NoWrap);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
     setFrameShape(QFrame::NoFrame);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     connect(this, &DiffEditor::blockCountChanged, this, &DiffEditor::updateDiffLineWidth);
     connect(this, &DiffEditor::updateRequest, this, &DiffEditor::updateDiffLine);
@@ -274,6 +277,21 @@ void DiffEditor::processLines(std::function<void(const DiffEditorLineData&)> pro
             process_data(*line_data);
         }
     }
+}
+
+void DiffEditor::updateContentSize() {
+    const auto* doc = document();
+    const QFontMetricsF metrics(font());
+
+    const int lines             = doc->blockCount();
+    const auto margins          = contentsMargins();
+    const qreal document_margin = doc->documentMargin();
+    const int frame             = frameWidth();
+
+    const int height
+        = qCeil(lines * metrics.lineSpacing() + 2 * document_margin + margins.top() + margins.bottom() + 2 * frame);
+
+    setFixedHeight(height);
 }
 
 void DiffEditor::selectLine(SelectionType type) {

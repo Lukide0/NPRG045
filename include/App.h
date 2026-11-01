@@ -1,12 +1,9 @@
 #pragma once
 
-#include "core/action/Action.h"
-#include "core/conflict/ConflictManager.h"
-#include "core/git/types.h"
+#include "core/rebase/RebaseManager.h"
 #include "gui/widget/RebaseSelectionWidget.h"
 #include "gui/widget/RebaseViewWidget.h"
 #include "gui/widget/WelcomeWidget.h"
-#include "state/AppState.h"
 
 #include <cassert>
 #include <memory>
@@ -36,6 +33,7 @@
 #include <QSettings>
 #include <QStackedLayout>
 #include <QString>
+#include <QUndoGroup>
 
 /**
  * @brief Main application window
@@ -79,41 +77,6 @@ public:
     void openRepoCLI(const std::string& todo_file);
 
     /**
-     * @brief Updates commit graph.
-     */
-    static void updateGraph();
-
-    /**
-     * @brief Updates actions list, conflict list and commit graph.
-     */
-    static void updateActions();
-
-    /**
-     * @brief Updates the conflict list and markers.
-     *
-     * @param start The first action to update. If @c start is @c nullptr,
-     *              the first action is used.
-     *
-     * @details If @c start is @c nullptr, the update begins from the first action.
-     */
-    static void updateConflicts(core::action::Action* start = nullptr);
-
-    /**
-     * @brief Returns the rebase view widget.
-     */
-    static gui::widget::RebaseViewWidget* getRebaseViewWidget();
-
-    /**
-     * @brief Returns the current repository path.
-     */
-    static const std::string& getRepoPath();
-
-    /**
-     * @brief Returns the current app state
-     */
-    static const state::AppState& getAppState();
-
-    /**
      * @brief Returns application settings.
      */
     static QSettings getSettings() { return { QSettings::IniFormat, QSettings::UserScope, "gitshuffle" }; }
@@ -138,6 +101,8 @@ public:
      */
     static void saveShortcuts(QSettings& settings);
 
+    static const core::rebase::RebaseSession* rebaseSession();
+
 protected:
     void closeEvent(QCloseEvent* event) override;
 
@@ -151,13 +116,26 @@ private:
         CANCEL, /**< Cancel action */
     };
 
+    static constexpr int page_welcome       = 0;
+    static constexpr int page_rebase_view   = 1;
+    static constexpr int page_rebase_select = 2;
+
     /**
      * @brief Indicates whether the application was started with a path argument.
      */
     bool m_cli_start = false;
 
+    core::rebase::RebaseManager m_rebase;
+    std::unique_ptr<app::rebase::RebaseController> m_controller;
+    QUndoGroup* m_undo_group;
+
     QAction* m_repo_open;
     QAction* m_load_save;
+
+    struct {
+        QAction* undo;
+        QAction* redo;
+    } m_history;
 
     QStackedLayout* m_layout;
 
@@ -165,15 +143,8 @@ private:
     gui::widget::RebaseViewWidget* m_rebase_view;
     gui::widget::RebaseSelectionWidget* m_rebase_select;
 
-    static constexpr int page_welcome       = 0;
-    static constexpr int page_rebase_view   = 1;
-    static constexpr int page_rebase_select = 2;
-
-    state::AppState m_state;
-    core::action::ActionsManager m_actions;
-    core::conflict::ConflictManager m_conflicts;
-
     std::optional<QString> m_save_file;
+    std::optional<core::git::RepoSession> m_new_rebase_repo;
 
     QMap<QString, ShortcutAction> m_shortcuts;
     std::unique_ptr<QProcess> m_git_proc;
@@ -187,13 +158,6 @@ private:
      * @brief Sets up shortcuts.
      */
     void setupShortcuts();
-
-    /**
-     * @brief Processes the Git todo file and updates the rebase view widget.
-     *
-     * @return True if processing succeeded, false otherwise.
-     */
-    bool loadRebase();
 
     /**
      * @brief Toggles visibility of old commits.
@@ -241,7 +205,7 @@ private:
     /**
      * @brief Prepares RebaseSelectionWidget
      */
-    bool prepareRebaseSelection();
+    bool prepareRebaseSelection(core::git::RepoSession&& repo);
 
     /**
      * @brief Executes git interactive rebase and closes this app.
@@ -252,4 +216,14 @@ private:
      * @brief Updates commits inside the RebaseSelectionWidget.
      */
     void updateRebaseSelection(const std::string& branch);
+
+    core::Result<void> openRebase(const core::git::RebaseInfo& info, core::git::RepoSession&& repo);
+    void openRebase(
+        core::git::RepoSession&& repo,
+        core::rebase::RebasePlan&& plan,
+        core::conflict::ConflictManager&& conflicts,
+        core::git::GitGraph<void>&& graph
+    );
+
+    void updateUndoActions();
 };

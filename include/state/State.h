@@ -2,14 +2,11 @@
 
 #include "core/action/Action.h"
 #include "core/conflict/ConflictManager.h"
-#include "core/git/types.h"
-#include "state/AppState.h"
+#include "core/git/GitGraph.h"
+#include "core/git/RepoSession.h"
+#include "core/rebase/RebaseSession.h"
 
 #include <filesystem>
-#include <optional>
-#include <string>
-#include <utility>
-#include <vector>
 
 #include <git2/types.h>
 
@@ -19,14 +16,11 @@ namespace state {
  * @brief Serializable application state.
  */
 struct SaveData {
-    std::vector<std::pair<core::action::Action, std::string>> actions;
-    std::vector<std::pair<core::conflict::ConflictEntry, std::string>> conflicts;
-    std::vector<std::pair<core::conflict::ConflictTrees, core::git::tree_t>> conflict_trees;
-    core::git::commit_t root;
-
-    std::string repo_path;
-    std::string head;
-    std::string onto;
+    core::git::RepoSession repo     = core::git::RepoSession::invalid();
+    core::git::GitGraph<void> graph = core::git::GitGraph<void>::empty();
+    core::conflict::ConflictManager conflicts;
+    core::git::RebaseInfo info;
+    core::action::ActionsManager actions;
 };
 
 /**
@@ -38,28 +32,20 @@ public:
      * @brief Saves application state to a file.
      *
      * @param path Output file path.
-     * @param state Application state.
-     * @param actions Actions manager.
-     * @param conflicts Conflict resolution manager.
+     * @param rebase The rebase session.
      *
      * @return True if save succeeded.
      */
-    static bool save(
-        const std::filesystem::path& path,
-        const AppState& state,
-        const core::action::ActionsManager& actions,
-        const core::conflict::ConflictManager& conflicts
-    );
+    static bool save(const std::filesystem::path& path, const core::rebase::RebaseSession& rebase);
 
     /**
      * @brief Loads application state from a file.
      *
      * @param path Input file path.
-     * @param repo Loaded repository.
      *
-     * @return Loaded state or std::nullopt on failure.
+     * @return Loaded state
      */
-    static std::optional<SaveData> load(const std::filesystem::path& path, git_repository** repo);
+    static core::Result<SaveData> load(const std::filesystem::path& path);
 };
 
 }

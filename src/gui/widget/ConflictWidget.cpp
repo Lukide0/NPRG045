@@ -18,6 +18,8 @@ namespace gui::widget {
 ConflictWidget::ConflictWidget(QWidget* parent)
     : QWidget(parent) {
 
+    using app::conflict::ConflictTreeModel;
+
     auto* title = new QLabel("Conflicts");
 
     QFont font = title->font();
@@ -36,7 +38,7 @@ ConflictWidget::ConflictWidget(QWidget* parent)
 
     auto* resolve_conflict_btn = new QPushButton("Resolve conflict");
 
-    m_model = new model::ConflictTreeModel(this);
+    m_model = new ConflictTreeModel(this);
 
     m_view = new QTreeView();
     m_view->setModel(m_model);
@@ -46,8 +48,8 @@ ConflictWidget::ConflictWidget(QWidget* parent)
 
     auto* view_header = m_view->header();
 
-    view_header->setSectionResizeMode(model::ConflictTreeModel::NameColumn, QHeaderView::Stretch);
-    view_header->setSectionResizeMode(model::ConflictTreeModel::StatusColumn, QHeaderView::ResizeToContents);
+    view_header->setSectionResizeMode(ConflictTreeModel::NameColumn, QHeaderView::Stretch);
+    view_header->setSectionResizeMode(ConflictTreeModel::StatusColumn, QHeaderView::ResizeToContents);
     view_header->setStretchLastSection(false);
 
     // keeps new directories open
@@ -72,7 +74,7 @@ ConflictWidget::ConflictWidget(QWidget* parent)
     layout->addWidget(m_status_bar);
     setLayout(layout);
 
-    connect(m_model, &model::ConflictTreeModel::countsChanged, this, [this](int unresolved, int total) {
+    connect(m_model, &ConflictTreeModel::countsChanged, this, [this](int unresolved, int total) {
         updateSummary(unresolved, total);
     });
 
@@ -129,8 +131,8 @@ void ConflictWidget::updateSummary(int unresolved, int total) {
         return;
     }
 
-    m_summary->setText(QString("%1 of %2 resolved").arg(total - unresolved).arg(total));
-    m_status_count->setText(QString("%1 file(s)").arg(total));
+    m_summary->setText(QStringLiteral("%1 of %2 resolved").arg(total - unresolved).arg(total));
+    m_status_count->setText(QStringLiteral("%1 file(s)").arg(total));
 }
 
 void ConflictWidget::showSelection(const QModelIndex& current) {

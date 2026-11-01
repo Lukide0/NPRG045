@@ -72,7 +72,7 @@ void Log::init() {
     const QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
     const qint64 pid        = QApplication::applicationPid();
 
-    const QString log_path = directory.filePath(QString("events-%1-p%2.log").arg(timestamp).arg(pid));
+    const QString log_path = directory.filePath(QStringLiteral("events-%1-p%2.log").arg(timestamp).arg(pid));
 
     g_log_lock = std::make_unique<QLockFile>(log_path + ".lock");
     g_log_lock->setStaleLockTime(0);
@@ -157,7 +157,7 @@ void write_to_log(
     }
 
     const QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz");
-    const QString thread_id = QString("0x%1").arg(reinterpret_cast<quintptr>(QThread::currentThreadId()), 0, 16);
+    const QString thread_id = QStringLiteral("0x%1").arg(reinterpret_cast<quintptr>(QThread::currentThreadId()), 0, 16);
 
     g_log_stream << '[' << timestamp << "][" << thread_id << "][" << prefix << ']';
 

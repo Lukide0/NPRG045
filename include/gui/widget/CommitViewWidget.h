@@ -1,11 +1,8 @@
 #pragma once
 
-#include "core/action/Action.h"
-#include "core/action/ActionsManager.h"
-#include "core/git/diff.h"
+#include "core/rebase/RebaseAnalysis.h"
 #include "gui/widget/CommitMessageWidget.h"
 #include "gui/widget/DiffWidget.h"
-#include "gui/widget/graph/Node.h"
 #include "gui/widget/NamedListWidget.h"
 
 #include <git2/commit.h>
@@ -22,35 +19,43 @@
 namespace gui::widget {
 
 class CommitViewWidget : public QWidget {
+    Q_OBJECT
 
 public:
-    CommitViewWidget(core::action::ActionsManager& actions, DiffWidget* diff);
+    CommitViewWidget(DiffWidget* diff, QWidget* parent = nullptr);
 
-    void update(Node* node);
-    void update(Node* node, core::action::Action* act);
-    void update(Node* node, core::git::diff_result_t& diff);
+public slots:
+    void setCurrentStep(core::rebase::RebaseAnalysisConstPtr analysis, int row);
+    void setCurrentCommit(git_commit* commit);
 
-    void update();
+signals:
+    void commitMessageChanged(const QString& msg);
 
 private:
     QHBoxLayout* m_layout;
     QFormLayout* m_info_layout;
     NamedListWidget* m_changes;
-    CommitMessageWidget* m_msg;
+    CommitMessageWidget* m_message_widget;
 
-    core::action::ActionsManager& m_manager;
+    struct {
+        QLabel* hash;
+        QLabel* autor;
+        QLabel* date;
+
+        void clear() {
+            hash->clear();
+            autor->clear();
+            date->clear();
+        }
+    } m_labels;
+
     DiffWidget* m_diff;
-    Node* m_node             = nullptr;
-    core::action::Action* m_action = nullptr;
-    git_commit* m_commit     = nullptr;
+    const core::rebase::StepResult* m_step = nullptr;
+    const git_commit* m_commit             = nullptr;
 
-    void createRows();
-    void prepareDiff();
-
-    void updateInfo() {
-        createRows();
-        prepareDiff();
-    }
+    void createInfoLayout();
+    void createDiffList();
+    void updateCommit();
 };
 
 }

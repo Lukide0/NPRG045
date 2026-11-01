@@ -1,5 +1,5 @@
 target_sources(${PROJECT_NAME} PRIVATE
-    ${INCLUDE_PATH}/gui/model/ConflictTreeModel.h
+    ${INCLUDE_PATH}/app/conflict/ConflictTreeModel.h
     ConflictTreeModel.cpp
 )
 

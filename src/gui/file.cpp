@@ -2,6 +2,7 @@
 
 #include <utility>
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QDesktopServices>
 #include <QDir>
@@ -16,29 +17,45 @@ namespace gui {
 
 QString get_temp_filepath(const QString& filename) {
     QString temp_dir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-    return QDir(temp_dir).filePath(filename);
+
+    const QString app_name = QCoreApplication::applicationName().isEmpty() ? QStringLiteral("GitShuffle")
+                                                                           : QCoreApplication::applicationName();
+
+    const QString app_temp_dir = QDir(temp_dir).filePath(app_name);
+
+    if (!QDir().mkpath(app_temp_dir)) {
+        return { };
+    }
+
+    return QDir(app_temp_dir).filePath(filename);
 }
 
 bool open_temp_file(const QString& filepath) { return QDesktopServices::openUrl(QUrl::fromLocalFile(filepath)); }
 
 std::pair<QString, bool> create_temp_file(const QString& text, const QString& filename, bool open) {
-    QString filepath = get_temp_filepath(filename);
+    const QString filepath = get_temp_filepath(filename);
+
+    if (filepath.isEmpty()) {
+        return { filepath, false };
+    }
 
     QFile file(filepath);
+
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        return std::make_pair(filepath, false);
+        return { filepath, false };
     }
 
     QTextStream out(&file);
     out.setEncoding(QStringConverter::Utf8);
     out << text;
+
     file.close();
 
     if (open) {
-        return std::make_pair(filepath, QDesktopServices::openUrl(QUrl::fromLocalFile(filepath)));
+        return { filepath, open_temp_file(filepath) };
     }
 
-    return std::make_pair(filepath, true);
+    return { filepath, true };
 }
 
 std::pair<QString, bool> read_file(const QString& filepath) {

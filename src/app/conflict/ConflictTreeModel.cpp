@@ -1,4 +1,4 @@
-#include "gui/model/ConflictTreeModel.h"
+#include "app/conflict/ConflictTreeModel.h"
 #include "core/conflict/ConflictManager.h"
 
 #include <QAbstractItemModel>
@@ -16,19 +16,20 @@
 #include <optional>
 #include <utility>
 
-namespace gui::model {
+namespace app::conflict {
 
 ConflictTreeModel::ConflictTreeModel(QObject* parent)
     : QAbstractItemModel(parent)
     , m_root(std::make_unique<Node>()) { }
 
-bool ConflictTreeModel::addPath(const QString& fullPath, const core::conflict::ConflictEntry& entry) {
+bool ConflictTreeModel::addPath(const QString& fullPath, const core::conflict::ConflictEntry& entry, bool resolved) {
     Chain chain = makeChain(fullPath);
     if (chain.top == nullptr) {
         return false;
     }
 
     chain.leaf->conflict_entry = entry;
+    chain.leaf->resolved       = resolved;
 
     // insert at the sorted position, announcing only the top of the new chain
     auto& siblings = chain.parent->children;
@@ -40,7 +41,9 @@ bool ConflictTreeModel::addPath(const QString& fullPath, const core::conflict::C
         siblings.insert(it, std::move(chain.top));
         m_files.insert(fullPath, chain.leaf);
 
-        adjustUnresolvedCount(chain.leaf, 1);
+        if (!resolved) {
+            adjustUnresolvedCount(chain.leaf, 1);
+        }
     }
     endInsertRows();
 
@@ -63,10 +66,14 @@ void ConflictTreeModel::setPaths(const QList<ConflictFile>& files) {
         }
 
         chain.leaf->conflict_entry = file.entry;
+        chain.leaf->resolved       = file.resolved;
         chain.parent->children.push_back(std::move(chain.top));
 
         m_files.insert(file.path, chain.leaf);
-        adjustUnresolvedCount(chain.leaf, 1);
+
+        if (!file.resolved) {
+            adjustUnresolvedCount(chain.leaf, 1);
+        }
     }
     sortChildren(*m_root);
 

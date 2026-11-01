@@ -21,7 +21,7 @@ public:
     RebaseAnalyzer(RebaseAnalyzer&&)            = delete;
     RebaseAnalyzer& operator=(RebaseAnalyzer&&) = delete;
 
-    Result<RebaseAnalysis> analyze(const RebaseAnalysis* previous = nullptr) const;
+    Result<RebaseAnalysisPtr> analyze(const RebaseAnalysis* previous = nullptr) const;
     [[nodiscard]] bool is_current(const RebaseAnalysis& analysis) const;
 
 private:
@@ -31,6 +31,7 @@ private:
 
     const StepResult* try_use(const RebaseAnalysis* previous, const StepResult& step) const;
     Result<void> compute_pick(const action::Action& act, const git_tree* prev, StepResult& step) const;
+    void try_compute_conflict_impacts(RebaseAnalysis* result) const;
 };
 
 }

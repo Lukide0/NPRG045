@@ -3,6 +3,8 @@ target_sources(${PROJECT_NAME} PRIVATE
     file.cpp
 )
 
+add_subdirectory(rebase)
+add_subdirectory(git)
+
 add_subdirectory(widget)
-add_subdirectory(model)
 add_subdirectory(style)

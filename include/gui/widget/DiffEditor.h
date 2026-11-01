@@ -30,6 +30,7 @@ public:
 
     [[nodiscard]] bool selectedLineOrFile() const { return m_selected_file || m_selected_count > 0; }
 
+    void updateContentSize();
 signals:
     void extendContextMenu(QMenu* menu);
 

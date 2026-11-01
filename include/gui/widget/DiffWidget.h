@@ -1,16 +1,14 @@
 #pragma once
 
-#include "core/action/Action.h"
-#include "core/conflict/ConflictManager.h"
+#include "app/rebase/RebaseController.h"
 #include "core/git/diff.h"
-#include "core/git/types.h"
+#include "core/rebase/RebaseAnalysis.h"
+#include "core/rebase/RebaseSession.h"
 #include "gui/style/DiffStyle.h"
 #include "gui/widget/DiffEditor.h"
 #include "gui/widget/DiffFile.h"
-#include "state/Command.h"
 
 #include <cstddef>
-#include <utility>
 #include <vector>
 
 #include <git2/types.h>
@@ -25,25 +23,34 @@ namespace gui::widget {
 
 class DiffWidget : public QWidget {
 public:
-    DiffWidget(core::action::ActionsManager& actions, core::conflict::ConflictManager& conflicts, QWidget* parent = nullptr);
+    DiffWidget(QWidget* parent = nullptr);
     ~DiffWidget() override = default;
 
-    void update(core::action::Action* act);
-    void update(git_commit* commit);
-    void update(core::git::diff_result_t& res, bool editable);
+    void setSession(core::rebase::RebaseSession* session, app::rebase::RebaseController* controller);
 
     void clear();
 
     [[nodiscard]] const std::vector<core::git::diff_files_t>& getDiffs() const { return m_diffs; }
 
-    DiffFile* getDiffFile(std::size_t i) { return m_files[i]; }
+    DiffFile* getDiffFile(std::size_t i) {
+        if (i > m_files.size()) {
+            return nullptr;
+        }
+        return m_files[i];
+    }
 
     void ensureEditorVisible(DiffFile* file);
 
+public slots:
+    void setCurrentStep(core::rebase::RebaseAnalysisConstPtr analysis, int row);
+    void setCurrentCommit(git_commit* commit);
+
 private:
-    core::action::Action* m_action = nullptr;
-    core::action::ActionsManager& m_manager;
-    core::conflict::ConflictManager& m_conflicts;
+    core::rebase::RebaseSession* m_rebase = nullptr;
+    core::rebase::RebaseAnalysisConstPtr m_analysis;
+    app::rebase::RebaseController* m_controller = nullptr;
+    const core::rebase::StepResult* m_step      = nullptr;
+    const core::rebase::StepResult* m_prev_step = nullptr;
 
     std::vector<core::git::diff_files_t> m_diffs;
     std::vector<DiffFile*> m_files;
@@ -61,6 +68,8 @@ private:
         QTextBlock block;
     };
 
+    void update(core::git::diff_result_t& res, bool editable);
+
     void createFileDiff(const core::git::diff_files_t& diff, bool editable);
     void addHunkDiff(const core::git::diff_hunk_t& hunk, std::vector<section_t>& sections);
     void addLineDiff(
@@ -71,27 +80,6 @@ private:
     );
 
     void splitCommitEvent();
-};
-
-class CommitSplitCommand : public state::Command {
-public:
-    CommitSplitCommand(
-        std::size_t index, core::git::commit_t&& first, core::git::commit_t&& second, core::action::ActionsManager& manager
-    )
-        : m_index(index)
-        , m_split(std::move(first), std::move(second))
-        , m_manager(manager) { }
-
-    ~CommitSplitCommand() override = default;
-
-    void execute() override;
-    void undo() override;
-
-private:
-    std::size_t m_index;
-    std::pair<core::git::commit_t, core::git::commit_t> m_split;
-    core::git::commit_t m_commit;
-    core::action::ActionsManager& m_manager;
 };
 
 }

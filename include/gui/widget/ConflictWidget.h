@@ -1,7 +1,7 @@
 #pragma once
 
+#include "app/conflict/ConflictTreeModel.h"
 #include "core/conflict/ConflictManager.h"
-#include "gui/model/ConflictTreeModel.h"
 
 #include <cstdint>
 #include <string>
@@ -22,7 +22,7 @@ namespace gui::widget {
 class ConflictWidget : public QWidget {
     Q_OBJECT
 public:
-    using ConflictFile  = model::ConflictTreeModel::ConflictFile;
+    using ConflictFile  = app::conflict::ConflictTreeModel::ConflictFile;
     using ConflictFiles = QList<ConflictFile>;
     using FileList      = QStringList;
 
@@ -43,7 +43,7 @@ signals:
     void resolveRequested(const QString& path, const core::conflict::ConflictEntry& entry);
 
 private:
-    model::ConflictTreeModel* m_model;
+    app::conflict::ConflictTreeModel* m_model;
     QTreeView* m_view;
     QLabel* m_summary;
     QLabel* m_status_count;

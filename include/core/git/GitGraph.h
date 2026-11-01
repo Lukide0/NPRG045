@@ -3,6 +3,7 @@
 #include "types.h"
 
 #include <cassert>
+#include <concepts>
 #include <cstdint>
 #include <functional>
 #include <optional>
@@ -27,19 +28,57 @@ namespace core::git {
 template <typename Data> struct GitNode {
     commit_t commit;
     std::uint32_t depth;
-    Data data;
+    Data data { };
 };
+
+template <typename PtrTy> struct GitNode<PtrTy*> {
+    commit_t commit;
+    std::uint32_t depth;
+    PtrTy* data = nullptr;
+};
+
+template <> struct GitNode<void> {
+    commit_t commit;
+    std::uint32_t depth;
+};
+
+namespace detail {
+    template <typename Data>
+    concept graph_data = std::is_default_constructible_v<Data> || std::is_same_v<Data, void>;
+}
 
 /**
  * @brief Represents a Git commit graph between two commits.
  *
  * @tparam Data User-defined node data.
  */
-template <typename Data>
-    requires(std::is_default_constructible_v<Data>)
-class GitGraph {
+template <detail::graph_data Data> class GitGraph {
 public:
     using node_t = GitNode<Data>;
+
+    explicit GitGraph(GitGraph<void*>&& other)
+        requires(std::is_pointer_v<Data>)
+        : m_commit_map(std::move(other.m_commit_map)) {
+        m_nodes.reserve(other.m_nodes.size());
+
+        for (auto& node : other.m_nodes) {
+            m_nodes.push_back(
+                node_t {
+                    .commit = std::move(node.commit),
+                    .depth  = node.depth,
+                    .data   = static_cast<Data>(node.data),
+                }
+            );
+        }
+
+        other.m_nodes.clear();
+    }
+
+    GitGraph(const GitGraph&) = delete;
+    GitGraph(GitGraph&&)      = default;
+
+    GitGraph& operator=(const GitGraph&) = delete;
+    GitGraph& operator=(GitGraph&&)      = default;
 
     /**
      * @brief Creates an empty graph.
@@ -108,7 +147,7 @@ public:
         // insert oldest commit
         graph.try_insert(std::move(end_commit), idx);
 
-        return graph;
+        return std::make_optional<GitGraph>(std::move(graph));
     }
 
     /**
@@ -207,6 +246,8 @@ private:
     std::unordered_map<std::string, std::uint32_t> m_commit_map;
     std::vector<node_t> m_nodes;
 
+    template <detail::graph_data> friend class GitGraph;
+
     GitGraph() = default;
 
     static std::string commit_id(const git_commit* commit) { return format_oid_to_str(git_commit_id(commit)); }
@@ -225,7 +266,6 @@ private:
             node_t {
                 .commit = std::move(commit),
                 .depth  = depth,
-                .data   = { },
             }
         );
 

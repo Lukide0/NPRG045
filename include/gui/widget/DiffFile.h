@@ -1,7 +1,6 @@
 #pragma once
 
 #include "core/git/diff.h"
-#include "gui/editor_height.h"
 #include "gui/style/GlobalStyle.h"
 #include "gui/style/StyleManager.h"
 #include "gui/widget/DiffEditor.h"
@@ -89,7 +88,7 @@ public:
 
     DiffEditor* getEditor() { return m_editor; }
 
-    void updateEditorHeight() { update_editor_height(m_editor); }
+    void updateEditorSize() { m_editor->updateContentSize(); }
 
 private:
     QVBoxLayout* m_layout;

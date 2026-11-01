@@ -5,6 +5,9 @@
 #include "core/conflict/ConflictManager.h"
 #include "core/git/error.h"
 #include "core/git/types.h"
+#include "core/rebase/RebaseAnalysis.h"
+#include "core/rebase/RebasePlan.h"
+#include "core/rebase/RebaseSession.h"
 
 #include <algorithm>
 #include <cassert>
@@ -32,16 +35,16 @@
 
 namespace core::conflict {
 
-using Result = std::pair<ConflictStatus, git::index_t>;
+using Result = std::pair<ConflictState, git::index_t>;
 
 Result drop_check(git_tree* onto_tree) {
     git::index_t index;
 
     if (git_index_new(&index) != 0 || git_index_read_tree(index, onto_tree) != 0) {
-        return { ConflictStatus::ERR, std::move(index) };
+        return { ConflictState::Error, std::move(index) };
     }
 
-    return { ConflictStatus::NO_CONFLICT, std::move(index) };
+    return { ConflictState::Clean, std::move(index) };
 }
 
 Result pick_check(const git_commit* commit, const git_tree* onto_tree) {
@@ -50,7 +53,7 @@ Result pick_check(const git_commit* commit, const git_tree* onto_tree) {
     git::tree_t ancestor_tree;
 
     if (git_commit_tree(&act_tree, commit) != 0) {
-        return { ConflictStatus::ERR, std::move(index) };
+        return { ConflictState::Error, std::move(index) };
     }
 
     switch (git_commit_parentcount(commit)) {
@@ -60,7 +63,7 @@ Result pick_check(const git_commit* commit, const git_tree* onto_tree) {
         git::commit_t ancestor_commit;
         if (git_commit_parent(&ancestor_commit, commit, 0) != 0
             || git_commit_tree(&ancestor_tree, ancestor_commit) != 0) {
-            return { ConflictStatus::ERR, std::move(index) };
+            return { ConflictState::Error, std::move(index) };
         }
         break;
     }
@@ -68,15 +71,14 @@ Result pick_check(const git_commit* commit, const git_tree* onto_tree) {
     default:
         // set custom error
         git_error_set(GIT_ERROR_INVALID, "Merge commit are not supported");
-        return { ConflictStatus::ERR, std::move(index) };
+        return { ConflictState::Error, std::move(index) };
     }
 
     if (git_merge_trees(&index, git_commit_owner(commit), ancestor_tree, onto_tree, act_tree, nullptr) != 0) {
-        return { ConflictStatus::ERR, std::move(index) };
+        return { ConflictState::Error, std::move(index) };
     }
 
-    ConflictStatus status
-        = git_index_has_conflicts(index) != 0 ? ConflictStatus::HAS_CONFLICT : ConflictStatus::NO_CONFLICT;
+    ConflictState status = git_index_has_conflicts(index) != 0 ? ConflictState::Conflict : ConflictState::Clean;
 
     return { status, std::move(index) };
 }
@@ -94,40 +96,6 @@ Result action_check(action::Action* act, git_tree* onto_tree) {
     }
 
     return drop_check(onto_tree);
-}
-
-Result cherrypick_check(git_commit* commit, git_commit* parent_commit) {
-    git::tree_t tree;
-    if (git_commit_tree(&tree, parent_commit) != 0) {
-        return { ConflictStatus::ERR, git::index_t { } };
-    }
-    return pick_check(commit, tree);
-}
-
-Result cherrypick_check(action::Action* act, git_commit* parent_commit) {
-    git::tree_t tree;
-    if (git_commit_tree(&tree, parent_commit) != 0) {
-        return { ConflictStatus::ERR, git::index_t { } };
-    }
-    return action_check(act, tree);
-}
-
-Result cherrypick_check(action::Action* act, action::Action* parent_act) {
-    switch (parent_act->get_tree_status()) {
-    case ConflictStatus::UNKNOWN:
-    case ConflictStatus::ERR:
-    case ConflictStatus::HAS_CONFLICT:
-        return { ConflictStatus::UNKNOWN, git::index_t { } };
-    case ConflictStatus::NO_CONFLICT:
-    case ConflictStatus::RESOLVED_CONFLICT:
-        break;
-    }
-
-    git_tree* parent_tree = parent_act->get_tree();
-    if (parent_tree == nullptr) {
-        return { ConflictStatus::ERR, git::index_t { } };
-    }
-    return action_check(act, parent_tree);
 }
 
 ResolutionResult add_resolved_files(
@@ -229,47 +197,62 @@ int collect_delta(const git_diff_delta* delta, float /*unused*/, void* payload) 
     return 0;
 }
 
-bool iterate_actions(
-    action::ActionsManager& actions,
-    action::Action& conflict_action,
+bool iterate_steps(
     git_repository* repo,
-    std::span<const git_oid> files,
+    const rebase::RebasePlan& plan,
+    const rebase::RebaseAnalysis& result,
     std::function<bool(bool, std::uint32_t, void*)> callback,
     void* payload
 ) {
     using action::Action;
 
-    std::vector<git_oid> tracked { files.begin(), files.end() };
+    const auto* block = result.blocking();
+    // no conflict
+    if (block == nullptr || block->conflict == nullptr) {
+        return true;
+    }
 
-    git_diff_options diff_opts = GIT_DIFF_OPTIONS_INIT;
+    auto* conflict = block->conflict.get();
 
+    std::vector<git_oid> tracked;
+    tracked.reserve(conflict->files.size());
+
+    for (const auto& file : conflict->files) {
+        if (file.resolved()) {
+            continue;
+        }
+
+        // not deleted
+        if (file.our.has_value()) {
+            tracked.push_back(file.our->id);
+        }
+    }
+
+    git_diff_options diff_opts      = GIT_DIFF_OPTIONS_INIT;
     git_diff_find_options find_opts = GIT_DIFF_FIND_OPTIONS_INIT;
     find_opts.flags                 = GIT_DIFF_FIND_RENAMES | GIT_DIFF_FIND_RENAMES_FROM_REWRITES;
 
-    Action* action = &conflict_action;
-
-    git::tree_t conflict_tree;
-    if (git_commit_tree(&conflict_tree, action->get_commit()) != 0) {
+    git::tree_t block_tree;
+    if (git_commit_tree(&block_tree, block->action->get_commit()) != 0) {
         return false;
     }
 
-    git_tree* new_tree   = conflict_tree;
-    std::uint32_t act_id = actions.get_action_index(action);
-
     git::tree_t root_tree;
-    while (true) {
-        Action* prev_act   = action->get_prev();
-        git_tree* old_tree = nullptr;
+    if (git_commit_tree(&root_tree, plan.root_commit()) != 0) {
+        return false;
+    }
 
-        if (prev_act == nullptr) {
-            if (git_commit_tree(&root_tree, actions.get_root_commit()) != 0) {
-                return false;
-            }
-            old_tree = root_tree;
+    git_tree* new_tree = block_tree;
+    git_tree* old_tree = nullptr;
+
+    for (std::size_t i = block->index; old_tree != root_tree; --i, new_tree = old_tree) {
+
+        if (i > 0) {
+            const auto& prev_step = result.steps[i - 1];
+            old_tree              = prev_step.tree.get();
         } else {
-            old_tree = prev_act->get_tree();
+            old_tree = root_tree;
         }
-
         diff_context_t ctx {
             .current  = tracked,
             .updated  = tracked,
@@ -291,22 +274,15 @@ bool iterate_actions(
 
         tracked = std::move(ctx.updated);
 
-        if (callback(ctx.contains, act_id, payload)) {
-            return true;
-        }
-
-        if (prev_act == nullptr || all_oids_zero(tracked)) {
+        if (!callback(ctx.contains, i, payload)) {
             break;
         }
 
-        assert(act_id > 0);
-
-        action   = prev_act;
-        new_tree = old_tree;
-        --act_id;
+        if (i == 0 || all_oids_zero(tracked)) {
+            return true;
+        }
     }
 
     return true;
 }
-
 }

@@ -3,22 +3,18 @@
 #include "core/action/Action.h"
 #include "core/action/Converter.h"
 #include "core/conflict/ConflictManager.h"
-#include "core/git/comment.h"
 #include "core/git/commit.h"
-#include "core/git/error.h"
 #include "core/git/parser.h"
 #include "core/git/paths.h"
+#include "core/git/RepoSession.h"
 #include "core/git/types.h"
 #include "gui/error.h"
 #include "gui/style/StyleManager.h"
-#include "gui/widget/ListItem.h"
 #include "gui/widget/RebaseSelectionWidget.h"
 #include "gui/widget/RebaseViewWidget.h"
 #include "gui/widget/SettingsDialog.h"
 #include "gui/widget/WelcomeWidget.h"
 #include "logging/Log.h"
-#include "state/AppState.h"
-#include "state/CommandHistory.h"
 #include "state/State.h"
 
 #include <cassert>
@@ -68,19 +64,9 @@
 
 static App* g_app = nullptr;
 
-void App::updateGraph() { g_app->m_rebase_view->updateGraph(); }
-
-void App::updateActions() { g_app->m_rebase_view->updateActions(); }
-
-void App::updateConflicts(core::action::Action* start) { g_app->m_rebase_view->updateConflicts(start); }
-
-gui::widget::RebaseViewWidget* App::getRebaseViewWidget() { return g_app->m_rebase_view; }
-
-const state::AppState& App::getAppState() { return g_app->m_state; }
-
-const std::string& App::getRepoPath() { return g_app->m_state.repo_path(); }
-
 QMap<QString, App::ShortcutAction>& App::getShortcuts() { return g_app->m_shortcuts; }
+
+const core::rebase::RebaseSession* App::rebaseSession() { return g_app->m_rebase.current(); }
 
 void App::loadShortcuts(QSettings& settings) {
     auto& shortcuts = getShortcuts();
@@ -160,17 +146,15 @@ void App::setupShortcuts() {
     };
 
     {
-        QListWidget* actions_list = m_rebase_view->getList();
-        auto* actions_move_up     = create_shortcut("actions.move_up", actions_list, "Move focused action up");
-        auto* actions_move_down   = create_shortcut("actions.move_down", actions_list, "Move focused action down");
-        auto* actions_change      = create_shortcut("actions.change_type", actions_list, "Change focused action type");
+        QListView* actions_list = m_rebase_view->getList();
+        auto* actions_move_up   = create_shortcut("actions.move_up", actions_list, "Move focused action up");
+        auto* actions_move_down = create_shortcut("actions.move_down", actions_list, "Move focused action down");
+        auto* actions_change    = create_shortcut("actions.change_type", actions_list, "Change focused action type");
 
-        constexpr auto action_types = gui::widget::ListItem::items;
-
-        for (core::action::ActionType type : action_types) {
+        for (auto type : core::action::action_types) {
             const char* name = core::action::type_to_str(type);
-            QString desc     = QString("Change focused action type to '%1'").arg(name);
-            QString id       = QString("actions.change_%1").arg(name);
+            QString desc     = QStringLiteral("Change focused action type to '%1'").arg(name);
+            QString id       = QStringLiteral("actions.change_%1").arg(name);
 
             auto* change_type = create_shortcut(id, actions_list, desc);
 
@@ -191,7 +175,7 @@ void App::setupShortcuts() {
 }
 
 void App::setup() {
-    using state::CommandHistory;
+    m_undo_group = new QUndoGroup(this);
 
     auto* menu = new QMenuBar(this);
     setMenuBar(menu);
@@ -203,7 +187,7 @@ void App::setup() {
         m_repo_open->setStatusTip("Open a repo");
 
         connect(m_repo_open, &QAction::triggered, this, [this] {
-            if (CommandHistory::CanUndo()) {
+            if (!m_undo_group->isClean()) {
                 auto ans = QMessageBox::question(
                     this,
                     "Unsaved changes",
@@ -226,13 +210,26 @@ void App::setup() {
     {
         auto* edit = menu->addMenu("Edit");
 
-        auto* edit_undo = new QAction(QIcon::fromTheme("edit-undo"), "Undo", this);
-        edit_undo->setEnabled(false);
-        connect(edit_undo, &QAction::triggered, this, [] { CommandHistory::Undo(); });
+        m_history.undo = new QAction("Undo", this);
+        m_history.redo = new QAction("Redo", this);
 
-        auto* edit_redo = new QAction(QIcon::fromTheme("edit-redo"), "Redo", this);
-        edit_redo->setEnabled(false);
-        connect(edit_redo, &QAction::triggered, this, [] { CommandHistory::Redo(); });
+        connect(m_undo_group, &QUndoGroup::activeStackChanged, this, &App::updateUndoActions);
+        connect(m_undo_group, &QUndoGroup::canUndoChanged, this, &App::updateUndoActions);
+        connect(m_undo_group, &QUndoGroup::canRedoChanged, this, &App::updateUndoActions);
+        connect(m_undo_group, &QUndoGroup::undoTextChanged, this, &App::updateUndoActions);
+        connect(m_undo_group, &QUndoGroup::redoTextChanged, this, &App::updateUndoActions);
+
+        connect(m_history.undo, &QAction::triggered, this, [this] {
+            if (m_controller != nullptr) {
+                m_controller->undo();
+            }
+        });
+
+        connect(m_history.redo, &QAction::triggered, this, [this] {
+            if (m_controller != nullptr) {
+                m_controller->redo();
+            }
+        });
 
         auto* edit_save = new QAction(QIcon::fromTheme("edit-save"), "Save", this);
         connect(edit_save, &QAction::triggered, this, [this] { saveSaveFile(false); });
@@ -252,8 +249,8 @@ void App::setup() {
             dialog.exec();
         });
 
-        edit->addAction(edit_undo);
-        edit->addAction(edit_redo);
+        edit->addAction(m_history.undo);
+        edit->addAction(m_history.redo);
         edit->addSeparator();
         edit->addAction(edit_save);
         edit->addAction(edit_save_as);
@@ -262,11 +259,8 @@ void App::setup() {
         edit->addSeparator();
         edit->addAction(edit_preferences);
 
-        edit_undo->setShortcut(QKeySequence::Undo);
-        edit_redo->setShortcut(QKeySequence::Redo);
-
-        CommandHistory::SetUndo(edit_undo);
-        CommandHistory::SetRedo(edit_redo);
+        m_history.undo->setShortcut(QKeySequence::Undo);
+        m_history.redo->setShortcut(QKeySequence::Redo);
     }
     {
         auto* view             = menu->addMenu("View");
@@ -294,7 +288,7 @@ void App::setup() {
     m_layout = new QStackedLayout();
     main->setLayout(m_layout);
 
-    m_rebase_view    = new gui::widget::RebaseViewWidget(m_actions, m_conflicts);
+    m_rebase_view    = new gui::widget::RebaseViewWidget();
     m_welcome_widget = new gui::widget::WelcomeWidget();
     m_rebase_select  = new gui::widget::RebaseSelectionWidget();
 
@@ -335,9 +329,25 @@ void App::setup() {
     connect(m_rebase_select, &gui::widget::RebaseSelectionWidget::completed, this, &App::startNewRebase);
 }
 
-App::SaveStatus App::maybeSave() {
-    using state::CommandHistory;
+void App::updateUndoActions() {
+    auto* stack = m_undo_group->activeStack();
 
+    const bool enabled = stack != nullptr;
+
+    m_history.undo->setEnabled(enabled && stack->canUndo());
+    m_history.redo->setEnabled(enabled && stack->canRedo());
+
+    m_history.undo->setText(
+        (stack != nullptr) && stack->canUndo() ? QStringLiteral("Undo %1").arg(stack->undoText())
+                                               : QStringLiteral("Undo")
+    );
+    m_history.redo->setText(
+        (stack != nullptr) && stack->canRedo() ? QStringLiteral("Redo %1").arg(stack->redoText())
+                                               : QStringLiteral("Redo")
+    );
+}
+
+App::SaveStatus App::maybeSave() {
     SaveStatus status = SaveStatus::SAVE;
 
     if (m_cli_start) {
@@ -369,7 +379,7 @@ App::SaveStatus App::maybeSave() {
         } else if (clicked == cancel_btn || clicked == nullptr) {
             status = SaveStatus::CANCEL;
         }
-    } else if (!CommandHistory::IsSaved()) {
+    } else if (!m_undo_group->isClean()) {
         auto ans = QMessageBox::warning(
             this,
             "Unsaved changes",
@@ -460,44 +470,40 @@ void App::openRepoCLI(const std::string& path) {
 bool App::openRepo(const std::string& path) {
     LOG_INFO("Openning repo: {}", path);
 
-    state::CommandHistory::Clear();
+    auto repo = core::git::RepoSession::open(path);
+    if (!repo.has_value()) {
+        auto err = repo.error();
 
-    core::git::repository_t new_repo;
-    if (git_repository_open(&new_repo, path.c_str()) != 0) {
-
-        DISPLAY_LIBGIT_ERROR(this, "Failed to open repository", core::git::get_last_error());
-
+        DISPLAY_LIBGIT_ERROR(this, err.title, err.message);
         m_layout->setCurrentIndex(page_welcome);
         return false;
     }
 
-    m_state.set_repo(std::move(new_repo), path);
+    auto rebase_info = repo->rebase_info();
+    if (!rebase_info.has_value()) {
+        auto err = repo.error();
 
-    std::string head;
-    std::string onto;
-    auto err = core::git::get_rebase_info(path, head, onto);
+        DISPLAY_LIBGIT_ERROR(this, err.title, err.message);
+        m_layout->setCurrentIndex(page_welcome);
+        return false;
+    } else if (!rebase_info->has_value()) {
+        m_layout->setCurrentIndex(page_rebase_select);
 
-    m_state.set_rebase(head, onto);
-
-    if (err.has_value()) {
-
-        if (err->type == core::git::RebaseInfoError::NotFound) {
-            m_layout->setCurrentIndex(page_rebase_select);
-
-            if (!prepareRebaseSelection()) {
-                m_layout->setCurrentIndex(page_welcome);
-                return false;
-            } else {
-                return true;
-            }
+        if (!prepareRebaseSelection(std::move(*repo))) {
+            m_layout->setCurrentIndex(page_welcome);
+            return false;
+        } else {
+            return true;
         }
-
-        DISPLAY_ERROR(this, "Rebase error", err->msg);
-        m_layout->setCurrentIndex(page_welcome);
-        return false;
     }
 
-    if (!loadRebase()) {
+    auto info = rebase_info.value().value();
+    auto err  = openRebase(info, std::move(*repo));
+    if (!err.has_value()) {
+        auto e = err.error();
+
+        DISPLAY_LIBGIT_ERROR(this, e.title, e.message);
+
         m_layout->setCurrentIndex(page_welcome);
         return false;
     }
@@ -506,38 +512,50 @@ bool App::openRepo(const std::string& path) {
     return true;
 }
 
-bool App::loadRebase() {
-
-    auto comment_str = core::git::get_comment_string(m_state.repo());
-    if (!comment_str.has_value()) {
-        DISPLAY_LIBGIT_ERROR(this, "Reading of Git config failed", comment_str.err_message());
-        return false;
+core::Result<void> App::openRebase(const core::git::RebaseInfo& info, core::git::RepoSession&& repo) {
+    auto graph = gui::widget::RebaseViewWidget::GitGraph::create(info.head.c_str(), info.onto.c_str(), repo.repo());
+    if (!graph.has_value()) {
+        return std::unexpected<core::Error>({
+            .title   = "Failed to create git graph",
+            .message = "Could not find commits",
+        });
     }
 
-    auto filepath = m_state.repo_path() + '/' + core::git::TODO_FILE.c_str();
-
-    m_state.set_comment_string(comment_str.value());
-
-    auto res = core::git::parse_file(filepath, comment_str.value());
-    if (res.has_error()) {
-        DISPLAY_ERROR(this, "Failed to parse todo file", res.err);
-        return false;
+    auto plan = core::rebase::RebasePlan::open(repo, info, graph->first_node().commit);
+    if (!plan.has_value()) {
+        return std::unexpected<core::Error>(plan.error());
     }
 
-    auto rebase_res = m_rebase_view->update(m_state, res.actions);
-    if (rebase_res.has_value()) {
-        DISPLAY_ERROR(this, "Rebase error", *rebase_res);
-        return false;
-    }
-
-    return true;
+    openRebase(std::move(repo), std::move(*plan), { }, std::move(*graph));
+    return { };
 }
 
-bool App::prepareRebaseSelection() {
+void App::openRebase(
+    core::git::RepoSession&& repo,
+    core::rebase::RebasePlan&& plan,
+    core::conflict::ConflictManager&& conflicts,
+    core::git::GitGraph<void>&& graph
+) {
+
+    auto& session = m_rebase.start(std::move(repo), std::move(plan), std::move(conflicts));
+    m_controller  = std::make_unique<app::rebase::RebaseController>(session, this);
+    m_rebase_view->setSession(m_controller.get(), std::move(graph));
+
+    auto* undo_stack = m_controller->undoStack();
+
+    m_undo_group->addStack(undo_stack);
+    m_undo_group->setActiveStack(undo_stack);
+
+    m_layout->setCurrentIndex(page_rebase_view);
+}
+
+bool App::prepareRebaseSelection(core::git::RepoSession&& repo) {
+
+    m_new_rebase_repo.emplace(std::move(repo));
 
     core::git::branch_iterator_t branch_iter;
 
-    if (git_branch_iterator_new(&branch_iter, m_state.repo(), GIT_BRANCH_LOCAL) != 0) {
+    if (git_branch_iterator_new(&branch_iter, repo.repo(), GIT_BRANCH_LOCAL) != 0) {
         return false;
     }
 
@@ -550,7 +568,6 @@ bool App::prepareRebaseSelection() {
         core::git::reference_t branch_ref { branch_raw_ref };
 
         const char* name;
-
         if (git_branch_name(&name, branch_ref) != 0) {
             continue;
         }
@@ -566,7 +583,7 @@ bool App::prepareRebaseSelection() {
 void App::startNewRebase(QString commit_id) {
     auto branch_name = QString::fromStdString(m_rebase_select->selectedBranch());
 
-    if (commit_id.isEmpty() || branch_name.isEmpty()) {
+    if (commit_id.isEmpty() || branch_name.isEmpty() || !m_new_rebase_repo.has_value()) {
         return;
     }
 
@@ -578,7 +595,7 @@ void App::startNewRebase(QString commit_id) {
     }
 
     core::git::commit_t commit;
-    if (git_commit_lookup(&commit, m_state.repo(), &oid) != 0) {
+    if (git_commit_lookup(&commit, m_new_rebase_repo->repo(), &oid) != 0) {
         return;
     }
 
@@ -609,7 +626,8 @@ void App::startNewRebase(QString commit_id) {
 
     app_path += " --edit-todo";
 
-    QString cmd_str = QString("%1 rebase --no-rebase-merges -i %2 %3").arg(git_path).arg(target).arg(branch_name);
+    QString cmd_str
+        = QStringLiteral("%1 rebase --no-rebase-merges -i %2 %3").arg(git_path).arg(target).arg(branch_name);
 
     LOG_INFO(
         R"(Executing git.
@@ -617,16 +635,16 @@ void App::startNewRebase(QString commit_id) {
     WorkingDir: {}
     Editor: {})",
         cmd_str.toStdString(),
-        m_state.repo_path(),
+        m_new_rebase_repo->path(),
         app_path.toStdString()
     );
 
     auto answer = QMessageBox::question(
         this,
         "Execute command",
-        QString("Do you want to execute this command?\n- Command: %1\n- Working dir: %2")
+        QStringLiteral("Do you want to execute this command?\n- Command: %1\n- Working dir: %2")
             .arg(cmd_str)
-            .arg(m_state.repo_path()),
+            .arg(m_new_rebase_repo->path()),
         QMessageBox::Yes | QMessageBox::No,
         QMessageBox::No
     );
@@ -641,7 +659,7 @@ void App::startNewRebase(QString commit_id) {
     m_git_proc = std::make_unique<QProcess>();
     m_git_proc->setProgram(git_path);
     m_git_proc->setArguments({ "rebase", "--no-rebase-merges", "-i", target, branch_name });
-    m_git_proc->setWorkingDirectory(QString::fromStdString(m_state.repo_path()));
+    m_git_proc->setWorkingDirectory(QString::fromStdString(m_new_rebase_repo->path()));
     m_git_proc->setProcessEnvironment(env);
 
     m_git_proc->setProcessChannelMode(QProcess::ForwardedChannels);
@@ -666,21 +684,21 @@ void App::startNewRebase(QString commit_id) {
 }
 
 void App::updateRebaseSelection(const std::string& branch) {
-    if (branch.empty() || m_state.repo() == nullptr) {
+    if (branch.empty() || !m_new_rebase_repo.has_value()) {
         return;
     }
 
     m_rebase_select->clearCommits();
     m_rebase_select->clearMessage();
 
-    core::git::branch_state_t state = core::git::check_branch(m_state.repo(), branch.c_str());
+    core::git::branch_state_t state = core::git::check_branch(m_new_rebase_repo->repo(), branch.c_str());
     if (state.behind > 0) {
         m_rebase_select->setMessage(
-            QString("Warning: branch '%1' is %2 commit(s) behind upstream").arg(branch).arg(state.behind)
+            QStringLiteral("Warning: branch '%1' is %2 commit(s) behind upstream").arg(branch).arg(state.behind)
         );
     }
 
-    core::git::iterate_branch_commits(m_state.repo(), branch.c_str(), [this](git_commit* commit) {
+    core::git::iterate_branch_commits(m_new_rebase_repo->repo(), branch.c_str(), [this](git_commit* commit) {
         const auto* id     = git_commit_id(commit);
         std::string id_str = git_oid_tostr_s(id);
 
@@ -696,16 +714,18 @@ void App::updateRebaseSelection(const std::string& branch) {
 }
 
 bool App::saveSaveFile(bool choose_file) {
-    if (!m_save_file.has_value() || choose_file) {
-        QString default_path = QString::fromStdString(m_state.repo_path());
+    if (m_rebase.current() == nullptr) {
+        return false;
+    }
 
-        QString filter = tr("XML Files (*.xml)");
+    if (!m_save_file.has_value() || choose_file) {
+        QString filter = "XML Files (*.xml)";
 
         QFileDialog dialog(this);
         dialog.setWindowTitle("Save");
         dialog.setAcceptMode(QFileDialog::AcceptSave);
         dialog.setNameFilter("XML Files (*.xml)");
-        dialog.setDirectory(QString::fromStdString(m_state.repo_path()));
+        dialog.setDirectory(QString::fromStdString(m_rebase.current()->repo().path()));
 
         dialog.setDefaultSuffix("xml");
 
@@ -724,79 +744,62 @@ bool App::saveSaveFile(bool choose_file) {
 
     LOG_INFO("Saving: {}", m_save_file->toStdString());
 
-    if (!state::State::save(m_save_file.value().toStdU32String(), m_state, m_actions, m_conflicts)) {
+    if (!state::State::save(m_save_file.value().toStdU32String(), *m_rebase.current())) {
         DISPLAY_ERROR(this, "Save error", "Failed to save");
         return false;
     }
 
-    state::CommandHistory::Save();
-
+    m_controller->markSaved();
     return true;
 }
 
 void App::loadSaveFile() {
+    QString repo_path;
+    if (m_rebase.current() != nullptr) {
+        repo_path = QString::fromStdString(m_rebase.current()->repo().path());
+    }
+
     QString filter = "XML Files (*.xml)";
-    QString dir    = m_save_file.value_or(QString::fromStdString(m_state.repo_path()));
+    QString dir    = m_save_file.value_or(repo_path);
 
     QString filepath = QFileDialog::getOpenFileName(this, "Load", dir, filter, nullptr);
-
     if (filepath.isEmpty()) {
         return;
     }
 
     LOG_INFO("Loading: {}", filepath.toStdString());
 
-    core::git::repository_t repo;
-    auto save_data = state::State::load(filepath.toStdU32String(), &repo);
+    auto save_data = state::State::load(filepath.toStdU32String());
     if (!save_data.has_value()) {
-        DISPLAY_ERROR(this, "Load save error", "Failed to load save file");
+        auto err = save_data.error();
+        DISPLAY_ERROR(this, err.title, err.message);
         return;
     }
-
     m_save_file = filepath;
 
-    m_state.set_repo(std::move(repo), save_data->repo_path);
-    m_state.set_rebase(save_data->head, save_data->onto);
+    auto plan = core::rebase::RebasePlan::open(save_data->info, std::move(save_data->actions));
 
-    m_actions.clear();
-
-    for (auto&& [act, msg] : save_data->actions) {
-        if (!msg.empty()) {
-            act.set_msg(msg);
-        }
-
-        m_actions.append(std::move(act));
-    }
-
-    m_conflicts.clear();
-
-    for (auto&& [entry, blob] : save_data->conflicts) {
-        m_conflicts.add_resolution(entry, blob);
-    }
-
-    for (auto&& [conflict, tree] : save_data->conflict_trees) {
-        m_conflicts.add_trees_resolution(conflict, std::move(tree));
-    }
-
-    state::CommandHistory::Clear();
-
-    m_layout->setCurrentIndex(page_rebase_view);
-
-    auto rebase_res = m_rebase_view->update(m_state);
-    if (rebase_res.has_value()) {
-        DISPLAY_ERROR(this, "Rebase error", *rebase_res);
-    }
+    openRebase(
+        std::move(save_data->repo), std::move(plan), std::move(save_data->conflicts), std::move(save_data->graph)
+    );
 }
 
 bool App::saveTodoFile(bool insert_break) {
-    std::string head;
-    std::string onto;
 
-    const std::string& expected_head = m_state.rebase_head();
-    const std::string& expected_onto = m_state.rebase_onto();
+    const auto* rebase = m_rebase.current();
+    const auto& repo   = rebase->repo();
+    const auto& plan   = rebase->plan();
+    const auto& info   = plan.info();
 
-    auto err = core::git::get_rebase_info(m_state.repo_path(), head, onto);
-    if (err.has_value()) {
+    const std::string& expected_head = info.head;
+    const std::string& expected_onto = info.onto;
+
+    auto tmp_info = repo.rebase_info();
+    if (!tmp_info.has_value()) {
+        auto err = tmp_info.error();
+        DISPLAY_ERROR(this, err.title, err.message);
+        return false;
+    } else if (!tmp_info->has_value()) {
         DISPLAY_ERROR(
             this,
             "Rebase todo file error",
@@ -805,6 +808,10 @@ bool App::saveTodoFile(bool insert_break) {
         );
         return false;
     }
+    auto new_info = tmp_info->value();
+
+    const auto& head = new_info.head;
+    const auto& onto = new_info.onto;
 
     if (head != expected_head || onto != expected_onto) {
         DISPLAY_ERROR(
@@ -825,8 +832,7 @@ bool App::saveTodoFile(bool insert_break) {
         return false;
     }
 
-    auto filepath = m_state.repo_path() + '/' + core::git::TODO_FILE.c_str();
-
+    auto filepath = repo.path() + '/' + core::git::TODO_FILE.c_str();
     std::ofstream todo_file(filepath);
     if (!todo_file.good()) {
         DISPLAY_ERROR(
@@ -837,7 +843,9 @@ bool App::saveTodoFile(bool insert_break) {
 
     LOG_INFO("Saving todo file: {}", filepath);
 
-    bool status = core::action::Converter::actions_to_todo(todo_file, m_actions, m_conflicts, insert_break);
+    bool status = core::action::Converter::actions_to_todo(
+        todo_file, *m_rebase.current(), *m_rebase_view->rebaseAnalysis(), insert_break
+    );
 
     if (!status) {
         DISPLAY_ERROR(this, "Save error", "Failed to save rebase instructions");

@@ -16,10 +16,11 @@
 namespace gui::widget {
 
 class CommitMessageWidget : public QWidget {
+    Q_OBJECT
 public:
     using Action = core::action::Action;
 
-    CommitMessageWidget(core::action::ActionsManager& actions, QWidget* parent = nullptr);
+    CommitMessageWidget(QWidget* parent = nullptr);
 
     void enableEdit() {
         m_editor->setReadOnly(false);
@@ -35,18 +36,18 @@ public:
 
     void setText(const QString& text) {
         setEditorText(text);
-
         m_filepath.clear();
     }
+
+    void clearText() { setEditorText(); }
 
     void openInEditor();
     void updateText();
 
-    void setAction(Action* action, std::string_view comment_str);
+    void setAction(const Action* action, std::string_view comment_str);
 
-    Action* getAction() { return m_action; }
-
-    void setTextChangeHandle(std::function<void(const std::string&)> handle) { m_handle = handle; }
+signals:
+    void commitMessageChanged(const QString& msg);
 
 private:
     QHBoxLayout* m_layout;
@@ -55,14 +56,18 @@ private:
     QPushButton* m_open_editor;
     QPushButton* m_update_msg;
 
-    Action* m_action = nullptr;
+    QString m_oid;
     QString m_filepath;
-    core::action::ActionsManager& m_manager;
-    std::function<void(const std::string&)> m_handle = nullptr;
 
     void setEditorText(const QString& text) {
         m_editor->blockSignals(true);
         m_editor->setPlainText(text);
+        m_editor->blockSignals(false);
+    }
+
+    void setEditorText() {
+        m_editor->blockSignals(true);
+        m_editor->clear();
         m_editor->blockSignals(false);
     }
 };

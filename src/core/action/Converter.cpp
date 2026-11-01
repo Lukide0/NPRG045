@@ -32,7 +32,7 @@ struct ConverterContext {
     git_repository* repo;
 
     git::tree_t root_tree;
-    Action* last_action = nullptr;
+    const core::rebase::StepResult* last_action = nullptr;
     git::commit_t base_commit;
     git_oid base_tree_id { };
 };
@@ -93,16 +93,17 @@ bool create_resolution_commit(
 }
 
 std::optional<ActionInfo>
-get_action_info(ConverterContext& ctx, Action& act, conflict::ConflictManager& conflict_manager) {
+get_step_info(ConverterContext& ctx, const rebase::StepResult& step, conflict::ConflictManager& conflict_manager) {
     ActionInfo info;
 
+    const Action& act  = *step.action;
     git_commit* commit = act.get_commit();
 
     const char* summary = git_commit_summary(commit);
     info.msg            = summary != nullptr ? summary : "";
     info.oid            = git_oid_tostr_s(git_commit_id(commit));
 
-    const git_tree* prev_tree = (ctx.last_action == nullptr) ? ctx.root_tree.get() : ctx.last_action->get_tree();
+    const git_tree* prev_tree = (ctx.last_action == nullptr) ? ctx.root_tree.get() : ctx.last_action->tree.get();
 
     if (prev_tree != nullptr && act.get_type() != ActionType::DROP) {
         git_tree* resolution = conflict_manager.get_trees_resolution(prev_tree, commit);
@@ -162,10 +163,15 @@ void fixup_to_todo(std::ostream& output, ActionInfo& info) {
 }
 
 bool Converter::actions_to_todo(
-    std::ostream& output, ActionsManager& manager, conflict::ConflictManager& conflict_manager, bool insert_break
+    std::ostream& output,
+    core::rebase::RebaseSession& session,
+    const core::rebase::RebaseAnalysis& result,
+    bool insert_break
 ) {
     ConverterContext ctx;
-    git_commit* root = manager.get_root_commit();
+
+    auto& plan             = session.plan();
+    const git_commit* root = plan.root_commit();
 
     assert(root != nullptr);
     ctx.repo = git_commit_owner(root);
@@ -184,16 +190,16 @@ bool Converter::actions_to_todo(
         output << "break\n";
     }
 
-    for (auto& act : manager) {
-        auto info = get_action_info(ctx, act, conflict_manager);
+    for (const auto& step : result.steps) {
+        auto info = get_step_info(ctx, step, session.conflicts());
 
         if (!info.has_value()) {
             return false;
         }
 
-        ctx.last_action = &act;
+        ctx.last_action = &step;
 
-        switch (act.get_type()) {
+        switch (step.action->get_type()) {
         case ActionType::PICK:
             pick_to_todo(output, *info);
             break;

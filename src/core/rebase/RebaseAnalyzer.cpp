@@ -63,7 +63,7 @@ RebaseAnalyzer::RebaseAnalyzer(git::RepoSession& repo, const RebasePlan& plan, c
     , m_plan(plan)
     , m_conflicts(conflicts) { }
 
-Result<RebaseAnalysis> RebaseAnalyzer::analyze(const RebaseAnalysis* previous) const {
+Result<RebaseAnalysisPtr> RebaseAnalyzer::analyze(const RebaseAnalysis* previous) const {
     const git_commit* root = m_plan.root_commit();
     if (root == nullptr) {
         return std::unexpected<Error>({
@@ -72,8 +72,8 @@ Result<RebaseAnalysis> RebaseAnalyzer::analyze(const RebaseAnalysis* previous) c
         });
     }
 
-    RebaseAnalysis result;
-    result.plan_revision = m_plan.revision();
+    RebaseAnalysisPtr result = std::make_shared<RebaseAnalysis>();
+    result->plan_revision    = m_plan.revision();
 
     git::tree_t root_tree;
     if (git_commit_tree(&root_tree, root) != 0) {
@@ -83,25 +83,31 @@ Result<RebaseAnalysis> RebaseAnalyzer::analyze(const RebaseAnalysis* previous) c
         });
     }
 
-    result.root_tree    = git::make_shared_ptr_object<git::tree_t>(std::move(root_tree));
-    result.root_tree_id = *git_tree_id(result.root_tree.get());
+    std::optional<std::size_t> first_changed;
+    if (previous == nullptr) {
+        first_changed = 0;
+    }
 
-    shared_git_tree prev = result.root_tree;
+    result->root_tree    = git::make_shared_ptr_object<git::tree_t>(std::move(root_tree));
+    result->root_tree_id = *git_tree_id(result->root_tree.get());
+
+    shared_git_tree prev = result->root_tree;
 
     for (const action::Action& act : m_plan) {
         StepResult step;
-        step.index        = result.steps.size();
+        step.index        = result->steps.size();
         step.input.commit = act.get_oid();
         step.input.drop   = act.get_type() == action::ActionType::DROP;
+        step.action       = &act;
 
         if (prev == nullptr) {
-            step.status = conflict::ConflictStatus::UNKNOWN;
+            step.status = conflict::ConflictState::Unknown;
         } else {
             step.has_parent_tree = true;
             step.parent_tree_id  = *git_tree_id(prev.get());
 
             if (step.input.drop) {
-                step.status = conflict::ConflictStatus::NO_CONFLICT;
+                step.status = conflict::ConflictState::Clean;
                 step.tree   = prev;
             } else {
                 const StepResult* old = try_use(previous, step);
@@ -112,17 +118,49 @@ Result<RebaseAnalysis> RebaseAnalyzer::analyze(const RebaseAnalysis* previous) c
                 } else {
                     auto res = compute_pick(act, prev.get(), step);
                     if (!res.has_value()) {
-                        return std::unexpected<Error>(res.error());
+                        step.error  = res.error();
+                        step.status = conflict::ConflictState::Error;
                     }
                 }
             }
         }
 
+        if (step.status == conflict::ConflictState::Conflict) {
+            assert(!result->blocking_index.has_value());
+            result->blocking_index = step.index;
+        }
+
+        if (!first_changed.has_value()) {
+            if (step.index >= previous->steps.size() || !step.equivalent(previous->steps[step.index])) {
+                first_changed = step.index;
+            }
+        }
+
         prev = step.has_result() ? step.tree : nullptr;
-        result.steps.push_back(std::move(step));
+        result->steps.push_back(std::move(step));
     }
 
+    try_compute_conflict_impacts(result.get());
+
     return result;
+}
+
+void RebaseAnalyzer::try_compute_conflict_impacts(RebaseAnalysis* result) const {
+    if (result == nullptr) {
+        return;
+    }
+
+    auto step_callback = [](bool contains_file, std::size_t step_index, void* payload) -> bool {
+        auto* analysis = static_cast<RebaseAnalysis*>(payload);
+
+        if (contains_file) {
+            analysis->steps[step_index].extra.affects_later_conflict = true;
+        }
+
+        return true;
+    };
+
+    conflict::iterate_steps(m_repo.repo(), m_plan, *result, step_callback, result);
 }
 
 [[nodiscard]] bool RebaseAnalyzer::is_current(const RebaseAnalysis& analysis) const {
@@ -153,19 +191,19 @@ const StepResult* RebaseAnalyzer::try_use(const RebaseAnalysis* previous, const 
     const auto* old_tree = old_result->tree.get();
 
     switch (old_result->status) {
-    case conflict::ConflictStatus::UNKNOWN:
-    case conflict::ConflictStatus::ERR:
+    case conflict::ConflictState::Unknown:
+    case conflict::ConflictState::Error:
         return nullptr;
-    case conflict::ConflictStatus::HAS_CONFLICT:
+    case conflict::ConflictState::Conflict:
         if (old_result->conflict == nullptr || !resolutions_match(m_conflicts, *old_result->conflict)) {
             return nullptr;
         }
         return old_result;
 
-    case conflict::ConflictStatus::NO_CONFLICT:
+    case conflict::ConflictState::Clean:
         return old_tree != nullptr ? old_result : nullptr;
 
-    case conflict::ConflictStatus::RESOLVED_CONFLICT:
+    case conflict::ConflictState::Resolved:
         if (old_tree == nullptr || old_result->conflict == nullptr
             || !resolutions_match(m_conflicts, *old_result->conflict)) {
             return nullptr;
@@ -180,32 +218,32 @@ Result<void> RebaseAnalyzer::compute_pick(const action::Action& act, const git_t
     auto [status, merge_index] = conflict::pick_check(act.get_commit(), prev);
 
     switch (status) {
-    case conflict::ConflictStatus::UNKNOWN:
-    case conflict::ConflictStatus::RESOLVED_CONFLICT:
-        step.status = conflict::ConflictStatus::ERR;
+    case conflict::ConflictState::Unknown:
+    case conflict::ConflictState::Resolved:
+        step.status = conflict::ConflictState::Error;
         return std::unexpected<Error>({
             .title   = "Conflict update error",
             .message = "unexpected status from the conflict check",
         });
 
-    case conflict::ConflictStatus::ERR:
-        step.status = conflict::ConflictStatus::ERR;
+    case conflict::ConflictState::Error:
+        step.status = conflict::ConflictState::Error;
         return std::unexpected<Error>({
             .title   = "Conflict update error",
             .message = git::get_last_error(),
         });
 
-    case conflict::ConflictStatus::HAS_CONFLICT:
+    case conflict::ConflictState::Conflict:
         break;
 
-    case conflict::ConflictStatus::NO_CONFLICT: {
+    case conflict::ConflictState::Clean: {
         auto tree = write_tree(m_repo.repo(), merge_index);
         if (!tree.has_value()) {
-            step.status = conflict::ConflictStatus::ERR;
+            step.status = conflict::ConflictState::Error;
             return std::unexpected<Error>(tree.error());
         }
 
-        step.status = conflict::ConflictStatus::NO_CONFLICT;
+        step.status = conflict::ConflictState::Clean;
         step.tree   = git::make_shared_ptr_object<git::tree_t>(std::move(tree.value()));
         return { };
     }
@@ -277,7 +315,7 @@ Result<void> RebaseAnalyzer::compute_pick(const action::Action& act, const git_t
     step.conflict = info;
 
     if (!info->all_resolved()) {
-        step.status = conflict::ConflictStatus::HAS_CONFLICT;
+        step.status = conflict::ConflictState::Conflict;
         return { };
     }
 
@@ -305,7 +343,7 @@ Result<void> RebaseAnalyzer::compute_pick(const action::Action& act, const git_t
         });
     }
 
-    step.status = conflict::ConflictStatus::RESOLVED_CONFLICT;
+    step.status = conflict::ConflictState::Resolved;
     step.tree   = git::make_shared_ptr_object<git::tree_t>(std::move(tree.value()));
 
     return { };

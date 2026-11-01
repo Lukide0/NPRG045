@@ -3,6 +3,8 @@
 #include "core/action/Action.h"
 #include "core/action/ActionsManager.h"
 #include "core/conflict/ConflictManager.h"
+#include "core/rebase/RebaseAnalysis.h"
+#include "core/rebase/RebaseSession.h"
 
 #include <ostream>
 
@@ -19,16 +21,16 @@ public:
      * @brief Converts actions to a todo file format.
      *
      * @param output Output stream for the generated todo file.
-     * @param manager Actions manager containing actions to convert.
-     * @param conflict_manager Conflict manager used during conversion.
+     * @param session The rebase session.
+     * @param result The rebase result.
      * @param insert_break Whether to insert a break command.
      *
      * @return True if conversion succeeded, false otherwise.
      */
     static bool actions_to_todo(
         std::ostream& output,
-        ActionsManager& manager,
-        conflict::ConflictManager& conflict_manager,
+        core::rebase::RebaseSession& session,
+        const core::rebase::RebaseAnalysis& result,
         bool insert_break = false
     );
 };

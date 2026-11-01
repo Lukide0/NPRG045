@@ -39,7 +39,7 @@ namespace core::git {
 /**
  * @brief Size of a Git OID string representation.
  */
-constexpr std::size_t OID_SIZE = 40;
+constexpr std::size_t OID_SIZE = GIT_OID_MAX_HEXSIZE;
 
 template <typename T> using destructor_t = void (*)(T*);
 
@@ -81,7 +81,7 @@ public:
 
     T* get() { return m_obj; }
 
-    [[nodiscard]] const T* get() const { return m_obj; }
+    [[nodiscard]] T* get() const { return m_obj; }
 
     T* release() {
         T* tmp = m_obj;

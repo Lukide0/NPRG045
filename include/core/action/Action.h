@@ -3,6 +3,7 @@
 #include "core/conflict/conflict.h"
 #include "core/git/types.h"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <optional>
@@ -38,6 +39,8 @@ constexpr auto action_types = std::to_array<ActionType>({
     ActionType::EDIT,
 });
 
+constexpr bool is_valid_type(ActionType type) { return std::ranges::find(action_types, type) != action_types.end(); }
+
 /**
  * @brief Converts an ActionType to its string representation.
  */
@@ -65,7 +68,7 @@ static constexpr const char* type_to_str(ActionType type) {
  */
 class Action {
 public:
-    using ConflictStatus = conflict::ConflictStatus;
+    using ConflictStatus = conflict::ConflictState;
 
     /**
      * @brief Constructs an Action from an existing commit.
@@ -101,9 +104,7 @@ public:
     /**
      * @brief Gets commit object.
      */
-    [[nodiscard]] git_commit* get_commit() { return m_commit.get(); }
-
-    [[nodiscard]] const git_commit* get_commit() const { return m_commit.get(); }
+    [[nodiscard]] git_commit* get_commit() const { return m_commit.get(); }
 
     /**
      * @brief Gets optional message ID.
@@ -147,44 +148,6 @@ public:
     }
 
     /**
-     * @brief Clears tree data and resets conflict status.
-     */
-    void clear_tree() {
-        m_tree.destroy();
-        m_tree_conflict = ConflictStatus::UNKNOWN;
-    }
-
-    /**
-     * @brief Sets tree and its conflict status.
-     *
-     * @param tree Git tree object.
-     * @param status Conflict status.
-     */
-    void set_tree(git::tree_t&& tree, ConflictStatus status) {
-        m_tree          = std::move(tree);
-        m_tree_conflict = status;
-    }
-
-    /**
-     * @brief Gets tree object.
-     */
-    git_tree* get_tree() { return m_tree; }
-
-    [[nodiscard]] const git_tree* get_tree() const { return m_tree.get(); }
-
-    /**
-     * @brief Sets tree conflict status.
-     *
-     * @param status Conflict status.
-     */
-    void set_tree_status(ConflictStatus status) { m_tree_conflict = status; }
-
-    /**
-     * @brief Gets tree conflict status.
-     */
-    [[nodiscard]] ConflictStatus get_tree_status() const { return m_tree_conflict; }
-
-    /**
      * @brief Gets action type.
      */
     [[nodiscard]] ActionType get_type() const { return m_type; }
@@ -203,13 +166,12 @@ public:
      */
     void set_msg(const std::string& msg) { m_edited_msg = msg; }
 
+    void clear_msg() { m_edited_msg = std::nullopt; }
+
 private:
     Action* m_next = nullptr;
     Action* m_prev = nullptr;
     git::commit_t m_commit;
-
-    git::tree_t m_tree;
-    ConflictStatus m_tree_conflict = ConflictStatus::UNKNOWN;
 
     std::optional<std::string> m_edited_msg;
     ActionType m_type;

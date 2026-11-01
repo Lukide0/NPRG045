@@ -2,6 +2,8 @@
 
 #include "core/action/Action.h"
 #include "core/git/types.h"
+#include "core/rebase/RebaseAnalysis.h"
+#include "core/rebase/RebaseSession.h"
 #include <string>
 #include <string_view>
 #include <utility>
@@ -24,19 +26,21 @@ struct SplitError {
 /**
  * @brief Splits a commit into two parts using a patch.
  *
+ * @param rebase Rebase sesion.
  * @param out_first Resulting first commit.
  * @param out_second Resulting second commit.
- * @param actions Actions manager.
- * @param act Action associated with the split.
+ * @param step The input step.
+ * @param previous_step The previous step.
  * @param patch Diff patch used for splitting.
  *
  * @return Error status.
  */
 SplitError split(
+    rebase::RebaseSession& rebase,
     git::commit_t& out_first,
     git::commit_t& out_second,
-    action::ActionsManager& actions,
-    action::Action* act,
+    const rebase::StepResult& step,
+    const rebase::StepResult* previous_step,
     git::diff_t& patch
 );
 

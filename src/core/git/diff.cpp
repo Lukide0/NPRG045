@@ -3,6 +3,7 @@
 #include "core/action/Action.h"
 #include "core/conflict/ConflictManager.h"
 #include "core/git/types.h"
+#include "core/rebase/RebaseAnalysis.h"
 #include "utils/unexpected.h"
 
 #include <cassert>
@@ -112,21 +113,46 @@ diff_result_t prepare_resolution_diff(
 }
 
 diff_result_t prepare_resolution_diff(
-    git_tree* old_tree, action::Action* new_tree, conflict::ConflictManager& conflicts, const git_diff_options* opts
+    const git_oid* old_tree,
+    const rebase::StepResult& new_tree,
+    conflict::ConflictManager& conflicts,
+    const git_diff_options* opts
+) {
+    assert(new_tree.action != nullptr);
+
+    git_commit* commit   = new_tree.action->get_commit();
+    git_repository* repo = git_commit_owner(commit);
+
+    tree_t tree;
+    if (git_tree_lookup(&tree, repo, old_tree) != 0) {
+        diff_result_t res;
+        res.state = diff_result_t::FAILED_TO_RETRIEVE_TREE;
+        return res;
+    }
+
+    return prepare_resolution_diff(tree, new_tree, conflicts, opts);
+}
+
+diff_result_t prepare_resolution_diff(
+    git_tree* old_tree,
+    const rebase::StepResult& new_tree,
+    conflict::ConflictManager& conflicts,
+    const git_diff_options* opts
 ) {
     git_repository* repo = nullptr;
     if (old_tree != nullptr) {
         repo = git_tree_owner(old_tree);
     }
 
+    git_commit* commit = new_tree.action->get_commit();
+
     if (repo == nullptr) {
-        repo = git_commit_owner(new_tree->get_commit());
+        repo = git_commit_owner(commit);
     }
 
-    git_tree* resolution_tree = conflicts.get_trees_resolution(old_tree, new_tree->get_commit());
-
+    git_tree* resolution_tree = conflicts.get_trees_resolution(old_tree, commit);
     if (resolution_tree == nullptr) {
-        return prepare_diff(old_tree, new_tree->get_tree(), repo, opts);
+        return prepare_diff(old_tree, new_tree.tree.get(), repo, opts);
     }
 
     return prepare_diff(old_tree, resolution_tree, repo, opts);

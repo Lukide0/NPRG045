@@ -2,14 +2,11 @@
 
 #include "App.h"
 #include "core/action/Action.h"
-#include "core/action/ActionsManager.h"
 #include "core/git/diff.h"
 #include "core/git/GitGraph.h"
 #include "core/git/types.h"
-#include "gui/clear_layout.h"
 #include "gui/widget/CommitMessageWidget.h"
 #include "gui/widget/DiffWidget.h"
-#include "gui/widget/graph/Node.h"
 #include "gui/widget/NamedListWidget.h"
 #include "gui/widget/SLabel.h"
 
@@ -34,6 +31,7 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 namespace gui::widget {
 
@@ -42,10 +40,9 @@ using core::git::diff_files_t;
 using core::git::diff_line_t;
 using core::git::GitGraph;
 
-CommitViewWidget::CommitViewWidget(core::action::ActionsManager& actions, DiffWidget* diff)
-    : m_manager(actions)
+CommitViewWidget::CommitViewWidget(DiffWidget* diff, QWidget* parent)
+    : QWidget(parent)
     , m_diff(diff) {
-
     m_layout = new QHBoxLayout();
     setLayout(m_layout);
 
@@ -55,51 +52,81 @@ CommitViewWidget::CommitViewWidget(core::action::ActionsManager& actions, DiffWi
     m_changes = new NamedListWidget("Changes");
     m_layout->addWidget(m_changes);
 
-    createRows();
+    m_labels.hash    = new SLabel();
+    m_labels.autor   = new SLabel();
+    m_labels.date    = new SLabel();
+    m_message_widget = new CommitMessageWidget();
+
+    m_info_layout->addRow("Hash:", m_labels.hash);
+    m_info_layout->addRow("Author:", m_labels.autor);
+    m_info_layout->addRow("Date:", m_labels.date);
+    m_info_layout->addRow("Message:", m_message_widget);
 
     auto* list = m_changes->getList();
-
     connect(list, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
         auto index = item->data(Qt::UserRole).toInt();
         auto* file = m_diff->getDiffFile(index);
 
+        if (file == nullptr) {
+            return;
+        }
+
         m_diff->ensureEditorVisible(file);
     });
+
+    connect(
+        m_message_widget, &CommitMessageWidget::commitMessageChanged, this, &CommitViewWidget::commitMessageChanged
+    );
 }
 
-void CommitViewWidget::createRows() {
-    clear_layout(m_info_layout);
+void CommitViewWidget::setCurrentStep(core::rebase::RebaseAnalysisConstPtr analysis, int row) {
+    m_step   = nullptr;
+    m_commit = nullptr;
 
-    if (m_commit == nullptr) {
-        m_info_layout->addRow("Hash:", new QLabel(""));
-        m_info_layout->addRow("Author:", new QLabel(""));
-        m_info_layout->addRow("Date:", new QLabel(""));
-        m_info_layout->addRow("Message:", new QLabel(""));
+    if (analysis == nullptr || row < 0 || static_cast<std::size_t>(row) >= analysis->steps.size()) {
+        updateCommit();
         return;
     }
 
-    m_msg = new CommitMessageWidget(m_manager);
+    const auto& step = analysis->steps[row];
+    m_step           = &step;
+    m_commit         = step.action->get_commit();
 
-    if (m_action == nullptr || !m_action->can_edit_msg()) {
-        m_msg->disableEdit();
-    } else {
-        m_msg->enableEdit();
+    updateCommit();
+}
+
+void CommitViewWidget::setCurrentCommit(git_commit* commit) {
+    m_step   = nullptr;
+    m_commit = commit;
+
+    updateCommit();
+}
+
+void CommitViewWidget::createInfoLayout() {
+    if (m_commit == nullptr) {
+        m_labels.clear();
+        m_message_widget->clearText();
+        return;
     }
 
-    m_msg->setTextChangeHandle([this](const std::string&) {
-        if (m_node != nullptr) {
-            m_node->update();
-        }
-    });
+    if (m_step == nullptr || !m_step->action->can_edit_msg()) {
+        m_message_widget->disableEdit();
+    } else {
+        m_message_widget->enableEdit();
+    }
 
-    if (m_action == nullptr) {
+    if (m_step == nullptr) {
         const char* msg = git_commit_message(m_commit);
-        m_msg->setText(msg);
+        m_message_widget->setText(msg);
 
     } else {
-        const auto& state = App::getAppState();
+        const auto* sesion           = App::rebaseSession();
+        std::string_view comment_str = "#";
+        if (sesion != nullptr) {
+            comment_str = sesion->repo().comment_string();
+        }
 
-        m_msg->setAction(m_action, state.repo_comment_string());
+        m_message_widget->setAction(m_step->action, comment_str);
     }
 
     std::string hash = core::git::format_oid_to_str<core::git::OID_SIZE>(git_commit_id(m_commit));
@@ -122,17 +149,13 @@ void CommitViewWidget::createRows() {
            << std::format("{:02}:{:02}", offset_hours, offset_minutes);
         // clang-format on
     }
-    auto time_str = ss.str();
 
-    auto* label_hash = new SLabel(hash.c_str());
-
-    m_info_layout->addRow("Hash:", label_hash);
-    m_info_layout->addRow("Author:", new SLabel(autor->name));
-    m_info_layout->addRow("Date:", new SLabel(time_str.c_str()));
-    m_info_layout->addRow("Message:", m_msg);
+    m_labels.hash->setText(QString::fromStdString(hash));
+    m_labels.autor->setText(autor->name);
+    m_labels.date->setText(QString::fromStdString(ss.str()));
 }
 
-void CommitViewWidget::prepareDiff() {
+void CommitViewWidget::createDiffList() {
     m_changes->clear();
 
     if (m_commit == nullptr) {
@@ -186,50 +209,8 @@ void CommitViewWidget::prepareDiff() {
     }
 }
 
-void CommitViewWidget::update(Node* node) {
-    if (node == nullptr) {
-        update(nullptr, nullptr);
-    } else {
-        update(node, node->getAction());
-    }
+void CommitViewWidget::updateCommit() {
+    createInfoLayout();
+    createDiffList();
 }
-
-void CommitViewWidget::update(Node* node, core::action::Action* act) {
-    m_node   = node;
-    m_action = act;
-
-    if (m_action == nullptr && m_node == nullptr) {
-        m_commit = nullptr;
-        m_diff->clear();
-    } else if (m_action == nullptr) {
-        m_commit = node->getCommit();
-        m_diff->update(m_commit);
-    } else {
-        m_commit = m_action->get_commit();
-        m_diff->update(m_action);
-    }
-
-    updateInfo();
-}
-
-void CommitViewWidget::update(Node* node, core::git::diff_result_t& diff) {
-    m_node   = node;
-    m_action = nullptr;
-    m_commit = nullptr;
-
-    m_diff->clear();
-    m_diff->update(diff, false);
-
-    updateInfo();
-}
-
-void CommitViewWidget::update() {
-    // NOTE: The node can be invalid here.
-    m_node = nullptr;
-
-    m_diff->update(m_action);
-
-    updateInfo();
-}
-
 }

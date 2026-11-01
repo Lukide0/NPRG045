@@ -1,11 +1,9 @@
 #include "gui/widget/CommitMessageWidget.h"
 
 #include "core/action/Action.h"
-#include "core/action/ActionsManager.h"
 #include "core/git/types.h"
 #include "gui/error.h"
 #include "gui/file.h"
-#include "utils/optional_uint.h"
 
 #include <cstddef>
 #include <format>
@@ -26,9 +24,8 @@ namespace gui::widget {
 using core::action::Action;
 using core::action::ActionType;
 
-CommitMessageWidget::CommitMessageWidget(core::action::ActionsManager& actions, QWidget* parent)
-    : QWidget(parent)
-    , m_manager(actions) {
+CommitMessageWidget::CommitMessageWidget(QWidget* parent)
+    : QWidget(parent) {
     m_layout = new QHBoxLayout();
     setLayout(m_layout);
 
@@ -50,24 +47,15 @@ CommitMessageWidget::CommitMessageWidget(core::action::ActionsManager& actions, 
     m_layout->addLayout(buttons);
 
     connect(m_editor, &QPlainTextEdit::textChanged, this, [this]() {
-        if (m_action == nullptr || !m_action->can_edit_msg()) {
-            return;
-        }
-
-        auto text = m_editor->toPlainText().toStdString();
-        m_action->set_msg(text);
-
-        if (m_handle != nullptr) {
-            m_handle(text);
-        }
+        auto text = m_editor->toPlainText();
+        emit commitMessageChanged(text);
     });
 
     connect(m_open_editor, &QPushButton::clicked, this, [this]() { this->openInEditor(); });
-
     connect(m_update_msg, &QPushButton::clicked, this, [this]() { this->updateText(); });
 }
 
-QString create_commit_message(Action* action, std::string_view comment_str) {
+QString create_commit_message(const Action* action, std::string_view comment_str) {
     std::string msg = git_commit_message(action->get_commit());
 
     switch (action->get_type()) {
@@ -81,9 +69,9 @@ QString create_commit_message(Action* action, std::string_view comment_str) {
         return QString::fromStdString(msg);
     }
 
-    Action* curr      = action->get_next();
-    std::size_t count = 1;
-    bool exit         = false;
+    const Action* curr = action->get_next();
+    std::size_t count  = 1;
+    bool exit          = false;
 
     while (curr != nullptr && !exit) {
 
@@ -117,9 +105,8 @@ QString create_commit_message(Action* action, std::string_view comment_str) {
     return QString::fromStdString(msg);
 }
 
-void CommitMessageWidget::setAction(Action* action, std::string_view comment_str) {
+void CommitMessageWidget::setAction(const Action* action, std::string_view comment_str) {
     QString msg;
-    m_action = action;
 
     if (action->can_edit_msg() && action->has_msg()) {
         msg = QString::fromStdString(*action->get_msg());
@@ -127,6 +114,7 @@ void CommitMessageWidget::setAction(Action* action, std::string_view comment_str
         msg = create_commit_message(action, comment_str);
     }
 
+    m_oid = QString::fromStdString(core::git::format_oid_to_str<core::git::OID_SIZE>(&action->get_oid()));
     m_editor->setReadOnly(!action->can_edit_msg());
 
     m_editor->blockSignals(true);
@@ -135,12 +123,6 @@ void CommitMessageWidget::setAction(Action* action, std::string_view comment_str
 }
 
 void CommitMessageWidget::openInEditor() {
-    if (m_action == nullptr) {
-        return;
-    }
-
-    auto filename = QString::fromStdString(core::git::format_oid_to_str(&m_action->get_oid()));
-
     // already opened
     if (!m_filepath.isEmpty()) {
         bool status = open_temp_file(m_filepath);
@@ -148,7 +130,7 @@ void CommitMessageWidget::openInEditor() {
             QMessageBox::warning(
                 this,
                 "Editor Error",
-                QString(
+                QStringLiteral(
                     "Failed to open the temporary file in editor.\n"
                     "The file may have been deleted or moved.\n"
                     "File: %1"
@@ -163,8 +145,7 @@ void CommitMessageWidget::openInEditor() {
         return;
     }
 
-    auto&& [filepath, status] = create_temp_file(m_editor->toPlainText(), filename, true);
-
+    auto&& [filepath, status] = create_temp_file(m_editor->toPlainText(), m_oid, true);
     if (!status) {
         DISPLAY_ERROR(this, "Editor error", "Failed to create temporary file for editing.");
         return;
@@ -174,7 +155,7 @@ void CommitMessageWidget::openInEditor() {
 }
 
 void CommitMessageWidget::updateText() {
-    if (m_action == nullptr) {
+    if (m_oid.isEmpty()) {
         return;
     }
 

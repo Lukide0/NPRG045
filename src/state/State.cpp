@@ -4,7 +4,6 @@
 #include "core/action/ActionsManager.h"
 #include "core/conflict/ConflictManager.h"
 #include "core/git/types.h"
-#include "state/AppState.h"
 
 #include <filesystem>
 #include <optional>
@@ -38,8 +37,11 @@ constexpr const char* CONFLICT_COMMIT_NODE  = "conflict_commit";
 constexpr const char* CONFLICTS_NODE        = "conflicts";
 constexpr const char* CONFLICT_NODE         = "conflict";
 
-std::string load_message(const QDomElement& action) {
+std::optional<std::string> load_message(const QDomElement& action) {
     QDomNodeList nodes = action.elementsByTagName("line");
+    if (nodes.isEmpty()) {
+        return std::nullopt;
+    }
 
     QStringList lines;
 
@@ -63,9 +65,9 @@ void save_message(const QString& msg, QDomDocument& doc, QDomElement& action) {
     }
 }
 
-void save_actions(const core::action::ActionsManager& manager, QDomElement& root, QDomDocument& doc) {
+void save_actions(const core::rebase::RebasePlan& plan, QDomElement& root, QDomDocument& doc) {
 
-    auto* cmt = manager.get_root_commit();
+    auto* cmt = plan.root_commit();
 
     QDomElement root_commit = doc.createElement(ROOT_COMMIT);
     root_commit.setAttribute(
@@ -75,7 +77,7 @@ void save_actions(const core::action::ActionsManager& manager, QDomElement& root
 
     QDomElement actions = doc.createElement(ACTIONS_NODE);
 
-    for (auto&& act : manager) {
+    for (auto&& act : plan) {
         QDomElement action = doc.createElement(ACTION_NODE);
 
         const git_oid& id = act.get_oid();
@@ -113,28 +115,38 @@ void save_actions(const core::action::ActionsManager& manager, QDomElement& root
     root.appendChild(actions);
 }
 
-bool load_actions(QDomElement& root, SaveData& save_data, git_repository* repo) {
+core::Result<void> load_actions(QDomElement& root, SaveData& save_data, git_repository* repo) {
+    core::Error invalid_save {
+        .title   = "Unable to load save",
+        .message = "The save file is invalid or corrupted.",
+    };
+
     // -- Root commit ---------------------------------------------------------
     QDomElement root_commit = root.firstChildElement(ROOT_COMMIT);
     if (root_commit.isNull() || !root_commit.hasAttribute("hash") || root_commit.attribute("hash").isEmpty()) {
-        return false;
+        return std::unexpected<core::Error>(invalid_save);
     }
 
-    auto root_commit_hash = root_commit.attribute("hash").toStdString();
+    git_commit* commit = save_data.graph.first_node().commit;
 
-    if (!core::git::get_commit_from_hash(save_data.root, root_commit_hash.c_str(), repo)) {
-        return false;
+    save_data.actions.set_root_commit(commit);
+
+    auto root_commit_hash = root_commit.attribute("hash").toStdString();
+    if (root_commit_hash != core::git::format_oid_to_str<core::git::OID_SIZE>(git_commit_id(commit))) {
+        return std::unexpected<core::Error>({
+            .title   = "Unable to load save",
+            .message = "The root commit does not match",
+        });
     }
 
     // -- Actions -------------------------------------------------------------
     QDomElement actions = root.firstChildElement(ACTIONS_NODE);
     if (actions.isNull()) {
-        return false;
+        return std::unexpected<core::Error>(invalid_save);
     }
 
     for (QDomNode node = actions.firstChildElement(ACTION_NODE); !node.isNull();
          node          = node.nextSiblingElement(ACTION_NODE)) {
-
         // -- Action ----------------------------------------------------------
         QDomElement el = node.toElement();
 
@@ -154,25 +166,27 @@ bool load_actions(QDomElement& root, SaveData& save_data, git_repository* repo) 
         } else if (type_str == "squash") {
             type = core::action::ActionType::SQUASH;
         } else {
-            return false;
+            return std::unexpected<core::Error>(invalid_save);
         }
 
         auto hash = el.attribute("hash").toStdString();
         if (hash.empty()) {
-            return false;
+            return std::unexpected<core::Error>(invalid_save);
         }
 
         core::git::commit_t action_commit;
         if (!core::git::get_commit_from_hash(action_commit, hash.c_str(), repo)) {
-            return false;
+            return std::unexpected<core::Error>({
+                .title   = "Unable to load save",
+                .message = "The action commit does not exists",
+            });
         }
 
         auto msg = load_message(el);
-
-        save_data.actions.emplace_back(core::action::Action(type, std::move(action_commit)), msg);
+        save_data.actions.append(core::action::Action(type, std::move(action_commit), msg));
     }
 
-    return true;
+    return { };
 }
 
 void save_conflicts(const core::conflict::ConflictManager& manager, QDomElement& root, QDomDocument& doc) {
@@ -210,79 +224,74 @@ void save_conflicts(const core::conflict::ConflictManager& manager, QDomElement&
     root.appendChild(conflict_commits);
 }
 
-void load_conflicts(QDomElement& root, SaveData& save_data, git_repository* repo) {
+core::Result<void> load_conflicts(QDomElement& root, SaveData& save_data, git_repository* repo) {
     QDomElement conflicts = root.firstChildElement(CONFLICTS_NODE);
-    if (conflicts.isNull()) {
-        return;
-    }
+    if (!conflicts.isNull()) {
+        for (QDomNode node = conflicts.firstChildElement(CONFLICT_NODE); !node.isNull();
+             node          = node.nextSiblingElement(CONFLICT_NODE)) {
 
-    for (QDomNode node = conflicts.firstChildElement(CONFLICT_NODE); !node.isNull();
-         node          = node.nextSiblingElement(CONFLICT_NODE)) {
+            QDomElement conflict = node.toElement();
 
-        QDomElement conflict = node.toElement();
+            core::conflict::ConflictEntry entry;
+            entry.their_id    = conflict.attribute("their").toStdString();
+            entry.our_id      = conflict.attribute("our").toStdString();
+            entry.ancestor_id = conflict.attribute("ancestor").toStdString();
 
-        core::conflict::ConflictEntry entry;
-        entry.their_id    = conflict.attribute("their").toStdString();
-        entry.our_id      = conflict.attribute("our").toStdString();
-        entry.ancestor_id = conflict.attribute("ancestor").toStdString();
+            std::string blob = conflict.attribute("blob").toStdString();
 
-        std::string blob = conflict.attribute("blob").toStdString();
-
-        save_data.conflicts.emplace_back(entry, blob);
+            save_data.conflicts.add_resolution(entry, blob);
+        }
     }
 
     QDomElement conflict_commits = root.firstChildElement(CONFLICT_COMMITS_NODE);
-    if (conflict_commits.isNull()) {
-        return;
+    if (!conflict_commits.isNull()) {
+        for (QDomNode node = conflict_commits.firstChildElement(CONFLICT_COMMIT_NODE); !node.isNull();
+             node          = node.nextSiblingElement(CONFLICT_COMMIT_NODE)) {
+
+            QDomElement commits = node.toElement();
+
+            core::conflict::ConflictTrees entry;
+            entry.parent_tree_id = commits.attribute("parent_tree").toStdString();
+            entry.commit_id      = commits.attribute("commit").toStdString();
+
+            auto tree_id = commits.attribute("tree").toStdString();
+
+            git_oid oid;
+            if (git_oid_fromstr(&oid, tree_id.c_str()) != 0) {
+                continue;
+            }
+
+            core::git::tree_t tree;
+            if (git_tree_lookup(&tree, repo, &oid) != 0) {
+                continue;
+            }
+
+            save_data.conflicts.add_trees_resolution(entry, std::move(tree));
+        }
     }
 
-    for (QDomNode node = conflicts.firstChildElement(CONFLICT_COMMIT_NODE); !node.isNull();
-         node          = node.nextSiblingElement(CONFLICT_COMMIT_NODE)) {
-
-        QDomElement commits = node.toElement();
-
-        core::conflict::ConflictTrees entry;
-        entry.parent_tree_id = commits.attribute("parent_tree").toStdString();
-        entry.commit_id      = commits.attribute("commit").toStdString();
-
-        auto tree_id = commits.attribute("tree").toStdString();
-
-        git_oid oid;
-        if (git_oid_fromstr(&oid, tree_id.c_str()) != 0) {
-            continue;
-        }
-
-        core::git::tree_t tree;
-        if (git_tree_lookup(&tree, repo, &oid) != 0) {
-            continue;
-        }
-
-        save_data.conflict_trees.emplace_back(entry, std::move(tree));
-    }
+    return { };
 }
 
-bool State::save(
-    const std::filesystem::path& path,
-    const AppState& state,
-    const core::action::ActionsManager& actions,
-    const core::conflict::ConflictManager& conflicts
-) {
-
+bool State::save(const std::filesystem::path& path, const core::rebase::RebaseSession& rebase) {
     QDomDocument doc;
+
+    const auto& repo = rebase.repo();
+    const auto& info = rebase.plan().info();
 
     QDomProcessingInstruction header = doc.createProcessingInstruction("xml", R"(version="1.0" encoding="UTF-8")");
     doc.appendChild(header);
 
     QDomElement root = doc.createElement(ROOT_NODE);
-    root.setAttribute("repo", QString::fromStdString(state.repo_path()));
-    root.setAttribute("head", QString::fromStdString(state.rebase_head()));
-    root.setAttribute("onto", QString::fromStdString(state.rebase_onto()));
+    root.setAttribute("repo", QString::fromStdString(repo.path()));
+    root.setAttribute("head", QString::fromStdString(info.head));
+    root.setAttribute("onto", QString::fromStdString(info.onto));
 
     doc.appendChild(root);
 
-    save_actions(actions, root, doc);
+    save_actions(rebase.plan(), root, doc);
 
-    save_conflicts(conflicts, root, doc);
+    save_conflicts(rebase.conflicts(), root, doc);
 
     QFile file(QString::fromStdU32String(path.u32string()));
     if (!file.open(QFile::WriteOnly)) {
@@ -295,42 +304,71 @@ bool State::save(
     return true;
 }
 
-std::optional<SaveData> State::load(const std::filesystem::path& path, git_repository** repo) {
+core::Result<SaveData> State::load(const std::filesystem::path& path) {
     QFile file(QString::fromStdU32String(path.u32string()));
     if (!file.open(QFile::OpenModeFlag::ReadOnly)) {
-        return std::nullopt;
+        return std::unexpected<core::Error>({
+            .title   = "Unable to load save",
+            .message = "Could not open save file",
+        });
     }
 
     QDomDocument doc;
     if (!doc.setContent(&file)) {
-        return std::nullopt;
+        return std::unexpected<core::Error>({
+            .title   = "Unable to load save",
+            .message = "Could not read save file",
+        });
     }
 
-    SaveData save_data;
-
+    core::Error invalid_save {
+        .title   = "Unable to load save",
+        .message = "The save file is invalid or corrupted.",
+    };
     // -- Repo ----------------------------------------------------------------
     QDomElement root = doc.documentElement();
     if (root.tagName() != ROOT_NODE || !root.hasAttribute("repo") || root.attribute("repo").isEmpty()) {
-        return std::nullopt;
+        return std::unexpected<core::Error>(invalid_save);
     }
 
     if (!root.hasAttribute("head") || !root.hasAttribute("onto")) {
-        return std::nullopt;
+        return std::unexpected<core::Error>(invalid_save);
     }
 
-    save_data.repo_path = root.attribute("repo").toStdString();
-    save_data.head      = root.attribute("head").toStdString();
-    save_data.onto      = root.attribute("onto").toStdString();
-
-    if (git_repository_open(repo, save_data.repo_path.c_str()) != 0) {
-        return std::nullopt;
+    auto repo = core::git::RepoSession::open(root.attribute("repo").toStdString());
+    if (!repo.has_value()) {
+        return std::unexpected<core::Error>({
+            .title   = "Unable to load save",
+            .message = repo.error().message,
+        });
     }
 
-    if (!load_actions(root, save_data, *repo)) {
-        return std::nullopt;
+    SaveData save_data;
+    save_data.info.head = root.attribute("head").toStdString();
+    save_data.info.onto = root.attribute("onto").toStdString();
+    save_data.repo      = std::move(*repo);
+
+    auto graph = core::git::GitGraph<void>::create(
+        save_data.info.head.c_str(), save_data.info.onto.c_str(), save_data.repo.repo()
+    );
+    if (!graph.has_value()) {
+        return std::unexpected<core::Error>({
+            .title   = "Unable to load save",
+            .message = "Could not find commits",
+        });
     }
 
-    load_conflicts(root, save_data, *repo);
+    save_data.graph = std::move(*graph);
+
+    auto res = load_actions(root, save_data, save_data.repo.repo());
+    if (!res.has_value()) {
+        return std::unexpected<core::Error>(res.error());
+    }
+
+    res = load_conflicts(root, save_data, save_data.repo.repo());
+    if (!res.has_value()) {
+        return std::unexpected<core::Error>(res.error());
+    }
 
     return save_data;
 }

@@ -1,7 +1,11 @@
 target_sources(${PROJECT_NAME} PRIVATE
+        ${INCLUDE_PATH}/gui/widget/RebaseViewWidget.h
         RebaseViewWidget.cpp
 
+        ${INCLUDE_PATH}/gui/widget/CommitViewWidget.h
         CommitViewWidget.cpp
+
+        ${INCLUDE_PATH}/gui/widget/CommitMessageWidget.h
         CommitMessageWidget.cpp
 
         ${INCLUDE_PATH}/gui/widget/RebaseSelectionWidget.h
@@ -10,15 +14,10 @@ target_sources(${PROJECT_NAME} PRIVATE
         ${INCLUDE_PATH}/gui/widget/ConflictWidget.h
         ConflictWidget.cpp
 
+        ${INCLUDE_PATH}/gui/widget/DiffWidget.h
         DiffWidget.cpp
+
         DiffEditor.cpp
-
-        ${INCLUDE_PATH}/gui/widget/ListItem.h
-        ListItem.cpp
-
-        graph/Graph.cpp
-        graph/Node.cpp
-        ${INCLUDE_PATH}/gui/widget/graph/Node.h
 
         WelcomeWidget.cpp
         ${INCLUDE_PATH}/gui/widget/WelcomeWidget.h

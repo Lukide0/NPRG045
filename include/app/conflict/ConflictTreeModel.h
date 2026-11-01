@@ -12,7 +12,7 @@
 #include <optional>
 #include <vector>
 
-namespace gui::model {
+namespace app::conflict {
 
 /**
  * @brief Tree of conflicted files grouped by directory.
@@ -39,12 +39,13 @@ public:
     struct ConflictFile {
         QString path;
         core::conflict::ConflictEntry entry;
+        bool resolved;
     };
 
     explicit ConflictTreeModel(QObject* parent = nullptr);
 
     /// Adds one file and announces it (rowsInserted + counters). Returns false if already present / empty.
-    bool addPath(const QString& fullPath, const core::conflict::ConflictEntry& entry);
+    bool addPath(const QString& fullPath, const core::conflict::ConflictEntry& entry, bool resolved);
 
     /// Replaces the whole content in one step: a single modelReset and a single countsChanged.
     void setPaths(const QList<ConflictFile>& files);

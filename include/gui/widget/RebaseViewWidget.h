@@ -1,22 +1,18 @@
 #pragma once
 
+#include "app/rebase/RebaseController.h"
 #include "core/action/Action.h"
-#include "core/action/ActionsManager.h"
-#include "core/conflict/ConflictManager.h"
 #include "core/git/GitGraph.h"
-#include "core/git/parser.h"
 #include "core/git/types.h"
+#include "core/rebase/RebaseAnalysis.h"
+#include "gui/git/Graph.h"
+#include "gui/git/GraphPresenter.h"
+#include "gui/rebase/RebaseActionDelegate.h"
 #include "gui/widget/CommitViewWidget.h"
 #include "gui/widget/ConflictWidget.h"
 #include "gui/widget/DiffWidget.h"
-#include "gui/widget/graph/Graph.h"
-#include "gui/widget/graph/Node.h"
-#include "gui/widget/ListItem.h"
-#include "state/AppState.h"
 
-#include <optional>
-#include <string>
-#include <vector>
+#include <memory>
 
 #include <git2/oid.h>
 #include <git2/types.h>
@@ -34,35 +30,23 @@
 namespace gui::widget {
 
 class RebaseViewWidget : public QWidget {
+    Q_OBJECT
 public:
-    RebaseViewWidget(
-        core::action::ActionsManager& actions, core::conflict::ConflictManager& conflicts, QWidget* parent = nullptr
-    );
+    using GitGraph = core::git::GitGraph<void>;
 
-    std::optional<std::string> update(state::AppState& state, const std::vector<core::git::CommitAction>& actions);
-    std::optional<std::string> update(state::AppState& state);
+    RebaseViewWidget(QWidget* parent = nullptr);
 
-    void updateGraph();
+    void setSession(app::rebase::RebaseController* controller, GitGraph&& graph);
 
-    void updateActions();
+    void hideOldCommits() const { m_graphs.old->hide(); }
 
-    void hideOldCommits() { m_old_commits_graph->hide(); }
+    void hideResultCommits() const { m_graphs.result->hide(); }
 
-    void hideResultCommits() { m_new_commits_graph->hide(); }
+    void showResultCommits() const { m_graphs.result->show(); }
 
-    void showOldCommits() { m_old_commits_graph->show(); }
+    void showOldCommits() const { m_graphs.old->show(); }
 
-    void showResultCommits() { m_new_commits_graph->show(); }
-
-    void moveAction(int from, int to);
-
-    const auto& getActionsManager() const { return m_actions; }
-
-    auto& getActionsManager() { return m_actions; }
-
-    void ignoreMoveSignal(bool enable) { m_ignore_move = enable; }
-
-    QListWidget* getList() { return m_list_actions; }
+    QListView* getList() { return m_list; }
 
     void moveActionDown() { moveSelectedAction(true); }
 
@@ -71,75 +55,42 @@ public:
     void moveSelectedAction(bool down);
 
     void changeActionType();
-
     void changeActionType(core::action::ActionType type);
 
-    void updateConflicts(core::action::Action* start) {
-        updateConflictList(start);
-        updateConflictMarkers();
-    }
+    core::rebase::RebaseAnalysisPtr rebaseAnalysis() const { return m_controller->analysis(); }
+
+signals:
+    void currentStepChanged(core::rebase::RebaseAnalysisConstPtr analysis, int row);
+
+private slots:
+    void openConflictEditor(const QString& path, const core::conflict::ConflictEntry& entry);
 
 private:
-    /* UI */
-    GraphWidget* m_old_commits_graph;
-    GraphWidget* m_new_commits_graph;
+    QPersistentModelIndex m_current;
 
-    QListWidget* m_list_actions;
+    core::rebase::StepConflict* m_current_conflict = nullptr;
+    app::rebase::RebaseController* m_controller    = nullptr;
+
+    QListView* m_list;
+    rebase::RebaseActionDelegate* m_action_delegate;
+
+    struct {
+        git::GraphPresenter* presenter;
+        git::GraphWidget* old;
+        git::GraphWidget* result;
+    } m_graphs;
 
     CommitViewWidget* m_commit_view;
     DiffWidget* m_diff_widget;
     ConflictWidget* m_conflict_widget;
 
-    bool m_ignore_move = false;
-
-    Node* m_last_node = nullptr;
-
-    core::git::GitGraph<Node*> m_graph;
-    core::action::ActionsManager& m_actions;
-    core::conflict::ConflictManager& m_conflict_manager;
-
-    /* GIT */
-    git_repository* m_repo;
-    core::git::reference_t m_head;
-    Node* m_root_node;
-
-    state::AppState::Conflict* m_conflict = nullptr;
+    GitGraph m_graph;
 
 private:
-    std::optional<std::string> prepareGitGraph(git_repository* repo, const std::string& head, const std::string& onto);
+    void initializeGraph();
 
-    void prepareItem(ListItem* item, core::action::Action& action);
-
-    void prepareActions();
-
-    Node* findOldCommit(const git_oid& oid);
-
-    void showOldCommit(Node* prev, Node* next);
-
-    void showNewCommit(Node* prev, Node* next);
-
-    void prepareGraph();
-
-    ListItem* getListItem(int index) {
-        auto* item = m_list_actions->item(index);
-        if (item == nullptr) {
-            return nullptr;
-        }
-
-        return dynamic_cast<ListItem*>(m_list_actions->itemWidget(item));
-    }
-
-    void changeItemSelection();
-    void showConflict(Node* node);
-
-    void updateConflictList(core::action::Action* start);
-
-    void updateConflictMarkers();
-
-    core::conflict::ConflictStatus updateConflictAction(core::action::Action* act, core::action::Action* parent_act);
-
-    void checkoutAndResolve();
-
-    bool markResolved();
+    void changedListSelection(const QModelIndex& index);
+    void publishCurrentStep();
+    void updateConflict(int row);
 };
 }

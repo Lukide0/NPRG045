@@ -29,6 +29,8 @@ struct ConflictEntry {
         }
         return our_id < other.our_id;
     }
+
+    bool operator==(const ConflictEntry&) const = default;
 };
 
 /**

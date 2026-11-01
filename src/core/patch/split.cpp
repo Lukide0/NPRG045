@@ -3,7 +3,10 @@
 #include "core/action/Action.h"
 #include "core/action/ActionsManager.h"
 #include "core/git/error.h"
+#include "core/git/RepoSession.h"
 #include "core/git/types.h"
+#include "core/rebase/RebaseAnalysis.h"
+#include "core/rebase/RebaseSession.h"
 
 #include <cassert>
 
@@ -19,8 +22,9 @@ namespace core::patch {
 
 using action::Action;
 
-SplitError
-create_copy_commit(git_oid* oid, git_commit* commit, git_commit* parent, git_tree* tree, git_repository* repo) {
+SplitError create_copy_commit(
+    git_oid* oid, const git_commit* commit, const git_commit* parent, const git_tree* tree, git_repository* repo
+) {
     const auto* author    = git_commit_author(commit);
     const auto* committer = git_commit_committer(commit);
     const auto* msg       = git_commit_message_raw(commit);
@@ -39,8 +43,8 @@ create_copy_commit(git_oid* oid, git_commit* commit, git_commit* parent, git_tre
 SplitError create_copy_commit(
     git_oid* oid,
     git::tree_t& out_tree,
-    git_commit* commit,
-    git_commit* parent,
+    const git_commit* commit,
+    const git_commit* parent,
     git_tree* parent_tree,
     git_diff* diff,
     git_repository* repo
@@ -66,7 +70,12 @@ SplitError create_copy_commit(
 }
 
 SplitError create_copy_commit(
-    git_oid* oid, git::tree_t& out_tree, git_commit* commit, git_commit* parent, git_diff* diff, git_repository* repo
+    git_oid* oid,
+    git::tree_t& out_tree,
+    const git_commit* commit,
+    const git_commit* parent,
+    git_diff* diff,
+    git_repository* repo
 ) {
     git::tree_t parent_tree;
     if (git_commit_tree(&parent_tree, parent) != 0) {
@@ -79,8 +88,8 @@ SplitError create_copy_commit(
 SplitError split(
     git::commit_t& out_first,
     git::commit_t& out_second,
-    git_commit* commit,
-    git_commit* parent_commit,
+    const git_commit* commit,
+    const git_commit* parent_commit,
     git::diff_t& patch
 ) {
     git_repository* repo = git_commit_owner(commit);
@@ -118,30 +127,30 @@ SplitError split(
 }
 
 SplitError split(
+    rebase::RebaseSession& rebase,
     git::commit_t& out_first,
     git::commit_t& out_second,
-    action::ActionsManager& actions,
-    Action* act,
+    const rebase::StepResult& step,
+    const rebase::StepResult* previous_step,
     git::diff_t& patch
 ) {
-    git_commit* commit   = act->get_commit();
-    git_repository* repo = git_commit_owner(commit);
+    const Action& original = *step.action;
 
-    Action* parent_act        = act->get_prev();
-    git_commit* parent_commit = actions.get_parent_commit(act);
-    assert(parent_commit != nullptr);
+    const git_commit* commit = original.get_commit();
+    git_repository* repo     = rebase.repo().repo();
 
+    const action::Action* parent_act = previous_step != nullptr ? previous_step->action : nullptr;
     if (parent_act == nullptr) {
-        // parent commit is root
-        return split(out_first, out_second, commit, parent_commit, patch);
+        return split(out_first, out_second, commit, rebase.plan().root_commit(), patch);
     }
 
+    const git_commit* parent_commit = parent_act->get_commit();
     git::tree_t commit_tree;
     if (git_commit_tree(&commit_tree, commit) != 0) {
         return { "Failed to find commit tree", git::get_last_error() };
     }
 
-    git_tree* parent_tree = parent_act->get_tree();
+    git_tree* parent_tree = previous_step->tree.get();
 
     git::tree_t patch_tree;
     git_oid patch_commit_oid;

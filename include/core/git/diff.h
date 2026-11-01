@@ -3,6 +3,7 @@
 #include "core/action/Action.h"
 #include "core/conflict/ConflictManager.h"
 #include "core/git/types.h"
+#include "core/rebase/RebaseAnalysis.h"
 
 #include <cstdint>
 #include <git2/index.h>
@@ -190,13 +191,28 @@ diff_result_t prepare_resolution_diff(
  * @brief Creates a resolution diff from an action.
  *
  * @param old_tree Base tree.
- * @param new_tree Action representing target state.
+ * @param new_tree Target state.
  * @param conflicts Conflict resolution manager.
  * @param opts Diff options (optional).
  */
 diff_result_t prepare_resolution_diff(
     git_tree* old_tree,
-    action::Action* new_tree,
+    const rebase::StepResult& new_tree,
+    conflict::ConflictManager& conflicts,
+    const git_diff_options* opts = nullptr
+);
+
+/**
+ * @brief Creates a resolution diff from an action.
+ *
+ * @param old_tree Base tree oid.
+ * @param new_tree Target state.
+ * @param conflicts Conflict resolution manager.
+ * @param opts Diff options (optional).
+ */
+diff_result_t prepare_resolution_diff(
+    const git_oid* old_tree,
+    const rebase::StepResult& new_tree,
     conflict::ConflictManager& conflicts,
     const git_diff_options* opts = nullptr
 );

@@ -74,9 +74,9 @@ void WelcomeWidget::updateCurrentDirButton() {
     m_open_curr_dir->setEnabled(is_valid_repo);
 
     if (is_valid_repo) {
-        m_open_curr_dir->setToolTip(QString("Open repository at: %1").arg(curr_path));
+        m_open_curr_dir->setToolTip(QStringLiteral("Open repository at: %1").arg(curr_path));
     } else {
-        m_open_curr_dir->setToolTip(QString("Current directory is not a git repository: %1").arg(curr_path));
+        m_open_curr_dir->setToolTip(QStringLiteral("Current directory is not a git repository: %1").arg(curr_path));
     }
 }
 
