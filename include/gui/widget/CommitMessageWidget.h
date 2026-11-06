@@ -10,6 +10,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QString>
+#include <QTimer>
 #include <QWidget>
 #include <string_view>
 
@@ -55,6 +56,8 @@ private:
 
     QPushButton* m_open_editor;
     QPushButton* m_update_msg;
+
+    QTimer m_message_timer;
 
     QString m_oid;
     QString m_filepath;

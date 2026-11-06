@@ -1,5 +1,6 @@
 #pragma once
 
+#include "app/conflict/ConflictEditorSession.h"
 #include "app/conflict/ConflictTreeModel.h"
 #include "core/conflict/ConflictManager.h"
 
@@ -9,10 +10,12 @@
 #include <QLabel>
 #include <QListWidget>
 #include <QPlainTextEdit>
+#include <QPushButton>
 #include <QScrollArea>
 #include <QStatusBar>
 #include <QString>
 #include <QStringList>
+#include <QToolButton>
 #include <QTreeView>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -25,6 +28,11 @@ public:
     using ConflictFile  = app::conflict::ConflictTreeModel::ConflictFile;
     using ConflictFiles = QList<ConflictFile>;
     using FileList      = QStringList;
+
+    enum class ConflictEditMode {
+        Resolve,
+        EditResolution,
+    };
 
     ConflictWidget(QWidget* parent = nullptr);
 
@@ -40,7 +48,9 @@ public:
     void clearConflicts();
 
 signals:
-    void resolveRequested(const QString& path, const core::conflict::ConflictEntry& entry);
+    void resolveRequested(
+        std::size_t id, const QString& path, const core::conflict::ConflictEntry& entry, ConflictEditMode mode
+    );
 
 private:
     app::conflict::ConflictTreeModel* m_model;
@@ -48,6 +58,13 @@ private:
     QLabel* m_summary;
     QLabel* m_status_count;
     QStatusBar* m_status_bar;
+
+    struct {
+        QAction* resolve_conflict;
+        QAction* edit_resolution;
+        QToolButton* widget;
+
+    } m_button;
 
     std::uint32_t m_conflicts = 0;
     QVBoxLayout* m_layout;
@@ -57,7 +74,7 @@ private:
     void updateSummary(int unresolved, int total);
     void showSelection(const QModelIndex& current);
 
-    void resolveConflict(const QModelIndex& idx);
+    void resolveConflict(ConflictEditMode mode);
 };
 
 }

@@ -19,18 +19,18 @@ void GlobalStyle::set(Style style, const QColor& color) {
     return m_colors[style];
 }
 
-void GlobalStyle::set_color(Style style, const QColor& color) { StyleManager::get_global_style().set(style, color); }
+void GlobalStyle::setColor(Style style, const QColor& color) { StyleManager::getGlobalStyle().set(style, color); }
 
-const QColor& GlobalStyle::get_color(Style style) { return StyleManager::get_global_style().get(style); }
+const QColor& GlobalStyle::getColor(Style style) { return StyleManager::getGlobalStyle().get(style); }
 
-const QColor& GlobalStyle::get_default_color(Style style) {
+const QColor& GlobalStyle::getDefaultColor(Style style) {
     assert(style >= 0 && style < Style::_LENGTH);
     return default_colors[style];
 }
 
-void GlobalStyle::emit_changed() { emit changed(); }
+void GlobalStyle::emitChangedSignal() { emit changed(); }
 
-void GlobalStyle::emit_changed_signal() { StyleManager::get_global_style().emit_changed(); }
+void GlobalStyle::emitChanged() { StyleManager::getGlobalStyle().emitChangedSignal(); }
 
 void GlobalStyle::save(QSettings& settings) const {
     settings.beginGroup("GlobalStyle");
@@ -39,7 +39,7 @@ void GlobalStyle::save(QSettings& settings) const {
             auto style       = static_cast<Style>(i);
             const char* name = STYLE_NAMES[i];
 
-            settings.setValue(name, get_color(style));
+            settings.setValue(name, getColor(style));
         }
     }
     settings.endGroup();
@@ -54,7 +54,7 @@ void GlobalStyle::load(QSettings& settings) {
 
             auto color = settings.value(name, default_colors[i]).value<QColor>();
 
-            set_color(style, color);
+            setColor(style, color);
         }
     }
     settings.endGroup();

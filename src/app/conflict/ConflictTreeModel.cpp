@@ -1,5 +1,4 @@
 #include "app/conflict/ConflictTreeModel.h"
-#include "core/conflict/ConflictManager.h"
 
 #include <QAbstractItemModel>
 #include <QList>
@@ -22,37 +21,6 @@ ConflictTreeModel::ConflictTreeModel(QObject* parent)
     : QAbstractItemModel(parent)
     , m_root(std::make_unique<Node>()) { }
 
-bool ConflictTreeModel::addPath(const QString& fullPath, const core::conflict::ConflictEntry& entry, bool resolved) {
-    Chain chain = makeChain(fullPath);
-    if (chain.top == nullptr) {
-        return false;
-    }
-
-    chain.leaf->conflict_entry = entry;
-    chain.leaf->resolved       = resolved;
-
-    // insert at the sorted position, announcing only the top of the new chain
-    auto& siblings = chain.parent->children;
-    auto it = std::ranges::lower_bound(siblings, chain.top, [](const auto& a, const auto& b) { return less(*a, *b); });
-    const int row = static_cast<int>(it - siblings.begin());
-
-    beginInsertRows(indexOf(chain.parent), row, row);
-    {
-        siblings.insert(it, std::move(chain.top));
-        m_files.insert(fullPath, chain.leaf);
-
-        if (!resolved) {
-            adjustUnresolvedCount(chain.leaf, 1);
-        }
-    }
-    endInsertRows();
-
-    refreshAncestors(chain.parent);
-    emitCounts();
-
-    return true;
-}
-
 void ConflictTreeModel::setPaths(const QList<ConflictFile>& files) {
     beginResetModel();
 
@@ -65,6 +33,7 @@ void ConflictTreeModel::setPaths(const QList<ConflictFile>& files) {
             continue;
         }
 
+        chain.leaf->id             = file.id;
         chain.leaf->conflict_entry = file.entry;
         chain.leaf->resolved       = file.resolved;
         chain.parent->children.push_back(std::move(chain.top));
@@ -161,6 +130,34 @@ void ConflictTreeModel::setResolvedFiles(const QStringList& paths) {
     }
 
     return node->conflict_entry;
+}
+
+std::size_t ConflictTreeModel::idAt(const QModelIndex& idx) const {
+    if (!idx.isValid() || idx.model() != this) {
+        return 0;
+    }
+
+    const Node* node = nodeFor(idx);
+
+    if (!node->is_file) {
+        return 0;
+    }
+
+    return node->id;
+}
+
+bool ConflictTreeModel::isResolved(const QModelIndex& idx) const {
+    if (!idx.isValid() || idx.model() != this) {
+        return false;
+    }
+
+    const Node* node = nodeFor(idx);
+
+    if (!node->is_file) {
+        return false;
+    }
+
+    return node->resolved;
 }
 
 [[nodiscard]] QModelIndex ConflictTreeModel::index(int row, int column, const QModelIndex& parent) const {

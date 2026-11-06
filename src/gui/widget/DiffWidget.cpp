@@ -154,11 +154,11 @@ void DiffWidget::setCurrentCommit(git_commit* commit) {
 void DiffWidget::update(core::git::diff_result_t& res, bool editable) {
     switch (res.state) {
     case diff_result_t::FAILED_TO_RETRIEVE_TREE:
-        DISPLAY_LIBGIT_ERROR(this, "Failed to retrieve tree from commit", core::git::get_last_error());
+        DISPLAY_ERROR(this, "Failed to retrieve tree from commit", core::git::get_last_error());
         return;
 
     case diff_result_t::FAILED_TO_CREATE_DIFF:
-        DISPLAY_LIBGIT_ERROR(this, "Failed to create diff", core::git::get_last_error());
+        DISPLAY_ERROR(this, "Failed to create diff", core::git::get_last_error());
         return;
     case diff_result_t::OK:
         break;
@@ -250,7 +250,7 @@ void DiffWidget::createFileDiff(const diff_files_t& diff, bool editable) {
         QTextEdit::ExtraSelection text_section;
         text_section.cursor = QTextCursor(section.block);
         text_section.cursor.clearSelection();
-        text_section.format.setForeground(style::DiffStyle::get_color(section.type));
+        text_section.format.setForeground(style::DiffStyle::getColor(section.type));
 
         if (section.type == section_t::Type::INFO) {
             text_section.format.setFontWeight(QFont::Bold);
@@ -385,7 +385,7 @@ void DiffWidget::splitCommitEvent() {
 
     int state = git_diff_from_buffer(&diff, patch_text.c_str(), patch_text.size());
     if (state != 0) {
-        DISPLAY_LIBGIT_ERROR(this, "Failed to create diff", core::git::get_last_error());
+        DISPLAY_ERROR(this, "Failed to create diff", core::git::get_last_error());
         return;
     }
 
@@ -395,7 +395,7 @@ void DiffWidget::splitCommitEvent() {
     core::patch::SplitError err
         = core::patch::split(*m_rebase, first_commit, second_commit, *m_step, m_prev_step, diff);
     if (err.has_error()) {
-        DISPLAY_LIBGIT_ERROR(this, "Failed to create split", std::format("{}: {}.", err.title, err.message));
+        DISPLAY_ERROR(this, "Failed to create split", std::format("{}: {}.", err.title, err.message));
         return;
     }
 

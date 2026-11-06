@@ -2,6 +2,7 @@
 #include "app/rebase/RebasePlanModel.h"
 #include "core/action/Action.h"
 #include "core/conflict/ConflictManager.h"
+#include "core/git/error.h"
 #include "core/git/types.h"
 #include "core/rebase/RebaseAnalysis.h"
 #include "core/rebase/RebasePlan.h"
@@ -250,6 +251,20 @@ bool RebaseController::setResolution(const core::conflict::ConflictEntry& entry,
     return true;
 }
 
+bool RebaseController::setResolutionDeleted(const core::conflict::ConflictEntry& entry) {
+    std::optional<std::string> old_resolution;
+    const std::string* current = m_session.conflicts().get_resolution(entry);
+    if (current != nullptr) {
+        if (current->empty()) {
+            return false;
+        }
+        old_resolution = *current;
+    }
+
+    m_stack.push(new ResolutionCommand(*this, entry, std::move(old_resolution), ""));
+    return true;
+}
+
 bool RebaseController::removeResolution(const core::conflict::ConflictEntry& entry) {
     const std::string* current = m_session.conflicts().get_resolution(entry);
     if (current == nullptr) {
@@ -258,6 +273,28 @@ bool RebaseController::removeResolution(const core::conflict::ConflictEntry& ent
 
     m_stack.push(new ResolutionCommand(*this, entry, *current, std::nullopt));
     return true;
+}
+
+core::Result<void>
+RebaseController::setResolution(const core::conflict::ConflictEntry& entry, const QByteArray& contents) {
+    git_oid oid { };
+
+    if (git_blob_create_from_buffer(
+            &oid, m_session.repo().repo(), contents.constData(), static_cast<std::size_t>(contents.size())
+        )
+        != 0) {
+        return std::unexpected<core::Error>({
+            .title   = "Resolution error",
+            .message = core::git::get_last_error(),
+        });
+    }
+
+    std::string blob_id = core::git::format_oid_to_str<core::git::OID_SIZE>(&oid);
+
+    // false means the resolution hasn't changed
+    setResolution(entry, blob_id);
+
+    return { };
 }
 
 bool RebaseController::undo() {

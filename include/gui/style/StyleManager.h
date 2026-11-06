@@ -12,26 +12,26 @@ class StyleManager {
 public:
     static StyleManager& get();
 
-    void load_styles(QSettings& settings);
-    void save_styles(QSettings& settings) const;
+    void loadStyles(QSettings& settings);
+    void saveStyles(QSettings& settings) const;
 
-    static GlobalStyle& get_global_style() { return get().m_global_style; }
+    static GlobalStyle& getGlobalStyle() { return get().m_global_style; }
 
-    static DiffStyle& get_diff_style() { return get().m_diff_style; }
+    static DiffStyle& getDiffStyle() { return get().m_diff_style; }
 
-    static ConflictStyle& get_conflict_style() { return get().m_conflict_style; }
+    static ConflictStyle& getConflictStyle() { return get().m_conflict_style; }
 
-    [[nodiscard]] const DiffStyle& diff_style() const { return m_diff_style; }
+    [[nodiscard]] const DiffStyle& diffStyle() const { return m_diff_style; }
 
-    DiffStyle& diff_style() { return m_diff_style; }
+    DiffStyle& diffStyle() { return m_diff_style; }
 
-    [[nodiscard]] const ConflictStyle& conflict_style() const { return m_conflict_style; }
+    [[nodiscard]] const ConflictStyle& conflictStyle() const { return m_conflict_style; }
 
-    ConflictStyle& conflict_style() { return m_conflict_style; }
+    ConflictStyle& conflictStyle() { return m_conflict_style; }
 
-    [[nodiscard]] const GlobalStyle& global_style() const { return m_global_style; }
+    [[nodiscard]] const GlobalStyle& globalStyle() const { return m_global_style; }
 
-    GlobalStyle& global_style() { return m_global_style; }
+    GlobalStyle& globalStyle() { return m_global_style; }
 
 private:
     StyleManager() = default;

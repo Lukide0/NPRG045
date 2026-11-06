@@ -199,7 +199,8 @@ using revwalk_t           = ptr_object_t<git_revwalk, git_revwalk_free>;
 using repository_t        = ptr_object_t<git_repository, git_repository_free>;
 using remote_t            = ptr_object_t<git_remote, git_remote_free>;
 
-using buffer_t = object_t<git_buf, git_buf_dispose>;
+using buffer_t            = object_t<git_buf, git_buf_dispose>;
+using merge_file_result_t = object_t<git_merge_file_result, git_merge_file_result_free>;
 
 /**
  * @brief Converts a list of strings to a Git string array.

@@ -49,13 +49,13 @@ DiffEditor::DiffEditor(const core::git::diff_files_t& diff, QWidget* parent)
     setReadOnly(true);
 
     auto pal = palette();
-    pal.setColor(QPalette::Highlight, style::GlobalStyle::get_color(style::GlobalStyle::HIGHLIGHT));
+    pal.setColor(QPalette::Highlight, style::GlobalStyle::getColor(style::GlobalStyle::HIGHLIGHT));
 
     setPalette(pal);
 
-    connect(&style::StyleManager::get_global_style(), &style::GlobalStyle::changed, this, [this]() {
+    connect(&style::StyleManager::getGlobalStyle(), &style::GlobalStyle::changed, this, [this]() {
         auto p = this->palette();
-        p.setColor(QPalette::Highlight, style::GlobalStyle::get_color(style::GlobalStyle::HIGHLIGHT));
+        p.setColor(QPalette::Highlight, style::GlobalStyle::getColor(style::GlobalStyle::HIGHLIGHT));
         this->setPalette(p);
 
         onSelectionChanged();
@@ -408,7 +408,7 @@ void DiffEditor::setBlockHighlight(QTextBlock block, bool enable) {
     }
 
     auto line        = line_data->get_line();
-    QColor highlight = style::DiffStyle::get_color(convert_to_diff_color(line.type));
+    QColor highlight = style::DiffStyle::getColor(convert_to_diff_color(line.type));
     highlight.setAlpha(30);
 
     line_data->set_select(enable);
@@ -453,7 +453,7 @@ void DiffEditor::diffLinePaintEvent(QPaintEvent* event) {
                 str += convert_to_symbol(line.type);
 
                 if (line_data->is_selected()) {
-                    painter.setPen(style::DiffStyle::get_color(convert_to_diff_color(line.type)));
+                    painter.setPen(style::DiffStyle::getColor(convert_to_diff_color(line.type)));
                 } else {
                     painter.setPen(Qt::black);
                 }

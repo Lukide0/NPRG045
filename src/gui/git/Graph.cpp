@@ -83,7 +83,7 @@ public:
         using GraphNodeState = GraphNodeData::GraphNodeState;
 
         const QPalette palette = widget != nullptr ? widget->palette() : QApplication::palette();
-        const QColor highlight = style::GlobalStyle::get_color(style::GlobalStyle::HIGHLIGHT);
+        const QColor highlight = style::GlobalStyle::getColor(style::GlobalStyle::HIGHLIGHT);
 
         bool draw_box = true;
         QColor color  = highlight;
@@ -94,13 +94,13 @@ public:
             break;
         case GraphNodeState::Unknown:
         case GraphNodeState::Error:
-            color = ConflictStyle::get_color(ConflictStyle::UNKNOWN);
+            color = ConflictStyle::getColor(ConflictStyle::UNKNOWN);
             break;
         case GraphNodeState::Conflict:
-            color = ConflictStyle::get_color(ConflictStyle::CONFLICT);
+            color = ConflictStyle::getColor(ConflictStyle::CONFLICT);
             break;
         case GraphNodeState::Resolved:
-            color = ConflictStyle::get_color(ConflictStyle::RESOLVED_CONFLICT);
+            color = ConflictStyle::getColor(ConflictStyle::RESOLVED_CONFLICT);
             break;
         }
 
@@ -162,16 +162,13 @@ GraphWidget::GraphWidget(QWidget* parent)
     connect(scene, &QGraphicsScene::focusItemChanged, this, &GraphWidget::onFocusItemChanged);
 
     connect(
-        &style::StyleManager::get_conflict_style(),
+        &style::StyleManager::getConflictStyle(),
         &style::ConflictStyle::changed,
         viewport(),
         qOverload<>(&QWidget::update)
     );
     connect(
-        &style::StyleManager::get_global_style(),
-        &style::GlobalStyle::changed,
-        viewport(),
-        qOverload<>(&QWidget::update)
+        &style::StyleManager::getGlobalStyle(), &style::GlobalStyle::changed, viewport(), qOverload<>(&QWidget::update)
     );
 
     relayout();

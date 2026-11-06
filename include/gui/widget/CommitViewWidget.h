@@ -29,7 +29,7 @@ public slots:
     void setCurrentCommit(git_commit* commit);
 
 signals:
-    void commitMessageChanged(const QString& msg);
+    void commitMessageChanged(std::size_t row, const QString& msg);
 
 private:
     QHBoxLayout* m_layout;

@@ -29,6 +29,9 @@ CommitMessageWidget::CommitMessageWidget(QWidget* parent)
     m_layout = new QHBoxLayout();
     setLayout(m_layout);
 
+    m_message_timer.setSingleShot(true);
+    m_message_timer.setInterval(300);
+
     m_editor = new QPlainTextEdit();
     m_editor->setReadOnly(true);
 
@@ -46,7 +49,8 @@ CommitMessageWidget::CommitMessageWidget(QWidget* parent)
     m_layout->addWidget(m_editor);
     m_layout->addLayout(buttons);
 
-    connect(m_editor, &QPlainTextEdit::textChanged, this, [this]() {
+    connect(m_editor, &QPlainTextEdit::textChanged, this, [this]() { m_message_timer.start(); });
+    connect(&m_message_timer, &QTimer::timeout, this, [this]() {
         auto text = m_editor->toPlainText();
         emit commitMessageChanged(text);
     });
@@ -181,6 +185,8 @@ void CommitMessageWidget::updateText() {
     }
 
     setEditorText(content);
+
+    emit commitMessageChanged(content);
 }
 
 }

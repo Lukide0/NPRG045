@@ -1,5 +1,7 @@
 #pragma once
 
+#include "app/conflict/ConflictEditor.h"
+#include "app/Settings.h"
 #include "core/rebase/RebaseManager.h"
 #include "gui/widget/RebaseSelectionWidget.h"
 #include "gui/widget/RebaseViewWidget.h"
@@ -79,7 +81,12 @@ public:
     /**
      * @brief Returns application settings.
      */
-    static QSettings getSettings() { return { QSettings::IniFormat, QSettings::UserScope, "gitshuffle" }; }
+    static QSettings getSettings();
+
+    /**
+     * @brief Returns conflict editor.
+     */
+    static app::conflict::ConflictEditor& getConflictEditor();
 
     /**
      * @brief Returns shortcuts.
@@ -146,6 +153,8 @@ private:
     std::optional<QString> m_save_file;
     std::optional<core::git::RepoSession> m_new_rebase_repo;
 
+    app::Settings m_settings;
+    app::conflict::ConflictEditor m_conflict_editor;
     QMap<QString, ShortcutAction> m_shortcuts;
     std::unique_ptr<QProcess> m_git_proc;
 

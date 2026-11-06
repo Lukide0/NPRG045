@@ -60,7 +60,7 @@ public:
 
             if (selected) {
                 m_label->setText(SELECTED_PREFIX + baseText);
-                palette.setColor(QPalette::WindowText, GlobalStyle::get_color(GlobalStyle::Style::HIGHLIGHT));
+                palette.setColor(QPalette::WindowText, GlobalStyle::getColor(GlobalStyle::Style::HIGHLIGHT));
             } else {
                 m_label->setText(NOT_SELECTED_PREFIX + baseText);
                 palette.setColor(QPalette::WindowText, palette.color(QPalette::Text));
@@ -69,13 +69,13 @@ public:
             m_label->setPalette(palette);
         });
 
-        connect(&style::StyleManager::get_global_style(), &style::GlobalStyle::changed, this, [this]() {
+        connect(&style::StyleManager::getGlobalStyle(), &style::GlobalStyle::changed, this, [this]() {
             if (!m_selected) {
                 return;
             }
 
             auto p = m_label->palette();
-            p.setColor(QPalette::WindowText, GlobalStyle::get_color(GlobalStyle::HIGHLIGHT));
+            p.setColor(QPalette::WindowText, GlobalStyle::getColor(GlobalStyle::HIGHLIGHT));
             m_label->setPalette(p);
         });
     }

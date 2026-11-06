@@ -72,8 +72,9 @@ Result<RebaseAnalysisPtr> RebaseAnalyzer::analyze(const RebaseAnalysis* previous
         });
     }
 
-    RebaseAnalysisPtr result = std::make_shared<RebaseAnalysis>();
-    result->plan_revision    = m_plan.revision();
+    RebaseAnalysisPtr result  = std::make_shared<RebaseAnalysis>();
+    result->plan_revision     = m_plan.revision();
+    result->conflict_revision = m_conflicts.revision();
 
     git::tree_t root_tree;
     if (git_commit_tree(&root_tree, root) != 0) {
@@ -140,6 +141,12 @@ Result<RebaseAnalysisPtr> RebaseAnalyzer::analyze(const RebaseAnalysis* previous
         result->steps.push_back(std::move(step));
     }
 
+    if (!first_changed.has_value()) {
+        result->first_changed = std::min(result->steps.size(), previous->steps.size());
+    } else {
+        result->first_changed = *first_changed;
+    }
+
     try_compute_conflict_impacts(result.get());
 
     return result;
@@ -153,10 +160,7 @@ void RebaseAnalyzer::try_compute_conflict_impacts(RebaseAnalysis* result) const 
     auto step_callback = [](bool contains_file, std::size_t step_index, void* payload) -> bool {
         auto* analysis = static_cast<RebaseAnalysis*>(payload);
 
-        if (contains_file) {
-            analysis->steps[step_index].extra.affects_later_conflict = true;
-        }
-
+        analysis->steps[step_index].extra.affects_later_conflict = contains_file;
         return true;
     };
 
@@ -164,7 +168,7 @@ void RebaseAnalyzer::try_compute_conflict_impacts(RebaseAnalysis* result) const 
 }
 
 [[nodiscard]] bool RebaseAnalyzer::is_current(const RebaseAnalysis& analysis) const {
-    return analysis.plan_revision == m_plan.revision();
+    return analysis.plan_revision == m_plan.revision() && analysis.conflict_revision == m_conflicts.revision();
 }
 
 const StepResult* RebaseAnalyzer::try_use(const RebaseAnalysis* previous, const StepResult& step) const {
@@ -182,7 +186,7 @@ const StepResult* RebaseAnalyzer::try_use(const RebaseAnalysis* previous, const 
 
     const bool are_same
         = (old_result != nullptr && old_result->input == step.input && old_result->has_parent_tree
-           && git_oid_equal(&old_result->parent_tree_id, &step.parent_tree_id) == 0);
+           && git_oid_equal(&old_result->parent_tree_id, &step.parent_tree_id) != 0);
 
     if (!are_same) {
         return nullptr;

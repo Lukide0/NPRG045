@@ -20,20 +20,18 @@ void ConflictStyle::set(Style style, const QColor& color) {
     return m_colors[style];
 }
 
-void ConflictStyle::set_color(Style style, const QColor& color) {
-    StyleManager::get_conflict_style().set(style, color);
-}
+void ConflictStyle::setColor(Style style, const QColor& color) { StyleManager::getConflictStyle().set(style, color); }
 
-const QColor& ConflictStyle::get_color(Style style) { return StyleManager::get_conflict_style().get(style); }
+const QColor& ConflictStyle::getColor(Style style) { return StyleManager::getConflictStyle().get(style); }
 
-const QColor& ConflictStyle::get_default_color(Style style) {
+const QColor& ConflictStyle::getDefaultColor(Style style) {
     assert(style >= 0 && style < Style::_LENGTH);
     return default_colors[style];
 }
 
-void ConflictStyle::emit_changed() { emit changed(); }
+void ConflictStyle::emitChangedSignal() { emit changed(); }
 
-void ConflictStyle::emit_changed_signal() { StyleManager::get_conflict_style().emit_changed(); }
+void ConflictStyle::emitChanged() { StyleManager::getConflictStyle().emitChangedSignal(); }
 
 void ConflictStyle::save(QSettings& settings) const {
     settings.beginGroup("ConflictStyle");
@@ -42,7 +40,7 @@ void ConflictStyle::save(QSettings& settings) const {
             auto style       = static_cast<Style>(i);
             const char* name = STYLE_NAMES[i];
 
-            settings.setValue(name, get_color(style));
+            settings.setValue(name, getColor(style));
         }
     }
     settings.endGroup();
@@ -57,7 +55,7 @@ void ConflictStyle::load(QSettings& settings) {
 
             auto color = settings.value(name, default_colors[i]).value<QColor>();
 
-            set_color(style, color);
+            setColor(style, color);
         }
     }
     settings.endGroup();

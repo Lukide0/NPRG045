@@ -1,9 +1,11 @@
 #include "App.h"
 
+#include "app/Settings.h"
 #include "core/action/Action.h"
 #include "core/action/Converter.h"
 #include "core/conflict/ConflictManager.h"
 #include "core/git/commit.h"
+#include "core/git/error.h"
 #include "core/git/parser.h"
 #include "core/git/paths.h"
 #include "core/git/RepoSession.h"
@@ -64,6 +66,10 @@
 
 static App* g_app = nullptr;
 
+QSettings App::getSettings() { return app::Settings::get(); }
+
+app::conflict::ConflictEditor& App::getConflictEditor() { return g_app->m_conflict_editor; }
+
 QMap<QString, App::ShortcutAction>& App::getShortcuts() { return g_app->m_shortcuts; }
 
 const core::rebase::RebaseSession* App::rebaseSession() { return g_app->m_rebase.current(); }
@@ -116,7 +122,7 @@ App::App() {
     // load styles
     {
         auto& manager = gui::style::StyleManager::get();
-        manager.load_styles(settings);
+        manager.loadStyles(settings);
     }
 
     QPalette palette;
@@ -127,6 +133,7 @@ App::App() {
     setupShortcuts();
 
     App::loadShortcuts(settings);
+    m_conflict_editor.load(settings);
 }
 
 void App::setupShortcuts() {
@@ -474,7 +481,7 @@ bool App::openRepo(const std::string& path) {
     if (!repo.has_value()) {
         auto err = repo.error();
 
-        DISPLAY_LIBGIT_ERROR(this, err.title, err.message);
+        DISPLAY_ERROR(this, err.title, err.message);
         m_layout->setCurrentIndex(page_welcome);
         return false;
     }
@@ -483,16 +490,17 @@ bool App::openRepo(const std::string& path) {
     if (!rebase_info.has_value()) {
         auto err = repo.error();
 
-        DISPLAY_LIBGIT_ERROR(this, err.title, err.message);
+        DISPLAY_ERROR(this, err.title, err.message);
         m_layout->setCurrentIndex(page_welcome);
         return false;
     } else if (!rebase_info->has_value()) {
-        m_layout->setCurrentIndex(page_rebase_select);
+        LOG_INFO("No rebase is currently in progress");
 
         if (!prepareRebaseSelection(std::move(*repo))) {
             m_layout->setCurrentIndex(page_welcome);
             return false;
         } else {
+            m_layout->setCurrentIndex(page_rebase_select);
             return true;
         }
     }
@@ -502,7 +510,7 @@ bool App::openRepo(const std::string& path) {
     if (!err.has_value()) {
         auto e = err.error();
 
-        DISPLAY_LIBGIT_ERROR(this, e.title, e.message);
+        DISPLAY_ERROR(this, e.title, e.message);
 
         m_layout->setCurrentIndex(page_welcome);
         return false;
@@ -555,7 +563,8 @@ bool App::prepareRebaseSelection(core::git::RepoSession&& repo) {
 
     core::git::branch_iterator_t branch_iter;
 
-    if (git_branch_iterator_new(&branch_iter, repo.repo(), GIT_BRANCH_LOCAL) != 0) {
+    if (git_branch_iterator_new(&branch_iter, m_new_rebase_repo->repo(), GIT_BRANCH_LOCAL) != 0) {
+        LOG_ERROR("branch iterator error; {}", core::git::get_last_error());
         return false;
     }
 
@@ -785,6 +794,9 @@ void App::loadSaveFile() {
 }
 
 bool App::saveTodoFile(bool insert_break) {
+    if (m_rebase.current() == nullptr) {
+        return false;
+    }
 
     const auto* rebase = m_rebase.current();
     const auto& repo   = rebase->repo();

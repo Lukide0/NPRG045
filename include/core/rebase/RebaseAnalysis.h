@@ -120,6 +120,7 @@ private:
 
 struct RebaseAnalysis {
     std::size_t plan_revision;
+    std::size_t conflict_revision;
     std::size_t first_changed = 0;
     std::vector<StepResult> steps;
 

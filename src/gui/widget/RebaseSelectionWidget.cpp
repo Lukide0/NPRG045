@@ -111,7 +111,26 @@ RebaseSelectionWidget::RebaseSelectionWidget(QWidget* parent)
     });
 
     connect(m_commits, &QListWidget::itemSelectionChanged, this, [this]() {
-        m_forward_btn->setEnabled(m_commits->currentRow() >= 0);
+        const int current_row = m_commits->currentRow();
+
+        m_forward_btn->setEnabled(current_row >= 0);
+
+        // highlight 0,...,current_row
+
+        const auto highlight        = m_commits->palette().color(QPalette::Highlight);
+        const auto highlighted_text = m_commits->palette().color(QPalette::HighlightedText);
+
+        for (int row = 0; row < m_commits->count(); ++row) {
+            auto* item = m_commits->item(row);
+
+            if (row <= current_row) {
+                item->setBackground(highlight);
+                item->setForeground(highlighted_text);
+            } else {
+                item->setBackground({ });
+                item->setForeground({ });
+            }
+        }
     });
 
     connect(m_branches, &QComboBox::currentIndexChanged, this, [this]() {

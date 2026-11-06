@@ -1,5 +1,6 @@
 #pragma once
 
+#include "app/conflict/ConflictEditorManager.h"
 #include "app/rebase/RebaseController.h"
 #include "core/action/Action.h"
 #include "core/git/GitGraph.h"
@@ -62,14 +63,12 @@ public:
 signals:
     void currentStepChanged(core::rebase::RebaseAnalysisConstPtr analysis, int row);
 
-private slots:
-    void openConflictEditor(const QString& path, const core::conflict::ConflictEntry& entry);
-
 private:
     QPersistentModelIndex m_current;
 
     core::rebase::StepConflict* m_current_conflict = nullptr;
     app::rebase::RebaseController* m_controller    = nullptr;
+    app::conflict::ConflictEditorManager* m_conflict_editor_manager;
 
     QListView* m_list;
     rebase::RebaseActionDelegate* m_action_delegate;
@@ -86,11 +85,21 @@ private:
 
     GitGraph m_graph;
 
-private:
     void initializeGraph();
 
     void changedListSelection(const QModelIndex& index);
     void publishCurrentStep();
     void updateConflict(int row);
+    void openConflictEditor(
+        std::size_t id,
+        const QString& path,
+        const core::conflict::ConflictEntry& entry,
+        ConflictWidget::ConflictEditMode mode
+    );
+
+    void editConflictResolution(
+        app::conflict::ConflictFileId id, const QByteArray& content, app::conflict::ConflictResolutionType type
+    );
+    void showConflictEditorError(app::conflict::ConflictFileId id, QString message);
 };
 }

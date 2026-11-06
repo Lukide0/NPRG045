@@ -1,5 +1,7 @@
 #include "gui/widget/RebaseViewWidget.h"
 
+#include "App.h"
+#include "app/conflict/ConflictEditorManager.h"
 #include "app/conflict/ConflictTreeModel.h"
 #include "app/rebase/RebaseController.h"
 #include "app/rebase/RebasePlanModel.h"
@@ -48,6 +50,7 @@
 #include <QSplitter>
 #include <QString>
 #include <Qt>
+#include <QTimer>
 #include <QWidget>
 
 namespace gui::widget {
@@ -90,9 +93,10 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     m_list->setSelectionMode(QAbstractItemView::SingleSelection);
     m_list->setDragDropMode(QAbstractItemView::InternalMove);
     m_list->setDragEnabled(true);
+    m_list->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
     auto palette = m_list->palette();
-    palette.setColor(QPalette::Highlight, GlobalStyle::get_color(GlobalStyle::HIGHLIGHT));
+    palette.setColor(QPalette::Highlight, GlobalStyle::getColor(GlobalStyle::HIGHLIGHT));
     m_list->setPalette(palette);
 
     left_split->addWidget(m_list);
@@ -124,14 +128,14 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     diff_commit_split->setStretchFactor(0, 2);
     diff_commit_split->setStretchFactor(1, 0);
 
-    connect(&style::StyleManager::get_global_style(), &GlobalStyle::changed, this, [this]() {
+    connect(&style::StyleManager::getGlobalStyle(), &GlobalStyle::changed, this, [this]() {
         auto p = m_list->palette();
-        p.setColor(QPalette::Highlight, GlobalStyle::get_color(GlobalStyle::HIGHLIGHT));
+        p.setColor(QPalette::Highlight, GlobalStyle::getColor(GlobalStyle::HIGHLIGHT));
         m_list->setPalette(p);
         m_list->viewport()->setPalette(p);
     });
 
-    connect(&style::StyleManager::get_conflict_style(), &style::ConflictStyle::changed, this, [this]() {
+    connect(&style::StyleManager::getConflictStyle(), &style::ConflictStyle::changed, this, [this]() {
         m_list->viewport()->update();
     });
 
@@ -153,11 +157,30 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     });
 
     connect(m_conflict_widget, &ConflictWidget::resolveRequested, this, &RebaseViewWidget::openConflictEditor);
+
+    //-- Conflict editors -----------------------------------------------------/
+
+    m_conflict_editor_manager = new app::conflict::ConflictEditorManager(App::getConflictEditor(), this);
+
+    connect(
+        m_conflict_editor_manager,
+        &app::conflict::ConflictEditorManager::resolutionReady,
+        this,
+        &RebaseViewWidget::editConflictResolution
+    );
+
+    connect(
+        m_conflict_editor_manager,
+        &app::conflict::ConflictEditorManager::editorFailed,
+        this,
+        &RebaseViewWidget::showConflictEditorError
+    );
 }
 
 void RebaseViewWidget::setSession(app::rebase::RebaseController* controller, GitGraph&& graph) {
     m_list->setModel(nullptr);
-    m_controller = controller;
+    m_controller       = controller;
+    m_current_conflict = nullptr;
 
     if (m_controller == nullptr) {
         return;
@@ -172,11 +195,20 @@ void RebaseViewWidget::setSession(app::rebase::RebaseController* controller, Git
     // update session
     m_diff_widget->setSession(&m_controller->session(), m_controller);
 
+    // update conflict editor manager
+    m_conflict_editor_manager->setRepo(&controller->session().repo());
+
     // initialize
     m_controller->refresh(true);
 
     connect(m_action_delegate, &rebase::RebaseActionDelegate::editRequested, m_list, [this](const QModelIndex& index) {
-        m_list->edit(index);
+        QPersistentModelIndex persistent_index(index);
+
+        QTimer::singleShot(0, m_list, [this, persistent_index] {
+            if (persistent_index.isValid()) {
+                m_list->edit(persistent_index);
+            }
+        });
     });
 
     connect(m_list->selectionModel(), &QItemSelectionModel::currentChanged, this, [this](const QModelIndex current) {
@@ -184,11 +216,23 @@ void RebaseViewWidget::setSession(app::rebase::RebaseController* controller, Git
     });
 
     connect(m_controller, &app::rebase::RebaseController::analysisChanged, this, [this](std::size_t first_changed_row) {
-        if (!m_current.isValid() || m_current.row() >= static_cast<int>(first_changed_row)) {
+        if (!m_current.isValid() || m_current.row() < static_cast<int>(first_changed_row)) {
             return;
         }
 
         publishCurrentStep();
+    });
+
+    connect(m_commit_view, &CommitViewWidget::commitMessageChanged, this, [this](std::size_t row, const QString& msg) {
+        if (msg.isEmpty()) { }
+
+        const auto& analysis = m_controller->analysis();
+
+        if (analysis == nullptr || row >= analysis->steps.size()) {
+            return;
+        }
+
+        m_controller->setMessage(static_cast<int>(row), msg);
     });
 
     // pick -> reword does not trigger analysisChanged
@@ -291,42 +335,119 @@ void RebaseViewWidget::updateConflict(int row) {
         return;
     }
 
-    auto* conflict = block->conflict.get();
+    m_conflict_widget->show();
+    m_conflict_widget->clearConflicts();
 
-    // no change
-    if (conflict == m_current_conflict) {
+    if (!block->has_result()) {
         m_diff_widget->hide();
-        m_conflict_widget->show();
-        return;
     }
 
-    m_current_conflict = conflict;
+    auto* conflict = block->conflict.get();
 
+    QSet<app::conflict::ConflictFileId> ids;
     QList<app::conflict::ConflictTreeModel::ConflictFile> files;
+
+    ids.reserve(static_cast<int>(conflict->files.size()));
     files.reserve(static_cast<int>(conflict->files.size()));
 
-    for (auto&& file : conflict->files) {
+    for (std::size_t i = 0; i < conflict->files.size(); ++i) {
+        const auto& f = conflict->files[i];
+
+        ids.insert(
+            app::conflict::ConflictFileId {
+                .path  = f.path,
+                .entry = f.entry,
+            }
+        );
+
         files.push_back(
-            {
-                .path     = QString::fromStdString(file.path),
-                .entry    = file.entry,
-                .resolved = file.resolved(),
+            app::conflict::ConflictTreeModel::ConflictFile {
+                .id       = i,
+                .path     = QString::fromStdString(f.path),
+                .entry    = f.entry,
+                .resolved = f.resolved(),
             }
         );
     }
 
+    m_current_conflict = conflict;
+    m_conflict_editor_manager->discardExcept(ids);
     m_conflict_widget->setConflictFiles(files);
 
-    m_diff_widget->hide();
-    m_conflict_widget->show();
+    // no change
+    if (conflict == m_current_conflict) {
+        return;
+    }
 }
 
 void RebaseViewWidget::openConflictEditor(
-    [[maybe_unused]] const QString& path, [[maybe_unused]] const core::conflict::ConflictEntry& entry
+    std::size_t id,
+    const QString& path,
+    const core::conflict::ConflictEntry& entry,
+    ConflictWidget::ConflictEditMode mode
 ) {
+    if (m_current_conflict == nullptr) {
+        return;
+    }
 
-    // 1. read the settings and if editor is missing ask for setting one in settings
-    // 2. open the editor and when it closes with correct code read and validate the contents and create resolution
+    if (id >= m_current_conflict->files.size()) {
+        return;
+    }
+
+    const auto& file = m_current_conflict->files[id];
+    if (file.entry != entry || file.path != path) {
+        return;
+    }
+
+    bool edit_resolution;
+    switch (mode) {
+    case ConflictWidget::ConflictEditMode::Resolve:
+        edit_resolution = false;
+        break;
+    case ConflictWidget::ConflictEditMode::EditResolution:
+        edit_resolution = true;
+        break;
+    }
+
+    auto file_id = app::conflict::ConflictFileId { .path = file.path, .entry = file.entry };
+    auto editor  = m_conflict_editor_manager->open(file_id, file, edit_resolution);
+    if (!editor.has_value()) {
+        auto err = editor.error();
+        DISPLAY_ERROR(this, err.title, err.message);
+    }
+}
+
+void RebaseViewWidget::editConflictResolution(
+    app::conflict::ConflictFileId id, const QByteArray& content, app::conflict::ConflictResolutionType type
+) {
+    if (m_current_conflict == nullptr) {
+        return;
+    }
+
+    switch (type) {
+    case app::conflict::ConflictResolutionType::Deleted:
+        m_controller->setResolutionDeleted(id.entry);
+        break;
+
+    case app::conflict::ConflictResolutionType::Modified: {
+        auto resolution = m_controller->setResolution(id.entry, content);
+        if (!resolution.has_value()) {
+            const auto& err = resolution.error();
+            DISPLAY_ERROR(this, err.title, err.message);
+            return;
+        }
+        break;
+    }
+    }
+}
+
+void RebaseViewWidget::showConflictEditorError(app::conflict::ConflictFileId id, QString message) {
+    if (m_current_conflict == nullptr) {
+        return;
+    }
+
+    const QString path = QString::fromStdString(id.path);
+    DISPLAY_ERROR(this, "Conflict editor error", QStringLiteral("Could not edit \"%1\".\n\n%2").arg(path).arg(message));
 }
 
 void RebaseViewWidget::moveSelectedAction(bool down) {
@@ -406,189 +527,4 @@ void RebaseViewWidget::changeActionType(ActionType type) {
     m_list->model()->setData(m_current, new_type, app::rebase::RebasePlanModel::TypeRole);
 }
 
-// void RebaseViewWidget::checkoutAndResolve() {
-// // 1. Check if working index is clean
-// {
-//     git_status_options opts = GIT_STATUS_OPTIONS_INIT;
-//
-//     git_status_list* list;
-//
-//     if (git_status_list_new(&list, m_repo, &opts) != 0) {
-//         DISPLAY_LIBGIT_ERROR(this, "Status error", core::git::get_last_error());
-//         return;
-//     }
-//
-//     bool has_changes = (git_status_list_entrycount(list) != 0);
-//     if (has_changes) {
-//         DISPLAY_ERROR(this, "Status error", "Working directory is not clean");
-//         return;
-//     }
-// }
-//
-// LOG_INFO("Working dir is clean");
-//
-// m_conflict->clear_resolving();
-//
-// if (git_repository_head(&m_head, m_repo) != 0) {
-//     DISPLAY_LIBGIT_ERROR(this, "Repo head error", core::git::get_last_error());
-//     return;
-// }
-//
-// LOG_INFO("Saving HEAD: '{}'", git_reference_name(m_head));
-//
-// // 2. Create temporary commit and checkout onto it
-// {
-//     Action* parent_act      = m_conflict->parent_action();
-//     git_oid const* tree_oid = nullptr;
-//     if (parent_act == nullptr) {
-//         tree_oid = git_commit_tree_id(m_actions.get_root_commit());
-//     } else {
-//         tree_oid = git_tree_id(parent_act->get_tree());
-//     }
-//
-//     assert(tree_oid != nullptr);
-//
-//     core::git::tree_t tree;
-//     if (git_tree_lookup(&tree, m_repo, tree_oid) != 0) {
-//         DISPLAY_LIBGIT_ERROR(this, "Failed to load tree", core::git::get_last_error());
-//         return;
-//     }
-//
-//     core::git::signature_t sig;
-//     if (git_signature_default(&sig, m_repo) != 0) {
-//         DISPLAY_LIBGIT_ERROR(this, "Failed to load signature", core::git::get_last_error());
-//         return;
-//     }
-//
-//     git_oid commit_id;
-//     if (git_commit_create(&commit_id, m_repo, nullptr, sig, sig, nullptr, "Tmp commit", tree, 0, nullptr) != 0) {
-//         DISPLAY_LIBGIT_ERROR(this, "Failed to create temporary commit", core::git::get_last_error());
-//         return;
-//     }
-//
-//     if (!core::git::set_repository_head_detached(m_repo, &commit_id)) {
-//         DISPLAY_LIBGIT_ERROR(this, "Repo head error", core::git::get_last_error());
-//         return;
-//     }
-//
-//     LOG_INFO("Checking out tree");
-// }
-//
-// // 3. Checkout conflict
-// {
-//     git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
-//
-//     opts.checkout_strategy |= GIT_CHECKOUT_SAFE | GIT_CHECKOUT_ALLOW_CONFLICTS | GIT_CHECKOUT_RECREATE_MISSING;
-//
-//     if (git_checkout_index(m_repo, m_conflict->index(), &opts) != 0) {
-//         DISPLAY_LIBGIT_ERROR(this, "Repo head error", core::git::get_last_error());
-//         return;
-//     }
-//
-//     LOG_INFO("Checking out index with conflicts");
-// }
-//
-// // 4. Apply conflict resolutions
-// {
-//     core::git::index_t index;
-//     if (git_repository_index(&index, m_repo) != 0) {
-//         DISPLAY_LIBGIT_ERROR(this, "Repo error", core::git::get_last_error());
-//         return;
-//     }
-//
-//     if (!m_conflict_manager.apply_resolutions(m_conflict->entries(), m_conflict->paths(), m_repo, index.get())) {
-//         DISPLAY_LIBGIT_ERROR(this, "Recorded resolution error", core::git::get_last_error());
-//         return;
-//     }
-// }
-//
-// m_conflict->start_resolving();
-//
-// // 5. Create dialog to prevent user to modifing application state
-// {
-//     ConflictDialog dialog(this);
-//
-//     dialog.exec();
-//
-//     while (dialog.resolved()) {
-//
-//         // check if the resolution can be applied
-//         if (markResolved()) {
-//             break;
-//         }
-//
-//         dialog.exec();
-//     }
-//
-//     // clean working directory
-//     if (!dialog.resolved()) {
-//         LOG_INFO("Restoring HEAD: '{}'", git_reference_name(m_head));
-//
-//         if (!core::git::set_repository_head(m_repo, m_head.get())) {
-//             DISPLAY_LIBGIT_ERROR(this, "Failed to clean working directory", core::git::get_last_error());
-//         }
-//     }
-// }
-// }
-
-// bool RebaseViewWidget::markResolved() {
-// if (m_conflict->index() == nullptr || !m_conflict->is_resolving()) {
-//     return false;
-// }
-//
-// core::git::index_t repo_index;
-// if (git_repository_index(&repo_index, m_repo) != 0) {
-//     DISPLAY_LIBGIT_ERROR(this, "Repo index", core::git::get_last_error());
-//     return false;
-// }
-//
-// // 1. Add all modified files to the index and create new tree
-// auto&& [err, tree_oid] = core::conflict::add_resolved_files(
-//     repo_index, m_repo, m_conflict->paths(), m_conflict->entries(), m_conflict_manager
-// );
-// if (err.has_value()) {
-//     DISPLAY_ERROR(this, "Resolution error", *err);
-//     return false;
-// }
-//
-// core::git::tree_t tree;
-// if (git_tree_lookup(&tree, m_repo, &tree_oid) != 0) {
-//     DISPLAY_LIBGIT_ERROR(this, "Tree error", core::git::get_last_error());
-//     return false;
-// }
-//
-// LOG_INFO("Restoring HEAD: '{}'", git_reference_name(m_head));
-// // Change working tree
-// if (!core::git::set_repository_head(m_repo, m_head)) {
-//     DISPLAY_LIBGIT_ERROR(this, "Repo head error", core::git::get_last_error());
-//     return false;
-// }
-//
-// core::conflict::ConflictTrees conflict;
-//
-// git_oid const* tree_id;
-// if (m_conflict->parent_action() != nullptr) {
-//     tree_id = git_tree_id(m_conflict->parent_action()->get_tree());
-// } else {
-//     git_commit* root_commit = m_actions.get_root_commit();
-//     tree_id                 = git_commit_tree_id(root_commit);
-// }
-//
-// conflict.commit_id      = core::git::format_oid_to_str<core::git::OID_SIZE>(&m_conflict->action()->get_oid());
-// conflict.parent_tree_id = core::git::format_oid_to_str<core::git::OID_SIZE>(tree_id);
-//
-// m_conflict_manager.add_trees_resolution(conflict, std::move(tree));
-//
-// LOG_INFO("Saving conflict resolution");
-//
-// m_conflict->finish_resolving();
-// m_conflict->clear_conflict();
-//
-// updateConflictList(nullptr);
-// updateConflictMarkers();
-//
-// updateGraph();
-//
-//     return true;
-// }
 }

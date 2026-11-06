@@ -2,8 +2,11 @@
 
 #include <QColor>
 #include <QColorDialog>
+#include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QLabel>
+#include <QLineEdit>
 #include <QPalette>
 #include <QPushButton>
 #include <QString>
@@ -22,6 +25,7 @@ public:
 private slots:
     void onApply();
     void onCancel();
+    void onAccept();
 
 private:
     QVBoxLayout* m_layout;
@@ -29,20 +33,33 @@ private:
     QDialogButtonBox* m_button_layout;
     QPushButton* m_apply_button;
 
+    struct {
+        struct {
+            QLineEdit* editor;
+            QLabel* error;
+            QWidget* tab;
+            QComboBox* merge_style = nullptr;
+        } conflict;
+
+    } m_tab_data;
+
     void setup();
     void setupColors();
     void setupShortcuts();
+    void setupConflict();
 
     void loadSettings();
-    void saveSettings();
-    void applySettings();
+    void saveSettings() const;
+    void notifySettingChanged();
+
+    bool applyChanges();
 
     static void updateButton(QPushButton* btn, const QColor& color, QPalette::ColorRole role = QPalette::ButtonText);
 
     template <typename T, bool Background = false> QLayout* create_color_picker(const QString& text, T::Style style) {
         constexpr QPalette::ColorRole role = (Background) ? QPalette::Button : QPalette::ButtonText;
 
-        QColor color = T::get_color(style);
+        QColor color = T::getColor(style);
 
         auto* layout = new QHBoxLayout();
 
@@ -63,19 +80,19 @@ private:
                 return;
             }
 
-            T::set_color(style, new_color);
+            T::setColor(style, new_color);
             updateButton(change_btn, new_color, role);
 
-            T::emit_changed_signal();
+            T::emitChanged();
         });
 
         connect(load_default_btn, &QPushButton::clicked, this, [this, change_btn, style]() {
-            QColor default_color = T::get_default_color(style);
+            QColor default_color = T::getDefaultColor(style);
 
-            T::set_color(style, default_color);
+            T::setColor(style, default_color);
             updateButton(change_btn, default_color, role);
 
-            T::emit_changed_signal();
+            T::emitChanged();
         });
 
         return layout;

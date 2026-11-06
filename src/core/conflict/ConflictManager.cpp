@@ -206,11 +206,18 @@ const std::string* ConflictManager::get_resolution(const ConflictEntry& entry) c
     return it != m_conflicts.end() ? &it->second : nullptr;
 }
 
-bool ConflictManager::remove_resolution(const ConflictEntry& entry) { return m_conflicts.erase(entry) != 0; }
+bool ConflictManager::remove_resolution(const ConflictEntry& entry) {
+    m_revision += 1;
+    return m_conflicts.erase(entry) != 0;
+}
 
-void ConflictManager::add_resolution(const ConflictEntry& entry, std::string id) { m_conflicts[entry] = id; }
+void ConflictManager::add_resolution(const ConflictEntry& entry, std::string id) {
+    m_revision += 1;
+    m_conflicts[entry] = id;
+}
 
 void ConflictManager::add_trees_resolution(const ConflictTrees& conflict, git::tree_t&& resolution) {
+    m_revision += 1;
     m_trees[conflict] = std::move(resolution);
 }
 

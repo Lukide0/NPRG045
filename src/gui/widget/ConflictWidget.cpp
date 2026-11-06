@@ -8,9 +8,11 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QListWidget>
+#include <QMenu>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QString>
+#include <QToolButton>
 #include <QWidget>
 
 namespace gui::widget {
@@ -36,7 +38,17 @@ ConflictWidget::ConflictWidget(QWidget* parent)
     header->addStretch();
     header->addWidget(m_summary);
 
-    auto* resolve_conflict_btn = new QPushButton("Resolve conflict");
+    m_button.widget = new QToolButton();
+    m_button.widget->setPopupMode(QToolButton::MenuButtonPopup);
+
+    auto* menu = new QMenu(m_button.widget);
+
+    m_button.resolve_conflict = menu->addAction("Resolve original conflict");
+    m_button.edit_resolution  = menu->addAction("Edit resolution");
+
+    m_button.widget->setMenu(menu);
+    m_button.widget->setDefaultAction(m_button.resolve_conflict);
+    m_button.widget->setEnabled(false);
 
     m_model = new ConflictTreeModel(this);
 
@@ -69,7 +81,7 @@ ConflictWidget::ConflictWidget(QWidget* parent)
     auto* layout = new QVBoxLayout();
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addLayout(header);
-    layout->addWidget(resolve_conflict_btn);
+    layout->addWidget(m_button.widget);
     layout->addWidget(m_view);
     layout->addWidget(m_status_bar);
     setLayout(layout);
@@ -82,31 +94,43 @@ ConflictWidget::ConflictWidget(QWidget* parent)
         showSelection(current);
     });
 
-    connect(m_view, &QTreeView::activated, this, [this](const QModelIndex& idx) { resolveConflict(idx); });
+    connect(m_button.resolve_conflict, &QAction::triggered, this, [this]() {
+        resolveConflict(ConflictEditMode::Resolve);
+    });
 
-    connect(resolve_conflict_btn, &QPushButton::clicked, this, [this]() {
-        const QModelIndex idx = m_view->currentIndex();
-        resolveConflict(idx);
+    connect(m_button.edit_resolution, &QAction::triggered, this, [this]() {
+        resolveConflict(ConflictEditMode::EditResolution);
     });
 
     updateSummary(0, 0);
 }
 
-void ConflictWidget::resolveConflict(const QModelIndex& idx) {
-    const QString path = m_model->pathAt(idx);
-    if (path.isEmpty()) {
+void ConflictWidget::resolveConflict(ConflictEditMode mode) {
+    const QModelIndex& idx = m_view->currentIndex();
+    if (!idx.isValid()) {
         return;
     }
 
-    const auto entry = m_model->entryAt(idx);
-    if (entry.has_value()) {
-        emit resolveRequested(path, *entry);
+    const QString path = m_model->pathAt(idx);
+    const auto entry   = m_model->entryAt(idx);
+    const auto id      = m_model->idAt(idx);
+
+    if (path.isEmpty() || !entry.has_value()) {
+        return;
     }
+
+    if (mode == ConflictEditMode::EditResolution && !m_model->isResolved(idx)) {
+        return;
+    }
+
+    emit resolveRequested(id, path, *entry, mode);
 }
 
 void ConflictWidget::setConflictFiles(const ConflictFiles& files) {
     m_status_bar->clearMessage();
     m_model->setPaths(files);
+
+    showSelection(m_view->currentIndex());
 }
 
 void ConflictWidget::setResolved(const std::string& path, bool resolved) {
@@ -136,14 +160,23 @@ void ConflictWidget::updateSummary(int unresolved, int total) {
 }
 
 void ConflictWidget::showSelection(const QModelIndex& current) {
-    const QString path = m_model->pathAt(current);
+    const QString path        = m_model->pathAt(current);
+    const bool is_file        = !path.isEmpty();
+    const bool has_resolution = is_file && m_model->isResolved(current);
 
-    if (path.isEmpty()) {
-        m_status_bar->clearMessage();
-        return;
+    m_status_bar->clearMessage();
+
+    if (is_file) {
+        m_status_bar->showMessage(path);
     }
 
-    m_status_bar->showMessage(path);
+    m_button.resolve_conflict->setEnabled(is_file);
+    m_button.edit_resolution->setEnabled(has_resolution);
+
+    auto* active = has_resolution ? m_button.edit_resolution : m_button.resolve_conflict;
+
+    m_button.widget->setDefaultAction(active);
+    m_button.widget->setEnabled(is_file);
 }
 
 }

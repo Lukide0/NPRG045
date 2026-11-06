@@ -191,7 +191,11 @@ public:
      */
     void clear() { m_conflicts.clear(); }
 
+    [[nodiscard]] std::size_t revision() const { return m_revision; }
+
 private:
+    std::size_t m_revision = 0;
+
     std::map<ConflictEntry, std::string> m_conflicts;
 
     std::map<ConflictTrees, git::tree_t> m_trees;

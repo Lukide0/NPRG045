@@ -74,9 +74,13 @@ CommitViewWidget::CommitViewWidget(DiffWidget* diff, QWidget* parent)
         m_diff->ensureEditorVisible(file);
     });
 
-    connect(
-        m_message_widget, &CommitMessageWidget::commitMessageChanged, this, &CommitViewWidget::commitMessageChanged
-    );
+    connect(m_message_widget, &CommitMessageWidget::commitMessageChanged, this, [this](const QString& msg) {
+        if (m_step == nullptr || msg.isEmpty()) {
+            return;
+        }
+
+        emit commitMessageChanged(m_step->index, msg);
+    });
 }
 
 void CommitViewWidget::setCurrentStep(core::rebase::RebaseAnalysisConstPtr analysis, int row) {

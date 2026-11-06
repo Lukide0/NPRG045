@@ -62,8 +62,14 @@ public:
     /// Records or overwrites the resolution (a blob id; empty means the file is deleted).
     bool setResolution(const core::conflict::ConflictEntry& entry, const std::string& blob_id);
 
+    /// Records or overwrites the resolution.
+    bool setResolutionDeleted(const core::conflict::ConflictEntry& entry);
+
     /// Removes the recorded resolution, so the conflict is unresolved again.
     bool removeResolution(const core::conflict::ConflictEntry& entry);
+
+    /// Records or overwrites the resolution.
+    core::Result<void> setResolution(const core::conflict::ConflictEntry& entry, const QByteArray& contents);
 
     bool undo();
     bool redo();

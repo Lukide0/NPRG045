@@ -64,19 +64,19 @@ QColor RebaseActionDelegate::conflictColor(ConflictState state) {
     switch (state) {
     case ConflictState::Unknown:
     case ConflictState::Error:
-        return style::ConflictStyle::get_color(ConflictColor::UNKNOWN);
+        return style::ConflictStyle::getColor(ConflictColor::UNKNOWN);
 
     case ConflictState::Clean:
-        return style::ConflictStyle::get_color(ConflictColor::NORMAL);
+        return style::ConflictStyle::getColor(ConflictColor::NORMAL);
 
     case ConflictState::Conflict:
-        return style::ConflictStyle::get_color(ConflictColor::CONFLICT);
+        return style::ConflictStyle::getColor(ConflictColor::CONFLICT);
 
     case ConflictState::Resolved:
-        return style::ConflictStyle::get_color(ConflictColor::RESOLVED_CONFLICT);
+        return style::ConflictStyle::getColor(ConflictColor::RESOLVED_CONFLICT);
     }
 
-    return style::ConflictStyle::get_color(ConflictColor::UNKNOWN);
+    return style::ConflictStyle::getColor(ConflictColor::UNKNOWN);
 }
 
 void RebaseActionDelegate::drawConflictMarker(
@@ -263,7 +263,7 @@ void RebaseActionDelegate::updateEditorGeometry(
 bool RebaseActionDelegate::editorEvent(
     QEvent* event, QAbstractItemModel* /*model*/, const QStyleOptionViewItem& option, const QModelIndex& index
 ) {
-    if (event->type() != QEvent::MouseButtonRelease || !index.isValid()) {
+    if (event->type() != QEvent::MouseButtonPress || !index.isValid()) {
         return false;
     }
 

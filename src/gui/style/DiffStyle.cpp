@@ -19,18 +19,18 @@ void DiffStyle::set(Style style, const QColor& color) {
     return m_colors[style];
 }
 
-void DiffStyle::set_color(Style style, const QColor& color) { StyleManager::get_diff_style().set(style, color); }
+void DiffStyle::setColor(Style style, const QColor& color) { StyleManager::getDiffStyle().set(style, color); }
 
-const QColor& DiffStyle::get_color(Style style) { return StyleManager::get_diff_style().get(style); }
+const QColor& DiffStyle::getColor(Style style) { return StyleManager::getDiffStyle().get(style); }
 
-const QColor& DiffStyle::get_default_color(Style style) {
+const QColor& DiffStyle::getDefaultColor(Style style) {
     assert(style >= 0 && style < Style::_LENGTH);
     return default_colors[style];
 }
 
-void DiffStyle::emit_changed() { emit changed(); }
+void DiffStyle::emitChangedSignal() { emit changed(); }
 
-void DiffStyle::emit_changed_signal() { StyleManager::get_diff_style().emit_changed(); }
+void DiffStyle::emitChanged() { StyleManager::getDiffStyle().emitChangedSignal(); }
 
 void DiffStyle::save(QSettings& settings) const {
     settings.beginGroup("DiffStyle");
@@ -39,7 +39,7 @@ void DiffStyle::save(QSettings& settings) const {
             auto style       = static_cast<Style>(i);
             const char* name = STYLE_NAMES[i];
 
-            settings.setValue(name, get_color(style));
+            settings.setValue(name, getColor(style));
         }
     }
     settings.endGroup();
@@ -54,7 +54,7 @@ void DiffStyle::load(QSettings& settings) {
 
             auto color = settings.value(name, default_colors[i]).value<QColor>();
 
-            set_color(style, color);
+            setColor(style, color);
         }
     }
     settings.endGroup();

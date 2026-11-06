@@ -9,7 +9,6 @@
 #include <QtTypes>
 
 #include <memory>
-#include <optional>
 #include <vector>
 
 namespace app::conflict {
@@ -37,15 +36,13 @@ public:
     };
 
     struct ConflictFile {
+        std::size_t id;
         QString path;
         core::conflict::ConflictEntry entry;
         bool resolved;
     };
 
     explicit ConflictTreeModel(QObject* parent = nullptr);
-
-    /// Adds one file and announces it (rowsInserted + counters). Returns false if already present / empty.
-    bool addPath(const QString& fullPath, const core::conflict::ConflictEntry& entry, bool resolved);
 
     /// Replaces the whole content in one step: a single modelReset and a single countsChanged.
     void setPaths(const QList<ConflictFile>& files);
@@ -75,7 +72,9 @@ public:
      */
     [[nodiscard]] std::optional<core::conflict::ConflictEntry> entryAt(const QModelIndex& idx) const;
 
-    // --- QAbstractItemModel ---
+    [[nodiscard]] std::size_t idAt(const QModelIndex& idx) const;
+
+    [[nodiscard]] bool isResolved(const QModelIndex& idx) const;
 
     [[nodiscard]] QModelIndex index(int row, int column, const QModelIndex& parent = { }) const override;
 
@@ -106,6 +105,7 @@ private:
 
         // Present for file nodes that represent conflicts.
         std::optional<core::conflict::ConflictEntry> conflict_entry;
+        std::size_t id = 0;
 
         // Cached count of unresolved files in this subtree.
         int unresolved_count = 0;

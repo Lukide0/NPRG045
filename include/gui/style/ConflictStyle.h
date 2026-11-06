@@ -29,7 +29,7 @@ public:
     static_assert(STYLE_NAMES.size() == Style::_LENGTH);
 
     static constexpr std::array<QColor, Style::_LENGTH> default_colors {
-        QColor {},
+        QColor { },
         { 233, 196, 106 },
         { 239, 91, 111 },
         { 128, 26, 134 },
@@ -38,14 +38,14 @@ public:
     void set(Style style, const QColor& color);
     [[nodiscard]] const QColor& get(Style style) const;
 
-    static void set_color(Style style, const QColor& color);
-    static const QColor& get_color(Style style);
+    static void setColor(Style style, const QColor& color);
+    static const QColor& getColor(Style style);
 
-    static const QColor& get_default_color(Style style);
+    static const QColor& getDefaultColor(Style style);
 
-    static void emit_changed_signal();
+    static void emitChanged();
 
-    void emit_changed();
+    void emitChangedSignal();
 
     void save(QSettings& settings) const;
     void load(QSettings& settings);
