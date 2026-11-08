@@ -98,6 +98,7 @@ ConflictEditorManager::open(const ConflictFileId& id, const core::rebase::Confli
             m_sessions.remove(session_id);
         }
 
+        session->disconnect(this);
         session->deleteLater();
     });
 
@@ -108,26 +109,23 @@ ConflictEditorManager::open(const ConflictFileId& id, const core::rebase::Confli
 }
 
 void ConflictEditorManager::discardOne(const ConflictFileId& id) {
-    auto it = m_sessions.find(id);
-    if (it == m_sessions.end()) {
+    auto* session = m_sessions.value(id, nullptr);
+    if (session == nullptr) {
         return;
     }
 
-    auto* session = it.value();
-    session->discard();
+    m_sessions.remove(id);
 
-    m_sessions.erase(it);
+    session->disconnect(this);
+    session->discard();
+    session->deleteLater();
 }
 
 void ConflictEditorManager::discardExcept(const QSet<ConflictFileId>& ids) {
-
-    auto it = m_sessions.begin();
-    while (it != m_sessions.end()) {
-        if (ids.contains(it.key())) {
-            ++it;
-        } else {
-            it.value()->discard();
-            it = m_sessions.erase(it);
+    const auto open = m_sessions.keys();
+    for (const auto& id : open) {
+        if (!ids.contains(id)) {
+            discardOne(id);
         }
     }
 }
