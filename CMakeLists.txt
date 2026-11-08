@@ -20,19 +20,13 @@ set(INCLUDE_PATH "${CMAKE_SOURCE_DIR}/include")
 
 # -----------------------------------------------------------------------------
 # Options
-option(BUILD_EXPERIMENTS "Build the experiments" ON)
-option(BUILD_TESTS "Enable tests" ON)
+option(BUILD_TESTS "Enable tests" OFF)
 
 # -----------------------------------------------------------------------------
 
 qt_standard_project_setup(
     REQUIRES 6.8
 )
-
-if(BUILD_EXPERIMENTS)
-    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/experiments")
-endif()
-
 
 create_executable(${PROJECT_NAME}
     LIBS
