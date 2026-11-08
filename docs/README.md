@@ -69,11 +69,17 @@ Git Shuffle creates a new commit from the selected lines, leaving the remainder 
 
 ### Resolving conflicts
 
-Git Shuffle flags any commit in the plan that would conflict when applied.
-Select the flagged commit and click Resolve.
-This puts the repository into a conflicted state, just like a normal git rebase conflict.
+Git Shuffle flags any commit in the plan that would cause a conflict when applied.
 
-Resolve it the way you normally would: edit the files, `git add` the resolved paths, then return to Git Shuffle and mark it resolved to continue.
+Select the flagged commit to display the conflicting files in the conflicts widget. Select a file in the tree view and choose one of the following actions:
+
+- **Edit resolution** – Open the conflict editor to edit the resolution for the selected file.
+- **Resolve original conflict** – Open the conflict editor to resolve the original conflict for the selected file.
+
+The conflict editor used for both actions can be configured in Git Shuffle's settings.
+
+Some operations may invalidate currently open editors.
+Before proceeding, Git Shuffle displays a confirmation dialog listing the editors and any changes that would be discarded.
 
 ### Finishing the rebase
 
