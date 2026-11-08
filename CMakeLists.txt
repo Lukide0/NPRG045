@@ -21,6 +21,7 @@ set(INCLUDE_PATH "${CMAKE_SOURCE_DIR}/include")
 # -----------------------------------------------------------------------------
 # Options
 option(BUILD_TESTS "Enable tests" OFF)
+option(ENABLE_SANITIZERS "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
 # -----------------------------------------------------------------------------
 
@@ -42,6 +43,17 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     GIT_SHUFFLE_VERSION="$<IF:$<CONFIG:Debug>,${PROJECT_VERSION}-debug,${PROJECT_VERSION}>"
     APP_NAME="${APP_NAME}"
 )
+
+if(ENABLE_SANITIZERS)
+    target_compile_options(${PROJECT_NAME} PRIVATE
+        -fsanitize=address,undefined
+        -fno-omit-frame-pointer
+        -fno-sanitize-recover=undefined
+    )
+    target_link_options(${PROJECT_NAME} PRIVATE
+        -fsanitize=address,undefined
+    )
+endif()
 
 add_subdirectory(src)
 add_subdirectory(tools)
