@@ -7,4 +7,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 
     ShortcutEditor.cpp
     ${INCLUDE_PATH}/gui/widget/ShortcutEditor.h
+
+    ScrollListView.cpp
+    ${INCLUDE_PATH}/gui/widget/ScrollListView.h
 )

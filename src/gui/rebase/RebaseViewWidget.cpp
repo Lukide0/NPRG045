@@ -15,6 +15,7 @@
 #include "gui/style/GlobalStyle.h"
 #include "gui/style/StyleManager.h"
 #include "gui/widget/LineSplitter.h"
+#include "gui/widget/ScrollListView.h"
 
 #include <algorithm>
 #include <cassert>
@@ -86,7 +87,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     //-- LEFT LAYOUT --------------------------------------------------------//
 
     //-- actions ---------------------------------------------------------------
-    m_list            = new QListView();
+    m_list            = new ScrollListView();
     m_action_delegate = new rebase::RebaseActionDelegate(m_list);
 
     m_list->setItemDelegate(m_action_delegate);
