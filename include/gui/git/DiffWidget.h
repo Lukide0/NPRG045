@@ -4,9 +4,9 @@
 #include "core/git/diff.h"
 #include "core/rebase/RebaseAnalysis.h"
 #include "core/rebase/RebaseSession.h"
+#include "gui/git/DiffEditor.h"
+#include "gui/git/DiffFile.h"
 #include "gui/style/DiffStyle.h"
-#include "gui/widget/DiffEditor.h"
-#include "gui/widget/DiffFile.h"
 
 #include <cstddef>
 #include <vector>
@@ -19,7 +19,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui::git {
 
 class DiffWidget : public QWidget {
 public:

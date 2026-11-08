@@ -1,4 +1,4 @@
-#include "gui/widget/CommitMessageWidget.h"
+#include "gui/git/CommitMessageWidget.h"
 
 #include "core/action/Action.h"
 #include "core/git/types.h"
@@ -19,7 +19,7 @@
 #include <QString>
 #include <string_view>
 
-namespace gui::widget {
+namespace gui::git {
 
 using core::action::Action;
 using core::action::ActionType;

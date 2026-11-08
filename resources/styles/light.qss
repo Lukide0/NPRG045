@@ -1,7 +1,7 @@
 
 /*-- WelcomeWidget ----------------------------------------------------------*/
 
-gui--widget--WelcomeWidget > .QPushButton {
+gui--WelcomeWidget > .QPushButton {
     border-radius: 10px;
     border: 2px solid #512DA8;
     color: #263238;
@@ -9,31 +9,31 @@ gui--widget--WelcomeWidget > .QPushButton {
     font-size: 15px;
 }
 
-gui--widget--WelcomeWidget > .QPushButton::hover {
+gui--WelcomeWidget > .QPushButton::hover {
     background-color: #D1C4E9;
 }
 
-gui--widget--WelcomeWidget > .QPushButton::pressed {
+gui--WelcomeWidget > .QPushButton::pressed {
     background-color: #9575CD;
 }
 
-gui--widget--WelcomeWidget > .QLabel {
+gui--WelcomeWidget > .QLabel {
     font-size: 13px;
 }
 
-gui--widget--WelcomeWidget > #title {
+gui--WelcomeWidget > #title {
     font-size: 25px;
     font-weight: 700;
 }
 
 /*-- RebaseSelectionWidget ------------------------------------------*/
 
-gui--widget--RebaseSelectionWidget QLabel[class="title"] {
+gui--rebase--RebaseSelectionWidget QLabel[class="title"] {
     font-size: 18px;
     font-weight: 700;
 }
 
-gui--widget--RebaseSelectionWidget #rebase-selection-message {
+gui--rebase--RebaseSelectionWidget #rebase-selection-message {
     color: #FF7E00;
     font-weight: 700;
 }

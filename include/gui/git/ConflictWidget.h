@@ -20,7 +20,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui::git {
 
 class ConflictWidget : public QWidget {
     Q_OBJECT

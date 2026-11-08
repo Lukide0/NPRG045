@@ -12,7 +12,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui {
 
 WelcomeWidget::WelcomeWidget(QWidget* parent)
     : QWidget(parent) {

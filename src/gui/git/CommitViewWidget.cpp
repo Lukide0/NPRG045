@@ -1,12 +1,12 @@
-#include "gui/widget/CommitViewWidget.h"
+#include "gui/git/CommitViewWidget.h"
 
 #include "App.h"
 #include "core/action/Action.h"
 #include "core/git/diff.h"
 #include "core/git/GitGraph.h"
 #include "core/git/types.h"
-#include "gui/widget/CommitMessageWidget.h"
-#include "gui/widget/DiffWidget.h"
+#include "gui/git/CommitMessageWidget.h"
+#include "gui/git/DiffWidget.h"
 #include "gui/widget/NamedListWidget.h"
 #include "gui/widget/SLabel.h"
 
@@ -33,7 +33,7 @@
 #include <string>
 #include <string_view>
 
-namespace gui::widget {
+namespace gui::git {
 
 using core::action::Action;
 using core::git::diff_files_t;

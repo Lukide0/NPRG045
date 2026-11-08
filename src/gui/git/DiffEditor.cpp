@@ -1,10 +1,10 @@
-#include "gui/widget/DiffEditor.h"
+#include "gui/git/DiffEditor.h"
 #include "core/git/diff.h"
 #include "gui/color.h"
+#include "gui/git/DiffEditorLine.h"
 #include "gui/style/DiffStyle.h"
 #include "gui/style/GlobalStyle.h"
 #include "gui/style/StyleManager.h"
-#include "gui/widget/DiffEditorLine.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -22,7 +22,7 @@
 #include <QtNumeric>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui::git {
 
 using core::git::diff_line_t;
 

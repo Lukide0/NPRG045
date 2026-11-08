@@ -4,16 +4,13 @@
 #include "app/rebase/RebaseController.h"
 #include "core/action/Action.h"
 #include "core/git/GitGraph.h"
-#include "core/git/types.h"
 #include "core/rebase/RebaseAnalysis.h"
+#include "gui/git/CommitViewWidget.h"
+#include "gui/git/ConflictWidget.h"
+#include "gui/git/DiffWidget.h"
 #include "gui/git/Graph.h"
 #include "gui/git/GraphPresenter.h"
 #include "gui/rebase/RebaseActionDelegate.h"
-#include "gui/widget/CommitViewWidget.h"
-#include "gui/widget/ConflictWidget.h"
-#include "gui/widget/DiffWidget.h"
-
-#include <memory>
 
 #include <git2/oid.h>
 #include <git2/types.h>
@@ -28,7 +25,7 @@
 #include <QStackedLayout>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui::rebase {
 
 class RebaseViewWidget : public QWidget {
     Q_OBJECT
@@ -79,9 +76,9 @@ private:
         git::GraphWidget* result;
     } m_graphs;
 
-    CommitViewWidget* m_commit_view;
-    DiffWidget* m_diff_widget;
-    ConflictWidget* m_conflict_widget;
+    git::CommitViewWidget* m_commit_view;
+    git::DiffWidget* m_diff_widget;
+    git::ConflictWidget* m_conflict_widget;
 
     GitGraph m_graph;
 
@@ -96,7 +93,7 @@ private:
         std::size_t id,
         const QString& path,
         const core::conflict::ConflictEntry& entry,
-        ConflictWidget::ConflictEditMode mode
+        git::ConflictWidget::ConflictEditMode mode
     );
 
     void editConflictResolution(

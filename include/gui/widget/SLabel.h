@@ -5,7 +5,7 @@
 #include <Qt>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui {
 
 class SLabel : public QLabel {
 public:

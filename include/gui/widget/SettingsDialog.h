@@ -15,7 +15,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui {
 
 class SettingsDialog : public QDialog {
     Q_OBJECT

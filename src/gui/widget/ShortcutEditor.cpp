@@ -17,7 +17,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui {
 
 ShortcutEditor::ShortcutEditor(QWidget* parent)
     : QWidget(parent)

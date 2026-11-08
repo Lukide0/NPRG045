@@ -1,4 +1,4 @@
-#include "gui/widget/RebaseViewWidget.h"
+#include "gui/rebase/RebaseViewWidget.h"
 
 #include "App.h"
 #include "app/conflict/ConflictEditorManager.h"
@@ -9,11 +9,11 @@
 #include "core/conflict/ConflictManager.h"
 #include "core/git/GitGraph.h"
 #include "gui/error.h"
+#include "gui/git/CommitViewWidget.h"
+#include "gui/git/ConflictWidget.h"
+#include "gui/git/DiffWidget.h"
 #include "gui/style/GlobalStyle.h"
 #include "gui/style/StyleManager.h"
-#include "gui/widget/CommitViewWidget.h"
-#include "gui/widget/ConflictWidget.h"
-#include "gui/widget/DiffWidget.h"
 #include "gui/widget/LineSplitter.h"
 
 #include <algorithm>
@@ -53,7 +53,7 @@
 #include <QTimer>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui::rebase {
 
 using core::action::Action;
 using core::action::ActionType;
@@ -111,9 +111,9 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     graphs_split->addWidget(m_graphs.result);
 
     //-- RIGHT LAYOUT -------------------------------------------------------//
-    m_diff_widget     = new DiffWidget();
-    m_commit_view     = new CommitViewWidget(m_diff_widget);
-    m_conflict_widget = new ConflictWidget();
+    m_diff_widget     = new git::DiffWidget();
+    m_commit_view     = new git::CommitViewWidget(m_diff_widget);
+    m_conflict_widget = new git::ConflictWidget();
 
     m_conflict_widget->hide();
 
@@ -139,8 +139,8 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
         m_list->viewport()->update();
     });
 
-    connect(this, &RebaseViewWidget::currentStepChanged, m_diff_widget, &DiffWidget::setCurrentStep);
-    connect(this, &RebaseViewWidget::currentStepChanged, m_commit_view, &CommitViewWidget::setCurrentStep);
+    connect(this, &RebaseViewWidget::currentStepChanged, m_diff_widget, &git::DiffWidget::setCurrentStep);
+    connect(this, &RebaseViewWidget::currentStepChanged, m_commit_view, &git::CommitViewWidget::setCurrentStep);
 
     connect(m_graphs.presenter, &git::GraphPresenter::rowRequested, this, [this](int row) {
         m_list->setCurrentIndex(m_controller->model()->index(row, 0));
@@ -156,7 +156,7 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
         m_commit_view->setCurrentCommit(node->commit);
     });
 
-    connect(m_conflict_widget, &ConflictWidget::resolveRequested, this, &RebaseViewWidget::openConflictEditor);
+    connect(m_conflict_widget, &git::ConflictWidget::resolveRequested, this, &RebaseViewWidget::openConflictEditor);
 }
 
 void RebaseViewWidget::setSession(app::rebase::RebaseController* controller, GitGraph&& graph) {
@@ -222,17 +222,19 @@ void RebaseViewWidget::setSession(app::rebase::RebaseController* controller, Git
         publishCurrentStep();
     });
 
-    connect(m_commit_view, &CommitViewWidget::commitMessageChanged, this, [this](std::size_t row, const QString& msg) {
-        if (msg.isEmpty()) { }
+    connect(
+        m_commit_view, &git::CommitViewWidget::commitMessageChanged, this, [this](std::size_t row, const QString& msg) {
+            if (msg.isEmpty()) { }
 
-        const auto& analysis = m_controller->analysis();
+            const auto& analysis = m_controller->analysis();
 
-        if (analysis == nullptr || row >= analysis->steps.size()) {
-            return;
+            if (analysis == nullptr || row >= analysis->steps.size()) {
+                return;
+            }
+
+            m_controller->setMessage(static_cast<int>(row), msg);
         }
-
-        m_controller->setMessage(static_cast<int>(row), msg);
-    });
+    );
 
     // pick -> reword does not trigger analysisChanged
     connect(
@@ -407,7 +409,7 @@ void RebaseViewWidget::openConflictEditor(
     std::size_t id,
     const QString& path,
     const core::conflict::ConflictEntry& entry,
-    ConflictWidget::ConflictEditMode mode
+    git::ConflictWidget::ConflictEditMode mode
 ) {
     if (m_current_conflict == nullptr) {
         return;
@@ -424,10 +426,10 @@ void RebaseViewWidget::openConflictEditor(
 
     bool edit_resolution;
     switch (mode) {
-    case ConflictWidget::ConflictEditMode::Resolve:
+    case git::ConflictWidget::ConflictEditMode::Resolve:
         edit_resolution = false;
         break;
-    case ConflictWidget::ConflictEditMode::EditResolution:
+    case git::ConflictWidget::ConflictEditMode::EditResolution:
         edit_resolution = true;
         break;
     }

@@ -7,7 +7,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui {
 
 class NamedListWidget : public QWidget {
 public:

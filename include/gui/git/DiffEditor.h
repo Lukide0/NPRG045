@@ -11,7 +11,7 @@
 #include <QTextBlock>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui::git {
 
 class DiffEditorLine;
 class DiffEditorLineData;

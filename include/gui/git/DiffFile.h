@@ -1,9 +1,9 @@
 #pragma once
 
 #include "core/git/diff.h"
+#include "gui/git/DiffEditor.h"
 #include "gui/style/GlobalStyle.h"
 #include "gui/style/StyleManager.h"
-#include "gui/widget/DiffEditor.h"
 
 #include <QFont>
 #include <QLabel>
@@ -15,7 +15,7 @@
 
 #include <utility>
 
-namespace gui::widget {
+namespace gui::git {
 
 class DiffFile : public QWidget {
     Q_OBJECT

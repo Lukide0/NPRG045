@@ -1,12 +1,12 @@
 #pragma once
 
 #include "core/git/diff.h"
-#include "gui/widget/DiffEditor.h"
+#include "gui/git/DiffEditor.h"
 #include <QSize>
 #include <QTextBlockUserData>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui::git {
 
 class DiffEditorLineData : public QTextBlockUserData {
 public:

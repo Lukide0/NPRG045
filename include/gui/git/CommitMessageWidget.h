@@ -1,10 +1,6 @@
 #pragma once
 
 #include "core/action/Action.h"
-#include "core/action/ActionsManager.h"
-
-#include <functional>
-#include <string>
 
 #include <QHBoxLayout>
 #include <QPlainTextEdit>
@@ -14,7 +10,7 @@
 #include <QWidget>
 #include <string_view>
 
-namespace gui::widget {
+namespace gui::git {
 
 class CommitMessageWidget : public QWidget {
     Q_OBJECT

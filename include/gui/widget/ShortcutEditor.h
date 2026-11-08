@@ -13,7 +13,7 @@
 #include <Qt>
 #include <QTableWidget>
 
-namespace gui::widget {
+namespace gui {
 
 class ShortcutEditor : public QWidget {
     Q_OBJECT

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "core/rebase/RebaseAnalysis.h"
-#include "gui/widget/CommitMessageWidget.h"
-#include "gui/widget/DiffWidget.h"
+#include "gui/git/CommitMessageWidget.h"
+#include "gui/git/DiffWidget.h"
 #include "gui/widget/NamedListWidget.h"
 
 #include <git2/commit.h>
@@ -16,7 +16,7 @@
 #include <QPushButton>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui::git {
 
 class CommitViewWidget : public QWidget {
     Q_OBJECT

@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-namespace gui::widget {
+namespace gui::rebase {
 
 class RebaseSelectionWidget : public QWidget {
     Q_OBJECT

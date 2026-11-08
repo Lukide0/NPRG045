@@ -3,8 +3,8 @@
 #include "app/conflict/ConflictEditor.h"
 #include "app/Settings.h"
 #include "core/rebase/RebaseManager.h"
-#include "gui/widget/RebaseSelectionWidget.h"
-#include "gui/widget/RebaseViewWidget.h"
+#include "gui/rebase/RebaseSelectionWidget.h"
+#include "gui/rebase/RebaseViewWidget.h"
 #include "gui/widget/WelcomeWidget.h"
 
 #include <cassert>
@@ -146,9 +146,9 @@ private:
 
     QStackedLayout* m_layout;
 
-    gui::widget::WelcomeWidget* m_welcome_widget;
-    gui::widget::RebaseViewWidget* m_rebase_view;
-    gui::widget::RebaseSelectionWidget* m_rebase_select;
+    gui::WelcomeWidget* m_welcome_widget;
+    gui::rebase::RebaseViewWidget* m_rebase_view;
+    gui::rebase::RebaseSelectionWidget* m_rebase_select;
 
     std::optional<QString> m_save_file;
     std::optional<core::git::RepoSession> m_new_rebase_repo;

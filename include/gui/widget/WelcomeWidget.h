@@ -8,7 +8,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui {
 
 class WelcomeWidget : public QWidget {
     Q_OBJECT

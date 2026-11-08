@@ -9,7 +9,7 @@
 #include <QtTypes>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui {
 
 class LineSplitterHandle : public QSplitterHandle {
 public:

@@ -4,14 +4,11 @@
 #include "app/conflict/ConflictEditorSession.h"
 #include "app/rebase/RebasePlanModel.h"
 #include "core/conflict/ConflictManager.h"
-#include "core/git/GitGraph.h"
-#include "core/git/RepoSession.h"
 #include "core/git/types.h"
 #include "core/rebase/RebaseAnalysis.h"
 #include "core/rebase/RebaseAnalyzer.h"
 
 #include "core/action/Action.h"
-#include "core/rebase/RebasePlan.h"
 #include "core/rebase/RebaseSession.h"
 #include <cstddef>
 #include <functional>
@@ -74,6 +71,7 @@ public:
     /** @brief Moves the action at 'from' so that it ends up at row 'to'. */
     bool moveAction(int from, int to);
 
+    /** @brief Sets the action type. */
     bool setActionType(int row, core::action::ActionType type);
 
     /** @brief Sets the message of a reword action. False for other action types. */
@@ -116,9 +114,10 @@ public:
 
     [[nodiscard]] const QSet<conflict::ConflictFileId>& currentConflictFiles() const { return m_conflict_files; }
 
+    /** @brief Discards all active conflict editors and executes pending action */
     void discardEditorsAndContinue();
+    /** @brief Discards pending action */
     void cancelPending();
-    void runPending();
 
 signals:
     /** @brief A new analysis is available (and the model was updated). */
@@ -170,6 +169,7 @@ private:
 
     bool runGuarded(GuardedAction action, GateScope scope = GateScope::global());
     GateScope scopeOf(const QUndoCommand* cmd, bool is_undo) const;
+    void runPending();
 
     // checks
 

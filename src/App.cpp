@@ -11,9 +11,9 @@
 #include "core/git/RepoSession.h"
 #include "core/git/types.h"
 #include "gui/error.h"
+#include "gui/rebase/RebaseSelectionWidget.h"
+#include "gui/rebase/RebaseViewWidget.h"
 #include "gui/style/StyleManager.h"
-#include "gui/widget/RebaseSelectionWidget.h"
-#include "gui/widget/RebaseViewWidget.h"
 #include "gui/widget/SettingsDialog.h"
 #include "gui/widget/WelcomeWidget.h"
 #include "logging/Log.h"
@@ -252,7 +252,7 @@ void App::setup() {
 
         auto* edit_preferences = new QAction("Preferences...", this);
         connect(edit_preferences, &QAction::triggered, this, [this] {
-            gui::widget::SettingsDialog dialog(this);
+            gui::SettingsDialog dialog(this);
             dialog.exec();
         });
 
@@ -295,9 +295,9 @@ void App::setup() {
     m_layout = new QStackedLayout();
     main->setLayout(m_layout);
 
-    m_rebase_view    = new gui::widget::RebaseViewWidget();
-    m_welcome_widget = new gui::widget::WelcomeWidget();
-    m_rebase_select  = new gui::widget::RebaseSelectionWidget();
+    m_rebase_view    = new gui::rebase::RebaseViewWidget();
+    m_welcome_widget = new gui::WelcomeWidget();
+    m_rebase_select  = new gui::rebase::RebaseSelectionWidget();
 
     auto* welcome_page   = new QWidget();
     auto* welcome_layout = new QHBoxLayout();
@@ -311,29 +311,29 @@ void App::setup() {
 
     m_rebase_view->hideOldCommits();
 
-    connect(m_welcome_widget, &gui::widget::WelcomeWidget::openCurrentDirectory, this, [this]() {
+    connect(m_welcome_widget, &gui::WelcomeWidget::openCurrentDirectory, this, [this]() {
         QString currentPath = QDir::currentPath();
 
         // NOTE: openRepo handles widget visibility based on success/failure
         openRepo(currentPath.toStdString());
     });
 
-    connect(m_welcome_widget, &gui::widget::WelcomeWidget::openRepository, this, [this]() {
+    connect(m_welcome_widget, &gui::WelcomeWidget::openRepository, this, [this]() {
         // NOTE: openRepoDialog handles widget visibility based on success/failure
         openRepoDialog();
     });
 
-    connect(m_welcome_widget, &gui::widget::WelcomeWidget::loadSaveFile, this, &App::loadSaveFile);
+    connect(m_welcome_widget, &gui::WelcomeWidget::loadSaveFile, this, &App::loadSaveFile);
 
     connect(
-        m_rebase_select, &gui::widget::RebaseSelectionWidget::branchSelectionChanged, this, &App::updateRebaseSelection
+        m_rebase_select, &gui::rebase::RebaseSelectionWidget::branchSelectionChanged, this, &App::updateRebaseSelection
     );
 
-    connect(m_rebase_select, &gui::widget::RebaseSelectionWidget::cancelled, this, [this]() {
+    connect(m_rebase_select, &gui::rebase::RebaseSelectionWidget::cancelled, this, [this]() {
         m_layout->setCurrentIndex(page_welcome);
     });
 
-    connect(m_rebase_select, &gui::widget::RebaseSelectionWidget::completed, this, &App::startNewRebase);
+    connect(m_rebase_select, &gui::rebase::RebaseSelectionWidget::completed, this, &App::startNewRebase);
 }
 
 void App::updateUndoActions() {
@@ -521,7 +521,7 @@ bool App::openRepo(const std::string& path) {
 }
 
 core::Result<void> App::openRebase(const core::git::RebaseInfo& info, core::git::RepoSession&& repo) {
-    auto graph = gui::widget::RebaseViewWidget::GitGraph::create(info.head.c_str(), info.onto.c_str(), repo.repo());
+    auto graph = gui::rebase::RebaseViewWidget::GitGraph::create(info.head.c_str(), info.onto.c_str(), repo.repo());
     if (!graph.has_value()) {
         return std::unexpected<core::Error>({
             .title   = "Failed to create git graph",

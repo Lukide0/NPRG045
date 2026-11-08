@@ -23,7 +23,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui {
 
 bool validate_conflict(QLineEdit* editor, QLabel* error) {
     auto result = app::conflict::ConflictEditor::validate(editor->text());

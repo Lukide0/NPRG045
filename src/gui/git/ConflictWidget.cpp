@@ -1,4 +1,4 @@
-#include "gui/widget/ConflictWidget.h"
+#include "gui/git/ConflictWidget.h"
 
 #include <string>
 
@@ -15,7 +15,7 @@
 #include <QToolButton>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui::git {
 
 ConflictWidget::ConflictWidget(QWidget* parent)
     : QWidget(parent) {

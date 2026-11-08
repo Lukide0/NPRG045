@@ -1,4 +1,4 @@
-#include "gui/widget/RebaseSelectionWidget.h"
+#include "gui/rebase/RebaseSelectionWidget.h"
 
 #include <QComboBox>
 #include <QLabel>
@@ -6,14 +6,17 @@
 #include <QListWidgetItem>
 #include <QPushButton>
 #include <QStackedWidget>
+#include <QString>
 #include <Qt>
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include <algorithm>
 #include <string>
+#include <utility>
 #include <vector>
 
-namespace gui::widget {
+namespace gui::rebase {
 
 RebaseSelectionWidget::RebaseSelectionWidget(QWidget* parent)
     : QWidget(parent) {

@@ -44,14 +44,15 @@ public:
 
     explicit ConflictTreeModel(QObject* parent = nullptr);
 
-    /// Replaces the whole content in one step: a single modelReset and a single countsChanged.
+    /** @brief Replaces the whole content in one step: a single modelReset and a single countsChanged. */
     void setPaths(const QList<ConflictFile>& files);
 
+    /** @brief Removes all files */
     void clear();
 
     void setResolved(const QString& path, bool resolved);
 
-    /// Marks a file resolved/unresolved; refreshes the file row and every ancestor's counter.
+    /** @brief Marks the given files as resolved, emitting one batched signal instead of one per file. */
     void setResolvedFiles(const QStringList& paths);
 
     [[nodiscard]] int unresolvedCount() const { return m_root->unresolved_count; }
@@ -60,16 +61,11 @@ public:
 
     [[nodiscard]] QModelIndex indexForPath(const QString& path) const;
 
-    /**
-     * Returns the path of a file, or an empty string for a directory
-     * or invalid index.
-     */
+    /** @brief Returns the path of a file, or an empty string for a directory or invalid index. */
     [[nodiscard]] QString pathAt(const QModelIndex& idx) const;
 
-    /**
-     * Returns the ConflictEntry associated with a file.
-     * Directory nodes and invalid indexes return std::nullopt.
-     */
+    /** @brief Returns the ConflictEntry associated with a file. Directory nodes and invalid indexes return
+     * std::nullopt. */
     [[nodiscard]] std::optional<core::conflict::ConflictEntry> entryAt(const QModelIndex& idx) const;
 
     [[nodiscard]] std::size_t idAt(const QModelIndex& idx) const;
@@ -125,8 +121,8 @@ private:
     };
 
     /**
-     * Finds an existing directory prefix and constructs the missing
-     * chain without inserting anything into the model.
+     * @brief Finds an existing directory prefix and constructs the missing chain without inserting anything into the
+     * model.
      */
     Chain makeChain(const QString& fullPath);
 
@@ -136,23 +132,19 @@ private:
 
     [[nodiscard]] QModelIndex indexOf(Node* node) const;
 
-    /**
-     * Applies a count delta from a node up to the root.
-     *
-     * A newly added unresolved file adds 1; resolving it subtracts 1.
-     */
+    /** @brief Applies a count delta from a node up to the root. */
     void adjustUnresolvedCount(Node* node, int delta);
 
     void notifyNodeChanged(Node* node);
 
-    // Emits updates for a file and all directory ancestors.
+    /** @brief Emits updates for a file and all directory ancestors. */
     void refreshAncestors(Node* node);
 
     void emitCounts();
 
     /**
-     * Accepts repository-relative paths using '/' separators.
-     * Rejects absolute paths, empty components, "." and "..".
+     * @brief Accepts repository-relative paths using '/' separators. Rejects absolute paths, empty components, "." and
+     * "..".
      */
     static QStringList splitValidPath(const QString& path);
     static bool less(const Node& a, const Node& b);

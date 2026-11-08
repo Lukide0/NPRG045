@@ -1,4 +1,4 @@
-#include "gui/widget/DiffWidget.h"
+#include "gui/git/DiffWidget.h"
 
 #include "core/action/Action.h"
 #include "core/conflict/conflict.h"
@@ -9,10 +9,10 @@
 #include "core/patch/split.h"
 #include "gui/clear_layout.h"
 #include "gui/error.h"
+#include "gui/git/DiffEditor.h"
+#include "gui/git/DiffEditorLine.h"
+#include "gui/git/DiffFile.h"
 #include "gui/style/DiffStyle.h"
-#include "gui/widget/DiffEditor.h"
-#include "gui/widget/DiffEditorLine.h"
-#include "gui/widget/DiffFile.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -40,7 +40,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-namespace gui::widget {
+namespace gui::git {
 
 using core::git::diff_files_t;
 using core::git::diff_hunk_t;
