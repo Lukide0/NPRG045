@@ -30,6 +30,10 @@ public:
 
     [[nodiscard]] bool isOpen(const ConflictFileId& id) const { return m_sessions.contains(id); }
 
+    [[nodiscard]] bool hasOpenEditors() const { return !m_sessions.isEmpty(); }
+
+    [[nodiscard]] QList<ConflictFileId> openIds() const { return m_sessions.keys(); }
+
     void discardOne(const ConflictFileId& id);
     void discardExcept(const QSet<ConflictFileId>& ids);
     void discardAll();

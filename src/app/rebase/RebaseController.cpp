@@ -1,4 +1,5 @@
 #include "app/rebase/RebaseController.h"
+#include "app/conflict/ConflictEditorSession.h"
 #include "app/rebase/RebasePlanModel.h"
 #include "core/action/Action.h"
 #include "core/conflict/ConflictManager.h"
@@ -7,6 +8,7 @@
 #include "core/rebase/RebaseAnalysis.h"
 #include "core/rebase/RebasePlan.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -134,19 +136,23 @@ class RebaseController::ResolutionCommand : public QUndoCommand {
 public:
     ResolutionCommand(
         RebaseController& controller,
-        core::conflict::ConflictEntry entry,
+        conflict::ConflictFileId id,
         std::optional<std::string> oldBlob,
         std::optional<std::string> newBlob
     )
         : QUndoCommand(text(oldBlob, newBlob))
         , m_controller(controller)
-        , m_entry(std::move(entry))
+        , m_id(std::move(id))
         , m_old(std::move(oldBlob))
         , m_new(std::move(newBlob)) { }
 
-    void redo() override { m_controller.applyResolution(m_entry, m_new); }
+    [[nodiscard]] const conflict::ConflictFileId& file() const { return m_id; }
 
-    void undo() override { m_controller.applyResolution(m_entry, m_old); }
+    [[nodiscard]] bool setsResolution() const { return m_new.has_value(); }
+
+    void redo() override { m_controller.applyResolution(m_id.entry, m_new); }
+
+    void undo() override { m_controller.applyResolution(m_id.entry, m_old); }
 
 private:
     static QString text(const std::optional<std::string>& oldBlob, const std::optional<std::string>& newBlob) {
@@ -157,20 +163,23 @@ private:
     }
 
     RebaseController& m_controller;
-    core::conflict::ConflictEntry m_entry;
+    conflict::ConflictFileId m_id;
     std::optional<std::string> m_old;
     std::optional<std::string> m_new;
 };
 
-RebaseController::RebaseController(core::rebase::RebaseSession& session, QObject* parent)
+RebaseController::RebaseController(
+    core::rebase::RebaseSession& session, const conflict::ConflictEditor& editor, QObject* parent
+)
     : QObject(parent)
     , m_session(session)
     , m_analyzer(m_session.repo(), m_session.plan(), m_session.conflicts())
-    , m_model(new RebasePlanModel(*this, m_session.plan(), this)) { }
+    , m_model(new RebasePlanModel(*this, m_session.plan(), this))
+    , m_editors(new conflict::ConflictEditorManager(editor, this)) { }
 
 RebaseController::~RebaseController() = default;
 
-std::optional<int> RebaseController::blocking_row() const {
+std::optional<int> RebaseController::blockingRow() const {
     if (m_analysis == nullptr) {
         return std::nullopt;
     }
@@ -185,13 +194,171 @@ std::optional<int> RebaseController::blocking_row() const {
 
 bool RebaseController::validRow(int row) const { return row >= 0 && row < m_model->rowCount(); }
 
-bool RebaseController::moveAction(int from, int to) {
-    if (!validRow(from) || !validRow(to) || from == to) {
+bool RebaseController::runGuarded(GuardedAction action, GateScope scope) {
+    bool blocked = false;
+
+    switch (scope.kind) {
+    case GateScope::Kind::None:
+        blocked = false;
+        break;
+    case GateScope::Kind::Global:
+        blocked = m_editors->hasOpenEditors();
+        break;
+    case GateScope::Kind::File:
+        blocked = m_editors->isOpen(*scope.file);
+        break;
+    }
+
+    if (!blocked) {
+        return action();
+    }
+
+    m_pending.action = std::move(action);
+    m_pending.scope  = scope;
+
+    emit blockedByOpenEditors(
+        m_pending.scope.kind == GateScope::Kind::File ? QList { *m_pending.scope.file } : m_editors->openIds()
+    );
+    return false;
+}
+
+bool RebaseController::completesConflict(const conflict::ConflictFileId& id) const {
+    if (m_analysis == nullptr) {
         return false;
     }
 
-    m_stack.push(new MoveCommand(*this, from, to));
-    return true;
+    const auto* block = m_analysis->blocking();
+    if (block == nullptr || block->conflict == nullptr) {
+        return false;
+    }
+
+    return std::ranges::all_of(block->conflict->files, [&](const core::rebase::ConflictFile& f) -> bool {
+        if (f.path == id.path && f.entry == id.entry) {
+            return true;
+        }
+
+        return f.resolved() || m_session.conflicts().get_resolution(f.entry) != nullptr;
+    });
+}
+
+RebaseController::GateScope RebaseController::scopeOf(const QUndoCommand* cmd, bool is_undo) const {
+    const auto* resolution = dynamic_cast<const ResolutionCommand*>(cmd);
+    if (resolution != nullptr) {
+        const auto file = resolution->file();
+        if (is_undo) {
+            // current conflict resolution
+            if (m_conflict_files.contains(file)) {
+                return GateScope::forFile(file);
+            }
+            // previous conflict resolution
+            else {
+                return GateScope::global();
+            }
+        }
+
+        if (resolution->setsResolution() && completesConflict(file)) {
+            return GateScope::global();
+        } else {
+            return GateScope::forFile(file);
+        }
+    }
+
+    if (dynamic_cast<const MessageCommand*>(cmd) != nullptr) {
+        return GateScope::none();
+    }
+
+    return GateScope::global();
+}
+
+void RebaseController::discardEditorsAndContinue() {
+    if (m_pending.scope.kind == GateScope::Kind::File) {
+        m_editors->discardOne(*m_pending.scope.file);
+    } else {
+        m_editors->discardAll();
+    }
+
+    runPending();
+}
+
+void RebaseController::cancelPending() {
+    m_pending.action = nullptr;
+    m_pending.scope  = GateScope::global();
+}
+
+void RebaseController::runPending() {
+    auto action     = std::exchange(m_pending.action, nullptr);
+    m_pending.scope = GateScope::global();
+
+    if (action != nullptr) {
+        action();
+    }
+}
+
+bool RebaseController::undo() {
+    if (!canUndo()) {
+        return false;
+    }
+
+    const auto* cmd = m_stack.command(m_stack.index() - 1);
+    return runGuarded(
+        [this]() -> bool {
+            // re-validate after the signal
+            if (!canUndo()) {
+                return false;
+            }
+
+            m_stack.undo();
+            return true;
+        },
+        scopeOf(cmd, /*is_undo=*/true)
+    );
+}
+
+bool RebaseController::redo() {
+    if (!canRedo()) {
+        return false;
+    }
+
+    const auto* cmd = m_stack.command(m_stack.index());
+    return runGuarded(
+        [this]() -> bool {
+            // re-validate after the signal
+            if (!canRedo()) {
+                return false;
+            }
+
+            m_stack.redo();
+            return true;
+        },
+        scopeOf(cmd, /*is_undo=*/false)
+    );
+}
+
+bool RebaseController::canMove(int from, int to) const { return validRow(from) && validRow(to) && from != to; }
+
+bool RebaseController::moveAction(int from, int to) {
+    if (!canMove(from, to)) {
+        return false;
+    }
+
+    return runGuarded([this, from, to]() -> bool {
+        // re-validate after the signal
+        if (!canMove(from, to)) {
+            return false;
+        }
+
+        m_stack.push(new MoveCommand(*this, from, to));
+        return true;
+    });
+}
+
+bool RebaseController::willChangeConflict(core::action::ActionType old_type, core::action::ActionType new_type) const {
+    if (old_type == new_type) {
+        return false;
+    }
+
+    // drop -> x or x -> drop
+    return old_type == core::action::ActionType::DROP || new_type == core::action::ActionType::DROP;
 }
 
 bool RebaseController::setActionType(int row, core::action::ActionType type) {
@@ -204,11 +371,33 @@ bool RebaseController::setActionType(int row, core::action::ActionType type) {
         return false;
     }
 
-    m_stack.push(new TypeCommand(*this, row, old_type, type));
-    return true;
+    GateScope scope;
+    if (willChangeConflict(old_type, type)) {
+        scope = GateScope::global();
+    } else {
+        scope = GateScope::none();
+    }
+
+    return runGuarded(
+        [this, row, type]() -> bool {
+            // re-validate after the signal
+            if (!validRow(row)) {
+                return false;
+            }
+
+            const core::action::ActionType old = m_model->actionAt(row)->get_type();
+            if (old == type) {
+                return false;
+            }
+
+            m_stack.push(new TypeCommand(*this, row, old, type));
+            return true;
+        },
+        scope
+    );
 }
 
-bool RebaseController::setMessage(int row, const QString& message) {
+bool RebaseController::canSetMessage(int row, const QString& message) const {
     if (!validRow(row)) {
         return false;
     }
@@ -219,13 +408,24 @@ bool RebaseController::setMessage(int row, const QString& message) {
     }
 
     std::optional<std::string> old_message = act->get_msg();
-    std::string text                       = message.toStdString();
-    if (old_message.has_value() && *old_message == text) {
+    return !old_message.has_value() || *old_message != message;
+}
+
+bool RebaseController::setMessage(int row, const QString& message) {
+    if (!canSetMessage(row, message)) {
         return false;
     }
 
-    m_stack.push(new MessageCommand(*this, row, message.toStdString()));
-    return true;
+    return runGuarded(
+        [this, row, message]() -> bool {
+            if (!canSetMessage(row, message)) {
+                return false;
+            }
+            m_stack.push(new MessageCommand(*this, row, message.toStdString()));
+            return true;
+        },
+        GateScope::none()
+    );
 }
 
 bool RebaseController::splitAction(int row, core::git::commit_t&& first, core::git::commit_t&& second) {
@@ -233,50 +433,57 @@ bool RebaseController::splitAction(int row, core::git::commit_t&& first, core::g
         return false;
     }
 
-    m_stack.push(new SplitCommand(*this, row, std::move(first), std::move(second)));
-    return true;
-}
-
-bool RebaseController::setResolution(const core::conflict::ConflictEntry& entry, const std::string& blob_id) {
-    std::optional<std::string> old_resolution;
-    const std::string* current = m_session.conflicts().get_resolution(entry);
-    if (current != nullptr) {
-        if (*current == blob_id) {
+    return runGuarded([this, row, f = std::move(first), s = std::move(second)]() mutable -> bool {
+        if (!validRow(row) || f.get() == nullptr || s.get() == nullptr) {
             return false;
         }
-        old_resolution = *current;
-    }
 
-    m_stack.push(new ResolutionCommand(*this, entry, std::move(old_resolution), blob_id));
-    return true;
+        m_stack.push(new SplitCommand(*this, row, std::move(f), std::move(s)));
+        return true;
+    });
 }
 
-bool RebaseController::setResolutionDeleted(const core::conflict::ConflictEntry& entry) {
+bool RebaseController::commitResolution(const conflict::ConflictFileId& id, std::optional<std::string> blob) {
     std::optional<std::string> old_resolution;
-    const std::string* current = m_session.conflicts().get_resolution(entry);
+    const std::string* current = m_session.conflicts().get_resolution(id.entry);
     if (current != nullptr) {
-        if (current->empty()) {
+        if (blob.has_value() && *current == *blob) {
             return false;
         }
+
         old_resolution = *current;
-    }
 
-    m_stack.push(new ResolutionCommand(*this, entry, std::move(old_resolution), ""));
-    return true;
-}
-
-bool RebaseController::removeResolution(const core::conflict::ConflictEntry& entry) {
-    const std::string* current = m_session.conflicts().get_resolution(entry);
-    if (current == nullptr) {
+    } else if (current == nullptr && !blob.has_value()) {
         return false;
     }
 
-    m_stack.push(new ResolutionCommand(*this, entry, *current, std::nullopt));
+    const auto before = blockingRow();
+    m_stack.push(new ResolutionCommand(*this, id, std::move(old_resolution), std::move(blob)));
+
+    // conflict advanced
+    if (blockingRow() != before) {
+        m_editors->discardExcept(currentConflictFiles());
+    }
+
     return true;
 }
 
+bool RebaseController::setResolution(const conflict::ConflictFileId& id, const std::string& blob_id) {
+    return runGuarded([this, id, blob_id]() -> bool { return commitResolution(id, blob_id); }, GateScope::forFile(id));
+}
+
+bool RebaseController::setResolutionDeleted(const conflict::ConflictFileId& id) {
+    return runGuarded([this, id]() -> bool { return commitResolution(id, ""); }, GateScope::forFile(id));
+}
+
+bool RebaseController::removeResolution(const conflict::ConflictFileId& id) {
+    return runGuarded([this, id]() -> bool { return commitResolution(id, std::nullopt); }, GateScope::forFile(id));
+}
+
+void RebaseController::setEditorResolution(const conflict::ConflictFileId& id) { commitResolution(id, ""); }
+
 core::Result<void>
-RebaseController::setResolution(const core::conflict::ConflictEntry& entry, const QByteArray& contents) {
+RebaseController::setEditorResolution(const conflict::ConflictFileId& id, const QByteArray& contents) {
     git_oid oid { };
 
     if (git_blob_create_from_buffer(
@@ -291,28 +498,10 @@ RebaseController::setResolution(const core::conflict::ConflictEntry& entry, cons
 
     std::string blob_id = core::git::format_oid_to_str<core::git::OID_SIZE>(&oid);
 
-    // false means the resolution hasn't changed
-    setResolution(entry, blob_id);
+    // does not run inside the guard
+    commitResolution(id, blob_id);
 
     return { };
-}
-
-bool RebaseController::undo() {
-    if (!canUndo()) {
-        return false;
-    }
-
-    m_stack.undo();
-    return true;
-}
-
-bool RebaseController::redo() {
-    if (!canRedo()) {
-        return false;
-    }
-
-    m_stack.redo();
-    return true;
 }
 
 void RebaseController::markSaved() {
@@ -337,11 +526,33 @@ void RebaseController::refresh(bool force) {
 
     AnalysisPtr previous = std::move(m_analysis);
     m_analysis           = result.value();
+    m_conflict_files     = buildConflictFiles();
 
     m_model->setAnalysis(m_analysis);
     reportNewErrors(previous.get());
 
     emit analysisChanged(m_analysis->first_changed);
+}
+
+QSet<conflict::ConflictFileId> RebaseController::buildConflictFiles() const {
+    QSet<conflict::ConflictFileId> ids;
+    if (!m_analysis) {
+        return ids;
+    }
+
+    const auto* block = m_analysis->blocking();
+    if (block == nullptr || block->conflict == nullptr) {
+        return ids;
+    }
+
+    const auto& files = block->conflict->files;
+    ids.reserve(static_cast<int>(files.size()));
+
+    for (const auto& f : files) {
+        ids.insert({ .path = f.path, .entry = f.entry });
+    }
+
+    return ids;
 }
 
 void RebaseController::reportNewErrors(const core::rebase::RebaseAnalysis* previous) {
@@ -441,5 +652,4 @@ void RebaseController::applyResolution(
 
     afterChange();
 }
-
 }

@@ -157,24 +157,6 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
     });
 
     connect(m_conflict_widget, &ConflictWidget::resolveRequested, this, &RebaseViewWidget::openConflictEditor);
-
-    //-- Conflict editors -----------------------------------------------------/
-
-    m_conflict_editor_manager = new app::conflict::ConflictEditorManager(App::getConflictEditor(), this);
-
-    connect(
-        m_conflict_editor_manager,
-        &app::conflict::ConflictEditorManager::resolutionReady,
-        this,
-        &RebaseViewWidget::editConflictResolution
-    );
-
-    connect(
-        m_conflict_editor_manager,
-        &app::conflict::ConflictEditorManager::editorFailed,
-        this,
-        &RebaseViewWidget::showConflictEditorError
-    );
 }
 
 void RebaseViewWidget::setSession(app::rebase::RebaseController* controller, GitGraph&& graph) {
@@ -195,8 +177,23 @@ void RebaseViewWidget::setSession(app::rebase::RebaseController* controller, Git
     // update session
     m_diff_widget->setSession(&m_controller->session(), m_controller);
 
-    // update conflict editor manager
+    // connect conflict editor manager
+    m_conflict_editor_manager = m_controller->editors();
     m_conflict_editor_manager->setRepo(&controller->session().repo());
+
+    connect(
+        m_conflict_editor_manager,
+        &app::conflict::ConflictEditorManager::resolutionReady,
+        this,
+        &RebaseViewWidget::editConflictResolution
+    );
+
+    connect(
+        m_conflict_editor_manager,
+        &app::conflict::ConflictEditorManager::editorFailed,
+        this,
+        &RebaseViewWidget::showConflictEditorError
+    );
 
     // initialize
     m_controller->refresh(true);
@@ -216,6 +213,8 @@ void RebaseViewWidget::setSession(app::rebase::RebaseController* controller, Git
     });
 
     connect(m_controller, &app::rebase::RebaseController::analysisChanged, this, [this](std::size_t first_changed_row) {
+        syncConflictEditors();
+
         if (!m_current.isValid() || m_current.row() < static_cast<int>(first_changed_row)) {
             return;
         }
@@ -276,6 +275,41 @@ void RebaseViewWidget::setSession(app::rebase::RebaseController* controller, Git
         Qt::QueuedConnection
     );
 
+    connect(
+        m_controller,
+        &app::rebase::RebaseController::blockedByOpenEditors,
+        this,
+        [this](QList<app::conflict::ConflictFileId> editors) {
+            QStringList names;
+            names.reserve(editors.size());
+
+            for (const auto& id : editors) {
+                names << QString::fromStdString(id.path);
+            }
+
+            QMessageBox box(this);
+            box.setIcon(QMessageBox::Warning);
+            box.setWindowTitle("Conflict editors open");
+            box.setText(QStringLiteral("%1 conflict editor(s) still open:").arg(names.size()));
+            box.setInformativeText(
+                QStringLiteral("• ") + names.join(QStringLiteral("\n• ")) + "\n\nClose them and discard their changes?"
+            );
+
+            auto* discard = box.addButton("Discard", QMessageBox::DestructiveRole);
+            auto* cancel  = box.addButton(QMessageBox::Cancel);
+            box.setDefaultButton(cancel);
+            box.setEscapeButton(cancel);
+
+            box.exec();
+
+            if (box.clickedButton() == discard) {
+                m_controller->discardEditorsAndContinue();
+            } else {
+                m_controller->cancelPending();
+            }
+        }
+    );
+
     // set current index
     m_list->setCurrentIndex(m_controller->model()->index(0));
 }
@@ -323,6 +357,10 @@ void RebaseViewWidget::publishCurrentStep() {
     emit currentStepChanged(analysis, row);
 }
 
+void RebaseViewWidget::syncConflictEditors() {
+    m_conflict_editor_manager->discardExcept(m_controller->currentConflictFiles());
+}
+
 void RebaseViewWidget::updateConflict(int row) {
     const auto& analysis = m_controller->analysis();
 
@@ -344,21 +382,12 @@ void RebaseViewWidget::updateConflict(int row) {
 
     auto* conflict = block->conflict.get();
 
-    QSet<app::conflict::ConflictFileId> ids;
     QList<app::conflict::ConflictTreeModel::ConflictFile> files;
 
-    ids.reserve(static_cast<int>(conflict->files.size()));
     files.reserve(static_cast<int>(conflict->files.size()));
 
     for (std::size_t i = 0; i < conflict->files.size(); ++i) {
         const auto& f = conflict->files[i];
-
-        ids.insert(
-            app::conflict::ConflictFileId {
-                .path  = f.path,
-                .entry = f.entry,
-            }
-        );
 
         files.push_back(
             app::conflict::ConflictTreeModel::ConflictFile {
@@ -371,13 +400,7 @@ void RebaseViewWidget::updateConflict(int row) {
     }
 
     m_current_conflict = conflict;
-    m_conflict_editor_manager->discardExcept(ids);
     m_conflict_widget->setConflictFiles(files);
-
-    // no change
-    if (conflict == m_current_conflict) {
-        return;
-    }
 }
 
 void RebaseViewWidget::openConflictEditor(
@@ -426,11 +449,11 @@ void RebaseViewWidget::editConflictResolution(
 
     switch (type) {
     case app::conflict::ConflictResolutionType::Deleted:
-        m_controller->setResolutionDeleted(id.entry);
+        m_controller->setEditorResolution(id);
         break;
 
     case app::conflict::ConflictResolutionType::Modified: {
-        auto resolution = m_controller->setResolution(id.entry, content);
+        auto resolution = m_controller->setEditorResolution(id, content);
         if (!resolution.has_value()) {
             const auto& err = resolution.error();
             DISPLAY_ERROR(this, err.title, err.message);

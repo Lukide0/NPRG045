@@ -546,7 +546,7 @@ void App::openRebase(
 ) {
 
     auto& session = m_rebase.start(std::move(repo), std::move(plan), std::move(conflicts));
-    m_controller  = std::make_unique<app::rebase::RebaseController>(session, this);
+    m_controller  = std::make_unique<app::rebase::RebaseController>(session, m_conflict_editor, this);
     m_rebase_view->setSession(m_controller.get(), std::move(graph));
 
     auto* undo_stack = m_controller->undoStack();

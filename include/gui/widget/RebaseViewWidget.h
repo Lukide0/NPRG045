@@ -90,6 +90,8 @@ private:
     void changedListSelection(const QModelIndex& index);
     void publishCurrentStep();
     void updateConflict(int row);
+    void syncConflictEditors();
+
     void openConflictEditor(
         std::size_t id,
         const QString& path,
