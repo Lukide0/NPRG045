@@ -52,7 +52,11 @@ QVariant RebasePlanModel::data(const QModelIndex& index, int role) const {
 
     const auto row   = static_cast<std::size_t>(index.row());
     Action& act      = *m_rows[row];
-    const auto& step = m_steps[row];
+    const auto* step = m_steps[row];
+
+    if (step == nullptr) {
+        return { };
+    }
 
     const int conflict_files   = step->conflict == nullptr ? 0 : static_cast<int>(step->conflict->files.size());
     const int unresolved_files = step->conflict == nullptr ? 0 : static_cast<int>(step->conflict->unresolved_count());
