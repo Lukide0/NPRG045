@@ -262,13 +262,13 @@ Result<void> RebaseAnalyzer::compute_pick(const action::Action& act, const git_t
 
         if (entry.our != nullptr) {
             file.entry.our_id = git_oid_tostr_s(&entry.our->id);
-            file.our          = *entry.our;
+            file.our          = ConflictFile::Entry { *entry.our };
             path              = entry.our->path;
         }
 
         if (entry.their != nullptr) {
             file.entry.their_id = git_oid_tostr_s(&entry.their->id);
-            file.their          = *entry.their;
+            file.their          = ConflictFile::Entry { *entry.their };
 
             if (path == nullptr) {
                 path = entry.their->path;
@@ -277,16 +277,10 @@ Result<void> RebaseAnalyzer::compute_pick(const action::Action& act, const git_t
 
         if (entry.ancestor != nullptr) {
             file.entry.ancestor_id = git_oid_tostr_s(&entry.ancestor->id);
-            file.ancestor          = *entry.ancestor;
+            file.ancestor          = ConflictFile::Entry { *entry.ancestor };
 
             if (path == nullptr) {
                 path = entry.ancestor->path;
-            }
-        }
-
-        for (auto* side : { &file.ancestor, &file.our, &file.their }) {
-            if (side->has_value()) {
-                (*side)->path = nullptr;
             }
         }
 

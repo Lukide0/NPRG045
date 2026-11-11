@@ -28,8 +28,11 @@ namespace app::conflict {
 core::Result<void> writeBlob(git_repository* repo, const git_oid* oid, const QString& destination);
 
 core::Result<void> writeBlob(git_repository* repo, const std::string& oid_str, const QString& destination);
-core::Result<void>
-writeBlob(git_repository* repo, const std::optional<git_index_entry>& index_entry, const QString& destination);
+core::Result<void> writeBlob(
+    git_repository* repo,
+    const std::optional<core::rebase::ConflictFile::Entry>& index_entry,
+    const QString& destination
+);
 
 core::Result<void> writeMergePreview(
     git_repository* repo,
@@ -139,6 +142,7 @@ void ConflictEditorManager::discardAll() {
 
 core::Result<TemporaryConflictFiles>
 ConflictEditorManager::createTempConflictFiles(const core::rebase::ConflictFile& file, bool edit_resolution) {
+
     auto directory = std::make_shared<QTemporaryDir>();
 
     if (!directory->isValid()) {
@@ -161,10 +165,11 @@ ConflictEditorManager::createTempConflictFiles(const core::rebase::ConflictFile&
         .result = make_path("result"),
     };
 
-    const auto conflict = std::to_array<std::pair<const std::optional<git_index_entry>&, const QString&>>({
-        { file.ancestor, files.base  },
-        { file.our,      files.our   },
-        { file.their,    files.their },
+    const auto conflict
+        = std::to_array<std::pair<const std::optional<core::rebase::ConflictFile::Entry>&, const QString&>>({
+            { file.ancestor, files.base  },
+            { file.our,      files.our   },
+            { file.their,    files.their },
     });
 
     for (auto&& [entry, path] : conflict) {
@@ -217,30 +222,20 @@ core::Result<void> writeMergePreview(
     const QString& destination,
     git_merge_file_flag_t flag
 ) {
-    git_index_entry ancestor { };
-    git_index_entry our { };
-    git_index_entry their { };
-
     const git_index_entry* ancestor_ptr = nullptr;
     const git_index_entry* our_ptr      = nullptr;
     const git_index_entry* their_ptr    = nullptr;
 
     if (conflict.ancestor) {
-        ancestor      = *conflict.ancestor;
-        ancestor.path = conflict.path.c_str();
-        ancestor_ptr  = &ancestor;
+        ancestor_ptr = &conflict.ancestor->entry;
     }
 
     if (conflict.our) {
-        our      = *conflict.our;
-        our.path = conflict.path.c_str();
-        our_ptr  = &our;
+        our_ptr = &conflict.our->entry;
     }
 
     if (conflict.their) {
-        their      = *conflict.their;
-        their.path = conflict.path.c_str();
-        their_ptr  = &their;
+        their_ptr = &conflict.their->entry;
     }
 
     git_merge_file_options options = GIT_MERGE_FILE_OPTIONS_INIT;
@@ -331,11 +326,14 @@ core::Result<void> writeBlob(git_repository* repo, const git_oid* oid, const QSt
     return { };
 }
 
-core::Result<void>
-writeBlob(git_repository* repo, const std::optional<git_index_entry>& index_entry, const QString& destination) {
+core::Result<void> writeBlob(
+    git_repository* repo,
+    const std::optional<core::rebase::ConflictFile::Entry>& index_entry,
+    const QString& destination
+) {
     const git_oid* oid = nullptr;
     if (index_entry.has_value()) {
-        oid = &index_entry->id;
+        oid = &index_entry->entry.id;
     }
 
     return writeBlob(repo, oid, destination);

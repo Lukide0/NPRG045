@@ -16,6 +16,7 @@
 #include <functional>
 #include <git2/errors.h>
 #include <git2/sys/errors.h>
+#include <iostream>
 #include <span>
 #include <string>
 #include <utility>
@@ -70,7 +71,7 @@ Result pick_check(const git_commit* commit, const git_tree* onto_tree) {
     // merge commit
     default:
         // set custom error
-        git_error_set(GIT_ERROR_INVALID, "Merge commit are not supported");
+        git_error_set(GIT_ERROR_INVALID, "Merge commits are not supported");
         return { ConflictState::Error, std::move(index) };
     }
 
@@ -169,28 +170,38 @@ ResolutionResult add_resolved_files(
     return res;
 }
 
+struct tracked_t {
+    std::string path;
+    bool tracked = true;
+};
+
 struct diff_context_t {
-    std::span<const git_oid> current;
-    std::vector<git_oid> updated;
+    std::span<const tracked_t> current;
+    std::span<tracked_t> updated;
     bool contains = false;
 };
 
-bool all_oids_zero(const std::vector<git_oid>& ids) {
-    return std::ranges::all_of(ids, [](const git_oid& id) { return git_oid_is_zero(&id) != 0; });
+bool all_untracked(const std::vector<tracked_t>& ids) {
+    return std::ranges::all_of(ids, std::logical_not { }, &tracked_t::tracked);
 }
 
 int collect_delta(const git_diff_delta* delta, float /*unused*/, void* payload) {
     auto* ctx = static_cast<diff_context_t*>(payload);
 
     for (std::size_t i = 0; i < ctx->current.size(); ++i) {
-        // the file was introduced by a later action
-        if (git_oid_is_zero(&ctx->current[i]) != 0) {
+        const auto& cur = ctx->current[i];
+
+        if (!cur.tracked || cur.path != delta->new_file.path) {
             continue;
         }
 
-        if (git_oid_equal(&delta->new_file.id, &ctx->current[i]) != 0) {
-            ctx->updated[i] = delta->old_file.id;
-            ctx->contains   = true;
+        ctx->contains = true;
+
+        // origin of the file or invalid path to follow
+        if (delta->status == GIT_DELTA_ADDED || delta->old_file.path == nullptr || *delta->old_file.path == '\0') {
+            ctx->updated[i].tracked = false;
+        } else {
+            ctx->updated[i].path = delta->old_file.path;
         }
     }
 
@@ -214,7 +225,7 @@ bool iterate_steps(
 
     auto* conflict = block->conflict.get();
 
-    std::vector<git_oid> tracked;
+    std::vector<tracked_t> tracked;
     tracked.reserve(conflict->files.size());
 
     for (const auto& file : conflict->files) {
@@ -222,10 +233,15 @@ bool iterate_steps(
             continue;
         }
 
-        // not deleted
-        if (file.our.has_value()) {
-            tracked.push_back(file.our->id);
+        // not deleted on our side
+        if (file.our.has_value() && !file.our->path.empty()) {
+            tracked.push_back({ .path = file.our->path, .tracked = true });
         }
+    }
+
+    // nothing to track
+    if (tracked.empty() || block->index == 0) {
+        return true;
     }
 
     git_diff_options diff_opts      = GIT_DIFF_OPTIONS_INIT;
@@ -253,9 +269,11 @@ bool iterate_steps(
         } else {
             old_tree = root_tree;
         }
+
+        std::vector<tracked_t> next = tracked;
         diff_context_t ctx {
             .current  = tracked,
-            .updated  = tracked,
+            .updated  = next,
             .contains = false,
 
         };
@@ -272,13 +290,13 @@ bool iterate_steps(
             return false;
         }
 
-        tracked = std::move(ctx.updated);
+        tracked = std::move(next);
 
         if (!callback(ctx.contains, i, payload)) {
             break;
         }
 
-        if (i == 0 || all_oids_zero(tracked)) {
+        if (i == 0 || all_untracked(tracked)) {
             return true;
         }
     }

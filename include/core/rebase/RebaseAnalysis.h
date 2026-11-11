@@ -29,11 +29,23 @@ struct StepInput {
 };
 
 struct ConflictFile {
+    struct Entry {
+        git_index_entry entry;
+        std::string path;
+
+        explicit Entry(const git_index_entry& e)
+            : entry(e)
+            , path(e.path != nullptr ? e.path : "") {
+            // make path persistent
+            entry.path = path.c_str();
+        }
+    };
+
     std::string path;
 
-    std::optional<git_index_entry> ancestor;
-    std::optional<git_index_entry> our;
-    std::optional<git_index_entry> their;
+    std::optional<Entry> ancestor;
+    std::optional<Entry> our;
+    std::optional<Entry> their;
 
     std::optional<std::string> resolution;
 
