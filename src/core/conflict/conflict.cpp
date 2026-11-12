@@ -182,10 +182,6 @@ struct diff_context_t {
     bool contains = false;
 };
 
-bool all_untracked(const std::vector<tracked_t>& ids) {
-    return std::ranges::all_of(ids, std::logical_not { }, &tracked_t::tracked);
-}
-
 bool has_path(const char* p) { return p != nullptr && *p != '\0'; }
 
 int collect_delta(const git_diff_delta* delta, float /*unused*/, void* payload) {
@@ -372,11 +368,21 @@ bool iterate_steps(
 
         tracked = std::move(next);
 
+        // remove untracked entries
+        for (std::size_t j = 0; j < tracked.size();) {
+            if (!tracked[j].tracked) {
+                tracked[j] = std::move(tracked.back());
+                tracked.pop_back();
+            } else {
+                j += 1;
+            }
+        }
+
         if (!callback(ctx.contains, i, payload)) {
             break;
         }
 
-        if (i == 0 || all_untracked(tracked)) {
+        if (i == 0 || tracked.empty()) {
             break;
         }
     }
