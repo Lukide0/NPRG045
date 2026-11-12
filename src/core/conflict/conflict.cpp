@@ -17,6 +17,7 @@
 #include <git2/errors.h>
 #include <git2/sys/errors.h>
 #include <iostream>
+#include <print>
 #include <span>
 #include <string>
 #include <utility>
@@ -179,7 +180,7 @@ struct tracked_t {
 struct diff_context_t {
     std::span<const tracked_t> current;
     std::span<tracked_t> updated;
-    bool contains = false;
+    bool contains;
 };
 
 bool has_path(const char* p) { return p != nullptr && *p != '\0'; }
@@ -194,54 +195,26 @@ int collect_delta(const git_diff_delta* delta, float /*unused*/, void* payload) 
             continue;
         }
 
-        if (cur.removed) {
+        const bool exists
+            = has_path(delta->new_file.path) && delta->status != GIT_DELTA_DELETED && cur.path == delta->new_file.path;
 
+        if (exists) {
+            ctx->contains           = true;
+            ctx->updated[i].removed = false;
+
+            // origin of the file or invalid path to follow
+            if (delta->status == GIT_DELTA_ADDED || !has_path(delta->old_file.path)) {
+                ctx->updated[i].tracked = false;
+            } else {
+                ctx->updated[i].path = delta->old_file.path;
+            }
+
+        } else if (cur.removed) {
             const bool gone = delta->status == GIT_DELTA_DELETED || delta->status == GIT_DELTA_RENAMED;
             if (gone && has_path(delta->old_file.path) && cur.path == delta->old_file.path) {
                 ctx->contains           = true;
                 ctx->updated[i].tracked = false;
             }
-
-            continue;
-        }
-
-        if (!has_path(delta->new_file.path) || cur.path != delta->new_file.path) {
-            continue;
-        }
-
-        ctx->contains = true;
-
-        // origin of the file or invalid path to follow
-        if (delta->status == GIT_DELTA_ADDED || !has_path(delta->old_file.path)) {
-            ctx->updated[i].tracked = false;
-        } else {
-            ctx->updated[i].path = delta->old_file.path;
-        }
-    }
-
-    return 0;
-}
-
-int map_block_delta(const git_diff_delta* delta, float /*unused*/, void* payload) {
-    auto* ctx = static_cast<diff_context_t*>(payload);
-
-    if (!has_path(delta->new_file.path)) {
-        return 0;
-    }
-
-    for (std::size_t i = 0; i < ctx->current.size(); ++i) {
-        if (ctx->current[i].path != delta->new_file.path) {
-            continue;
-        }
-
-        if (delta->status == GIT_DELTA_ADDED) {
-            // missing on the onto side
-            ctx->updated[i].removed = true;
-        } else if (has_path(delta->old_file.path)) {
-            // handles renames
-            ctx->updated[i].path = delta->old_file.path;
-        } else {
-            ctx->updated[i].tracked = false;
         }
     }
 
@@ -286,35 +259,44 @@ bool iterate_steps(
         return true;
     }
 
+    // the first step -> no earlier steps to inspect
+    if (block->index == 0) {
+        return true;
+    }
+
     auto* conflict = block->conflict.get();
 
-    std::vector<tracked_t> from_block;
     std::vector<tracked_t> tracked;
+    tracked.reserve(block->conflict->files.size());
 
     for (const auto& file : conflict->files) {
         if (file.resolved()) {
             continue;
         }
 
-        if (file.our.has_value()) {
-            if (!file.our->path.empty()) {
-                from_block.push_back({ .path = file.our->path });
-            }
-        } else if (file.their.has_value()) {
-            if (!file.their->path.empty()) {
-                tracked.push_back({ .path = file.their->path });
-            }
+        if (file.their.has_value() && !file.their->path.empty()) {
+            tracked.push_back(
+                {
+                    .path    = file.their->path,
+                    .removed = false,
+                    .tracked = true,
+                }
+            );
+
+        } else if (file.our.has_value() && !file.our->path.empty()) {
+            tracked.push_back(
+                {
+                    .path    = file.our->path,
+                    .removed = true, // missing on their side
+                    .tracked = true,
+                }
+            );
         }
     }
 
     // nothing to track
-    if ((tracked.empty() && from_block.empty()) || block->index == 0) {
+    if (tracked.empty()) {
         return true;
-    }
-
-    git::tree_t block_tree;
-    if (git_commit_tree(&block_tree, block->action->get_commit()) != 0) {
-        return false;
     }
 
     git::tree_t root_tree;
@@ -322,35 +304,16 @@ bool iterate_steps(
         return false;
     }
 
-    git_tree* onto_tree = result.steps[block->index - 1].tree.get();
-
-    if (!from_block.empty()) {
-
-        std::vector<tracked_t> mapped = from_block;
-        diff_context_t ctx {
-            .current  = from_block,
-            .updated  = mapped,
-            .contains = false,
-
-        };
-
-        if (!diff_trees(repo, onto_tree, block_tree, map_block_delta, ctx)) {
-            return false;
-        }
-
-        tracked.insert(tracked.end(), std::make_move_iterator(mapped.begin()), std::make_move_iterator(mapped.end()));
-    }
-
-    git_tree* new_tree = onto_tree;
+    git_tree* new_tree = result.steps[block->index - 1].tree.get();
     git_tree* old_tree = nullptr;
 
     // i = index-1, index-2, ..., 0
-    for (std::size_t i = block->index; old_tree != root_tree && i-- > 0; new_tree = old_tree) {
+    for (std::size_t i = block->index; i-- > 0; new_tree = old_tree) {
 
         if (i > 0) {
             const auto& prev_step = result.steps[i - 1];
             old_tree              = prev_step.tree.get();
-        } else {
+        } else /* i == 0 */ {
             old_tree = root_tree;
         }
 
@@ -359,7 +322,6 @@ bool iterate_steps(
             .current  = tracked,
             .updated  = next,
             .contains = false,
-
         };
 
         if (!diff_trees(repo, old_tree, new_tree, collect_delta, ctx)) {
@@ -382,7 +344,7 @@ bool iterate_steps(
             break;
         }
 
-        if (i == 0 || tracked.empty()) {
+        if (tracked.empty()) {
             break;
         }
     }
