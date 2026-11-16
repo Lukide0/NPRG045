@@ -82,6 +82,7 @@ struct CommitAction {
 struct ParseResult {
     std::vector<CommitAction> actions;
     std::string err;
+    std::vector<std::string> warn;
 
     [[nodiscard]] bool has_error() const { return !err.empty(); }
 };

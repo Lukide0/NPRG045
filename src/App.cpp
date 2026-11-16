@@ -506,9 +506,9 @@ bool App::openRepo(const std::string& path) {
     }
 
     auto info = rebase_info.value().value();
-    auto err  = openRebase(info, std::move(*repo));
-    if (!err.has_value()) {
-        auto e = err.error();
+    auto res  = openRebase(info, std::move(*repo));
+    if (!res.result.has_value()) {
+        auto e = res.result.error();
 
         DISPLAY_ERROR(this, e.title, e.message);
 
@@ -516,26 +516,45 @@ bool App::openRepo(const std::string& path) {
         return false;
     }
 
+    if (!res.warns.messages.empty()) {
+        QStringList messages;
+
+        for (auto&& msg : res.warns.messages) {
+            messages.append(QString::fromStdString(msg));
+        }
+
+        DISPLAY_WARN(this, "Rebase opened with warnings", messages.join('\n'));
+    }
+
     m_layout->setCurrentIndex(page_rebase_view);
     return true;
 }
 
-core::Result<void> App::openRebase(const core::git::RebaseInfo& info, core::git::RepoSession&& repo) {
+core::WResult<void> App::openRebase(const core::git::RebaseInfo& info, core::git::RepoSession&& repo) {
     auto graph = gui::rebase::RebaseViewWidget::GitGraph::create(info.head.c_str(), info.onto.c_str(), repo.repo());
     if (!graph.has_value()) {
-        return std::unexpected<core::Error>({
-            .title   = "Failed to create git graph",
-            .message = "Could not find commits",
-        });
+        return {
+            .result = std::unexpected<core::Error>({
+                .title   = "Failed to create git graph",
+                .message = "Could not find commits",
+            }),
+            .warns  = { },
+        };
     }
 
     auto plan = core::rebase::RebasePlan::open(repo, info, graph->first_node().commit);
-    if (!plan.has_value()) {
-        return std::unexpected<core::Error>(plan.error());
+    if (!plan.result.has_value()) {
+        return {
+            .result = std::unexpected<core::Error>(plan.result.error()),
+            .warns  = std::move(plan.warns),
+        };
     }
 
-    openRebase(std::move(repo), std::move(*plan), { }, std::move(*graph));
-    return { };
+    openRebase(std::move(repo), std::move(*plan.result), { }, std::move(*graph));
+    return {
+        .result = { },
+        .warns  = std::move(plan.warns),
+    };
 }
 
 void App::openRebase(

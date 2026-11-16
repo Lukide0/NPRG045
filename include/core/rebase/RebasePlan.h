@@ -13,7 +13,7 @@ namespace core::rebase {
 
 class RebasePlan {
 public:
-    static Result<RebasePlan> open(git::RepoSession& repo, git::RebaseInfo info, git_commit* root_commit);
+    static WResult<RebasePlan> open(git::RepoSession& repo, git::RebaseInfo info, git_commit* root_commit);
     static RebasePlan open(git::RebaseInfo info, action::ActionsManager&& actions);
 
     struct MoveResult {

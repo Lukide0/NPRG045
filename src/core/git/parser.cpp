@@ -105,6 +105,8 @@ ParseResult parse_stream(std::istream& stream, std::string_view comment_char) {
 
     std::size_t line_num = 0;
     std::string line;
+    bool break_action_found = false;
+    bool fixup_flag_found   = false;
     while (std::getline(stream, line)) {
         line_num += 1;
 
@@ -112,8 +114,6 @@ ParseResult parse_stream(std::istream& stream, std::string_view comment_char) {
         std::string_view args = line_res.rest;
 
         std::string hash;
-
-        // TODO:
         std::string flags;
 
         const auto fail = [&](const char* msg) {
@@ -132,7 +132,13 @@ ParseResult parse_stream(std::istream& stream, std::string_view comment_char) {
             continue;
 
         case CmdType::BREAK:
-            return fail("Break commands (break) are not supported. Please remove or edit this command manually.");
+            if (!break_action_found) {
+                break_action_found = true;
+                res.warn.emplace_back(
+                    "The todo file contains one or more 'break' commands, which are unsupported and will be ignored."
+                );
+            }
+            continue;
 
         case CmdType::EXEC:
             return fail("Execution commands (exec) are not supported. Please remove or edit this command manually.");
@@ -162,7 +168,13 @@ ParseResult parse_stream(std::istream& stream, std::string_view comment_char) {
 
         case CmdType::FIXUP:
             // `fixup [-C | -c] <commit>`
-            extract_commit_flag(args, flags);
+            if (extract_commit_flag(args, flags) && !fixup_flag_found) {
+                fixup_flag_found = true;
+                res.warn.emplace_back(
+                    "The '-c' and '-C' flags on 'fixup' are ignored. 'fixup', 'fixup -c', and 'fixup -C' are treated "
+                    "identically."
+                );
+            }
             extract_word(args, hash);
             break;
         }

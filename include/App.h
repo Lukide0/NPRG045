@@ -226,7 +226,7 @@ private:
      */
     void updateRebaseSelection(const std::string& branch);
 
-    core::Result<void> openRebase(const core::git::RebaseInfo& info, core::git::RepoSession&& repo);
+    core::WResult<void> openRebase(const core::git::RebaseInfo& info, core::git::RepoSession&& repo);
     void openRebase(
         core::git::RepoSession&& repo,
         core::rebase::RebasePlan&& plan,
