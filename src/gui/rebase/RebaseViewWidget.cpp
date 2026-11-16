@@ -370,20 +370,33 @@ void RebaseViewWidget::updateConflict(int row) {
     m_diff_widget->show();
     m_conflict_widget->hide();
 
-    const auto* block = analysis->blocking();
-    if (row < 0 || row >= static_cast<int>(analysis->steps.size()) || block == nullptr
-        || static_cast<int>(block->index) != row) {
+    if (row < 0 || row >= static_cast<int>(analysis->steps.size())) {
         return;
+    }
+
+    const auto& step = analysis->steps[row];
+    if (step.conflict == nullptr) {
+        return;
+    }
+
+    switch (step.status) {
+    case core::conflict::ConflictState::Unknown:
+    case core::conflict::ConflictState::Error:
+    case core::conflict::ConflictState::Clean:
+        return;
+    case core::conflict::ConflictState::Conflict:
+    case core::conflict::ConflictState::Resolved:
+        break;
     }
 
     m_conflict_widget->show();
     m_conflict_widget->clearConflicts();
 
-    if (!block->has_result()) {
+    if (!step.has_result()) {
         m_diff_widget->hide();
     }
 
-    auto* conflict = block->conflict.get();
+    auto* conflict = step.conflict.get();
 
     QList<app::conflict::ConflictTreeModel::ConflictFile> files;
 
