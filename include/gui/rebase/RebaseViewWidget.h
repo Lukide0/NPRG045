@@ -1,5 +1,6 @@
 #pragma once
 
+#include "app/conflict/ConflictCheckout.h"
 #include "app/conflict/ConflictEditorManager.h"
 #include "app/rebase/RebaseController.h"
 #include "core/action/Action.h"
@@ -65,6 +66,7 @@ private:
 
     core::rebase::StepConflict* m_current_conflict = nullptr;
     app::rebase::RebaseController* m_controller    = nullptr;
+
     app::conflict::ConflictEditorManager* m_conflict_editor_manager;
 
     QListView* m_list;
@@ -88,6 +90,7 @@ private:
     void publishCurrentStep();
     void updateConflict(int row);
     void syncConflictEditors();
+    void updateConflicts();
 
     void openConflictEditor(
         std::size_t id,
@@ -96,9 +99,11 @@ private:
         git::ConflictWidget::ConflictEditMode mode
     );
 
-    void editConflictResolution(
-        app::conflict::ConflictFileId id, const QByteArray& content, app::conflict::ConflictResolutionType type
-    );
+    void editConflictResolution(app::conflict::ConflictFileId id, app::conflict::FileState type);
     void showConflictEditorError(app::conflict::ConflictFileId id, QString message);
+
+    void resolutionStart();
+    void resolutionCancel(bool ask);
+    void resolutionSave();
 };
 }

@@ -20,6 +20,8 @@ public:
         QString our;
         QString their;
         QString result;
+
+        QString working_dir;
     };
 
     enum class ConflictStyle {

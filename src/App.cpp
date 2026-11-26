@@ -486,6 +486,9 @@ bool App::openRepo(const std::string& path) {
         return false;
     }
 
+    // Remove stale worktree entries left behind by a previous cleanup failure.
+    app::conflict::ConflictCheckout::removeStale(repo->repo());
+
     auto rebase_info = repo->rebase_info();
     if (!rebase_info.has_value()) {
         auto err = repo.error();

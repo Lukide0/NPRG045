@@ -39,6 +39,38 @@ struct ConflictFile {
             // make path persistent
             entry.path = path.c_str();
         }
+
+        Entry(const Entry& o)
+            : entry(o.entry)
+            , path(o.path) {
+            entry.path = path.c_str();
+        }
+
+        Entry(Entry&& o) noexcept
+            : entry(o.entry)
+            , path(std::move(o.path)) {
+            entry.path   = path.c_str();
+            o.entry.path = o.path.c_str();
+        }
+
+        Entry& operator=(const Entry& o) {
+            if (this != &o) {
+                entry      = o.entry;
+                path       = o.path;
+                entry.path = path.c_str();
+            }
+            return *this;
+        }
+
+        Entry& operator=(Entry&& o) noexcept {
+            if (this != &o) {
+                entry        = o.entry;
+                path         = std::move(o.path);
+                entry.path   = path.c_str();
+                o.entry.path = o.path.c_str();
+            }
+            return *this;
+        }
     };
 
     std::string path;
@@ -55,6 +87,7 @@ struct ConflictFile {
 };
 
 struct StepConflict {
+    git::index_t conflict_index;
     std::vector<ConflictFile> files;
 
     [[nodiscard]] std::size_t unresolved_count() {

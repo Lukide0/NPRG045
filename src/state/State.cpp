@@ -3,13 +3,19 @@
 #include "core/action/Action.h"
 #include "core/action/ActionsManager.h"
 #include "core/conflict/ConflictManager.h"
+#include "core/git/GitGraph.h"
+#include "core/git/RepoSession.h"
 #include "core/git/types.h"
+#include "core/rebase/RebasePlan.h"
+#include "core/rebase/RebaseSession.h"
+#include "core/Result.h"
 
+#include <expected>
 #include <filesystem>
 #include <optional>
+#include <qcontainerfwd.h>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include <git2/commit.h>
 #include <git2/oid.h>
@@ -266,7 +272,7 @@ core::Result<void> load_conflicts(QDomElement& root, SaveData& save_data, git_re
                 continue;
             }
 
-            save_data.conflicts.add_trees_resolution(entry, std::move(tree));
+            auto _ = save_data.conflicts.replace_trees_resolution(entry, std::move(tree));
         }
     }
 

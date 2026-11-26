@@ -1,6 +1,5 @@
 #pragma once
 
-#include "app/conflict/ConflictEditorSession.h"
 #include "app/conflict/ConflictTreeModel.h"
 #include "core/conflict/ConflictManager.h"
 
@@ -47,7 +46,17 @@ public:
 
     void clearConflicts();
 
+    void updateButtons();
+
+    void onStartFinished(bool success);
+    void discardResolution();
+
 signals:
+    void resolutionStartRequested();
+    void resolutionSaveRequested();
+    void resolutionCancelRequested();
+    void openDirectoryRequested();
+
     void resolveRequested(
         std::size_t id, const QString& path, const core::conflict::ConflictEntry& entry, ConflictEditMode mode
     );
@@ -59,12 +68,20 @@ private:
     QLabel* m_status_count;
     QStatusBar* m_status_bar;
 
-    struct {
-        QAction* resolve_conflict;
-        QAction* edit_resolution;
-        QToolButton* widget;
+    bool m_started       = false;
+    bool m_start_pending = false;
 
-    } m_button;
+    struct {
+        QPushButton* open_directory;
+        QPushButton* open_file;
+    } m_buttons;
+
+    struct {
+        QAction* start;
+        QAction* save;
+        QAction* cancel;
+        QToolButton* widget;
+    } m_save_button;
 
     std::uint32_t m_conflicts = 0;
     QVBoxLayout* m_layout;

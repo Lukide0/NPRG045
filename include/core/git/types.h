@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <git2/worktree.h>
 #include <memory>
 #include <span>
 #include <string>
@@ -55,13 +56,16 @@ public:
 
     ptr_object_t() = default;
 
+    ptr_object_t(const ptr_object_t&)            = delete;
+    ptr_object_t& operator=(const ptr_object_t&) = delete;
+
     explicit ptr_object_t(T* ptr)
         : m_obj(ptr) { }
 
-    ptr_object_t(ptr_object_t&& other)
+    ptr_object_t(ptr_object_t&& other) noexcept
         : m_obj(std::exchange(other.m_obj, nullptr)) { }
 
-    ptr_object_t& operator=(ptr_object_t&& other) {
+    ptr_object_t& operator=(ptr_object_t&& other) noexcept {
         std::swap(m_obj, other.m_obj);
         return *this;
     }
@@ -183,6 +187,7 @@ private:
     T m_obj;
 };
 
+using obj_t               = ptr_object_t<git_object, git_object_free>;
 using commit_t            = ptr_object_t<git_commit, git_commit_free>;
 using index_t             = ptr_object_t<git_index, git_index_free>;
 using tree_t              = ptr_object_t<git_tree, git_tree_free>;
@@ -198,6 +203,9 @@ using blob_t              = ptr_object_t<git_blob, git_blob_free>;
 using revwalk_t           = ptr_object_t<git_revwalk, git_revwalk_free>;
 using repository_t        = ptr_object_t<git_repository, git_repository_free>;
 using remote_t            = ptr_object_t<git_remote, git_remote_free>;
+using worktree_t          = ptr_object_t<git_worktree, git_worktree_free>;
+
+using tree_entry_t = ptr_object_t<git_tree_entry, git_tree_entry_free>;
 
 using buffer_t            = object_t<git_buf, git_buf_dispose>;
 using merge_file_result_t = object_t<git_merge_file_result, git_merge_file_result_free>;

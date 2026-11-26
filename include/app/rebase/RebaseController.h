@@ -30,6 +30,11 @@ public:
     using StepResult    = core::rebase::StepResult;
     using GuardedAction = std::move_only_function<bool()>;
 
+    enum class BlockType {
+        OpenEditor,
+        OpenConflictResolution,
+    };
+
     struct GateScope {
         enum class Kind {
             None,
@@ -95,6 +100,9 @@ public:
     /** @brief Records or overwrites the resolution. Does not run inside the guard. */
     void setEditorResolution(const conflict::ConflictFileId& id);
 
+    /** @brief Records resolution for the conflict. Does not run inside the guard. */
+    void resolveConflict(const core::conflict::ConflictTrees& conflict, core::git::tree_t&& resolution);
+
     bool undo();
     bool redo();
 
@@ -126,15 +134,16 @@ signals:
     /** @brief Something failed. Emitted for a failed analysis and for each step that newly fails. */
     void errorOccurred(const QString& title, const QString& message);
 
-    /** @brief Could not execute command because it would modify open editor */
-    void blockedByOpenEditors(QList<conflict::ConflictFileId> editors);
+    /** @brief Could not execute command because it would modify open conflict resolution */
+    void blockedByOpenResolution(BlockType type, QList<conflict::ConflictFileId> editors);
 
 private:
     class MoveCommand;
     class TypeCommand;
     class MessageCommand;
     class SplitCommand;
-    class ResolutionCommand;
+    class FileResolutionCommand;
+    class ConflictResolutionCommand;
 
     core::rebase::RebaseSession& m_session;
     core::rebase::RebaseAnalyzer m_analyzer;
@@ -159,6 +168,9 @@ private:
     core::git::commit_t applySplit(int row, core::git::commit_t&& first, core::git::commit_t&& second);
     std::pair<core::git::commit_t, core::git::commit_t> applyMerge(int row, core::git::commit_t&& commit);
     void applyResolution(const core::conflict::ConflictEntry& entry, const std::optional<std::string>& blob_id);
+
+    core::git::tree_t
+    applyConflictResolution(const core::conflict::ConflictTrees& trees, core::git::tree_t&& resolution);
 
     void afterChange();
     void reportNewErrors(const core::rebase::RebaseAnalysis* previous);

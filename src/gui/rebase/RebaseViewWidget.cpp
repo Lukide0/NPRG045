@@ -1,12 +1,14 @@
 #include "gui/rebase/RebaseViewWidget.h"
 
 #include "App.h"
+#include "app/conflict/ConflictCheckout.h"
 #include "app/conflict/ConflictEditorManager.h"
 #include "app/conflict/ConflictTreeModel.h"
 #include "app/rebase/RebaseController.h"
 #include "app/rebase/RebasePlanModel.h"
 #include "core/action/Action.h"
 #include "core/conflict/ConflictManager.h"
+#include "core/git/error.h"
 #include "core/git/GitGraph.h"
 #include "gui/error.h"
 #include "gui/git/CommitViewWidget.h"
@@ -42,6 +44,7 @@
 #include <QBoxLayout>
 #include <QColor>
 #include <QComboBox>
+#include <QDesktopServices>
 #include <QLabel>
 #include <QList>
 #include <QListWidgetItem>
@@ -157,7 +160,31 @@ RebaseViewWidget::RebaseViewWidget(QWidget* parent)
         m_commit_view->setCurrentCommit(node->commit);
     });
 
+    connect(
+        m_conflict_widget, &git::ConflictWidget::resolutionStartRequested, this, &RebaseViewWidget::resolutionStart
+    );
+    connect(m_conflict_widget, &git::ConflictWidget::resolutionSaveRequested, this, &RebaseViewWidget::resolutionSave);
+
     connect(m_conflict_widget, &git::ConflictWidget::resolveRequested, this, &RebaseViewWidget::openConflictEditor);
+
+    connect(m_conflict_widget, &git::ConflictWidget::resolutionCancelRequested, this, [this]() {
+        resolutionCancel(/*ask=*/true);
+    });
+
+    connect(m_conflict_widget, &git::ConflictWidget::openDirectoryRequested, this, [this]() {
+        if (!m_conflict_editor_manager->isOpenResolution()) {
+            return;
+        }
+        QDesktopServices::openUrl(QUrl::fromLocalFile(m_conflict_editor_manager->workdir()));
+    });
+
+    connect(qApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState s) {
+        if (s == Qt::ApplicationActive && m_conflict_editor_manager != nullptr
+            && m_conflict_editor_manager->isOpenResolution()) {
+            updateConflicts();
+            m_conflict_widget->updateButtons();
+        }
+    });
 }
 
 void RebaseViewWidget::setSession(app::rebase::RebaseController* controller, GitGraph&& graph) {
@@ -184,7 +211,7 @@ void RebaseViewWidget::setSession(app::rebase::RebaseController* controller, Git
 
     connect(
         m_conflict_editor_manager,
-        &app::conflict::ConflictEditorManager::resolutionReady,
+        &app::conflict::ConflictEditorManager::editorClosed,
         this,
         &RebaseViewWidget::editConflictResolution
     );
@@ -280,23 +307,33 @@ void RebaseViewWidget::setSession(app::rebase::RebaseController* controller, Git
 
     connect(
         m_controller,
-        &app::rebase::RebaseController::blockedByOpenEditors,
+        &app::rebase::RebaseController::blockedByOpenResolution,
         this,
-        [this](QList<app::conflict::ConflictFileId> editors) {
-            QStringList names;
-            names.reserve(editors.size());
-
-            for (const auto& id : editors) {
-                names << QString::fromStdString(id.path);
-            }
-
+        [this](app::rebase::RebaseController::BlockType type, QList<app::conflict::ConflictFileId> editors) {
             QMessageBox box(this);
             box.setIcon(QMessageBox::Warning);
-            box.setWindowTitle("Conflict editors open");
-            box.setText(QStringLiteral("%1 conflict editor(s) still open:").arg(names.size()));
-            box.setInformativeText(
-                QStringLiteral("• ") + names.join(QStringLiteral("\n• ")) + "\n\nClose them and discard their changes?"
-            );
+
+            const bool blocked_by_resolution = type == app::rebase::RebaseController::BlockType::OpenConflictResolution;
+
+            if (editors.empty() || blocked_by_resolution) {
+                box.setWindowTitle("Conflict resolution open");
+                box.setText("Discard conflict resolution?");
+
+            } else {
+                QStringList names;
+                names.reserve(editors.size());
+
+                for (const auto& id : editors) {
+                    names << QString::fromStdString(id.path);
+                }
+
+                box.setWindowTitle("Conflict editors open");
+                box.setText(QStringLiteral("%1 conflict editor(s) still open:").arg(names.size()));
+                box.setInformativeText(
+                    QStringLiteral("• ") + names.join(QStringLiteral("\n• "))
+                    + "\n\nClose them and discard their changes?"
+                );
+            }
 
             auto* discard = box.addButton("Discard", QMessageBox::DestructiveRole);
             auto* cancel  = box.addButton(QMessageBox::Cancel);
@@ -307,6 +344,17 @@ void RebaseViewWidget::setSession(app::rebase::RebaseController* controller, Git
 
             if (box.clickedButton() == discard) {
                 m_controller->discardEditorsAndContinue();
+
+                if (blocked_by_resolution) {
+                    m_conflict_widget->discardResolution();
+
+                    auto restore = m_conflict_editor_manager->resolutionEnd();
+                    if (!restore.has_value()) {
+                        const auto err = restore.error();
+                        DISPLAY_ERROR(this, err.title, err.message);
+                    }
+                }
+
             } else {
                 m_controller->cancelPending();
             }
@@ -390,11 +438,18 @@ void RebaseViewWidget::updateConflict(int row) {
     }
 
     m_conflict_widget->show();
-    m_conflict_widget->clearConflicts();
 
     if (!step.has_result()) {
         m_diff_widget->hide();
     }
+
+    // old conflict
+    if (m_conflict_editor_manager->isOpenResolution()) {
+        return;
+    }
+
+    // new conflict
+    m_conflict_widget->clearConflicts();
 
     auto* conflict = step.conflict.get();
 
@@ -419,11 +474,229 @@ void RebaseViewWidget::updateConflict(int row) {
     m_conflict_widget->setConflictFiles(files);
 }
 
+void RebaseViewWidget::updateConflicts() {
+    m_conflict_editor_manager->iterateFiles(
+        [this](const core::rebase::ConflictFile& file, app::conflict::FileState state) {
+            m_conflict_widget->setResolved(file.path, state != app::conflict::FileState::Unresolved);
+        }
+    );
+}
+
+void RebaseViewWidget::resolutionStart() {
+    const auto* block = m_controller->analysis()->blocking();
+    if (block == nullptr || m_current_conflict == nullptr || m_conflict_editor_manager->isOpenResolution()) {
+        m_conflict_widget->onStartFinished(false);
+        return;
+    }
+
+    auto& conflict                                = *m_current_conflict;
+    std::vector<core::rebase::ConflictFile> files = conflict.files;
+
+    auto* commit = block->action->get_commit();
+
+    LOG_INFO("Conflict checkout");
+    const auto result = m_conflict_editor_manager->resolutionOpen(conflict.conflict_index, commit, std::move(files));
+    if (!result.has_value()) {
+        const auto err = result.error();
+        DISPLAY_ERROR(this, err.title, err.message);
+    }
+
+    m_conflict_widget->onStartFinished(result.has_value());
+}
+
+void RebaseViewWidget::resolutionCancel(bool ask) {
+    if (!m_conflict_editor_manager->isOpenResolution()) {
+        return;
+    }
+
+    if (ask) {
+        const auto answer = QMessageBox::question(
+            this,
+            "Cancel conflict resolution",
+            "Your edits to the conflict files will be discarded. Continue?",
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::No
+        );
+
+        if (answer != QMessageBox::Yes) {
+            return;
+        }
+    }
+
+    for (const auto& file : m_conflict_editor_manager->files()) {
+        m_conflict_widget->setResolved(file.path, file.resolved());
+    }
+
+    m_conflict_editor_manager->discardAll();
+
+    m_conflict_widget->discardResolution();
+
+    auto r = m_conflict_editor_manager->resolutionEnd();
+    if (!r.has_value()) {
+        const auto err = r.error();
+        DISPLAY_ERROR(this, err.title, err.message);
+    }
+}
+
+void RebaseViewWidget::editConflictResolution(app::conflict::ConflictFileId id, app::conflict::FileState type) {
+    if (m_current_conflict == nullptr) {
+        return;
+    }
+
+    bool is_resolved;
+    switch (type) {
+    case app::conflict::FileState::Unresolved:
+        is_resolved = false;
+        break;
+    case app::conflict::FileState::Resolved:
+    case app::conflict::FileState::ResolvedPending:
+    case app::conflict::FileState::ModifiedPending:
+    case app::conflict::FileState::DeletedPending:
+        is_resolved = true;
+        break;
+    }
+
+    m_conflict_widget->setResolved(id.path, is_resolved);
+}
+
+void RebaseViewWidget::resolutionSave() {
+    using app::conflict::PendingResolution;
+
+    const auto* step = m_controller->analysis()->blocking();
+    if (m_current_conflict == nullptr || !m_conflict_editor_manager->isOpenResolution() || step == nullptr) {
+        return;
+    }
+
+    if (m_conflict_editor_manager->hasOpenEditors()) {
+        DISPLAY_ERROR(this, "Could not save resolutions", "Close the open editors first");
+        return;
+    }
+
+    auto foreign = m_conflict_editor_manager->foreignChanges();
+    if (!foreign.has_value()) {
+        const auto err = foreign.error();
+        DISPLAY_ERROR(this, err.title, err.message);
+        return;
+    }
+
+    if (!foreign->empty()) {
+        const auto answer = QMessageBox::warning(
+            this,
+            "Other files changed",
+            QStringLiteral(
+                "%1 file(s) outside the conflict were changed in the worktree and will be part of the "
+                "result. Continue?"
+            )
+                .arg(foreign->size()),
+            QMessageBox::Yes | QMessageBox::Cancel,
+            QMessageBox::Cancel
+        );
+
+        if (answer != QMessageBox::Yes) {
+            return;
+        }
+    }
+
+    auto state = m_conflict_editor_manager->collectResolutions();
+    if (!state.has_value()) {
+        const auto err = state.error();
+        DISPLAY_ERROR(this, err.title, err.message);
+        return;
+    }
+
+    git_index* index = state->index;
+    if (index == nullptr) {
+        DISPLAY_ERROR(this, "Could not save resolutions", "The repository index is not available");
+        return;
+    }
+
+    if (git_index_has_conflicts(index) != 0) {
+        DISPLAY_ERROR(
+            this,
+            "Could not save resolutions",
+            "Please resolve conflicts in the workspace and stage the files using 'git add' or 'git rm'"
+        );
+        return;
+    }
+
+    git_oid tree_oid;
+    auto* repo = m_controller->session().repo().repo();
+    if (git_index_write_tree_to(&tree_oid, index, repo) != 0) {
+        DISPLAY_ERROR(this, "Could not create resolution tree from index", core::git::get_last_error());
+        return;
+    }
+
+    core::git::tree_t tree;
+    if (git_tree_lookup(&tree, repo, &tree_oid) != 0) {
+        DISPLAY_ERROR(this, "Could not look up generated resolution tree", core::git::get_last_error());
+        return;
+    }
+
+    auto conflict = core::conflict::ConflictTrees::create(&step->parent_tree_id, &step->action->get_oid());
+
+    const bool has_file_resolutions = std::ranges::any_of(state->resolutions, [](const PendingResolution& r) {
+        return r.kind != PendingResolution::Kind::Unchanged;
+    });
+
+    bool save_file_resolutions = false;
+    if (has_file_resolutions) {
+        const auto answer = QMessageBox::question(
+            this,
+            "Save file resolutions",
+            "Also save the resolution of each file?",
+            QMessageBox::Yes | QMessageBox::No,
+            QMessageBox::Yes
+        );
+
+        save_file_resolutions = answer == QMessageBox::Yes;
+    }
+
+    LOG_INFO("Saving resolution");
+
+    auto* stack = m_controller->undoStack();
+    stack->beginMacro("Conflict files resolution");
+
+    if (save_file_resolutions) {
+        for (const auto& file : state->resolutions) {
+            switch (file.kind) {
+            case PendingResolution::Kind::Unchanged:
+                break;
+
+            case PendingResolution::Kind::Deleted:
+                m_controller->setEditorResolution(file.id);
+                break;
+
+            case PendingResolution::Kind::Contents: {
+                const auto r = m_controller->setEditorResolution(file.id, file.contents);
+                if (!r.has_value()) {
+                    const auto err = r.error();
+                    DISPLAY_ERROR(this, err.title, err.message);
+                }
+                break;
+            }
+            }
+        }
+    }
+
+    m_controller->resolveConflict(conflict, std::move(tree));
+
+    stack->endMacro();
+
+    m_conflict_widget->discardResolution();
+
+    const auto restored = m_conflict_editor_manager->resolutionEnd();
+    if (!restored.has_value()) {
+        const auto err = restored.error();
+        DISPLAY_ERROR(this, err.title, err.message);
+        return;
+    }
+}
+
 void RebaseViewWidget::openConflictEditor(
     std::size_t id,
     const QString& path,
     const core::conflict::ConflictEntry& entry,
-    git::ConflictWidget::ConflictEditMode mode
+    git::ConflictWidget::ConflictEditMode /*unused*/
 ) {
     if (m_current_conflict == nullptr) {
         return;
@@ -438,45 +711,11 @@ void RebaseViewWidget::openConflictEditor(
         return;
     }
 
-    bool edit_resolution;
-    switch (mode) {
-    case git::ConflictWidget::ConflictEditMode::Resolve:
-        edit_resolution = false;
-        break;
-    case git::ConflictWidget::ConflictEditMode::EditResolution:
-        edit_resolution = true;
-        break;
-    }
-
     auto file_id = app::conflict::ConflictFileId { .path = file.path, .entry = file.entry };
-    auto editor  = m_conflict_editor_manager->open(file_id, file, edit_resolution);
+    auto editor  = m_conflict_editor_manager->open(file_id);
     if (!editor.has_value()) {
         auto err = editor.error();
         DISPLAY_ERROR(this, err.title, err.message);
-    }
-}
-
-void RebaseViewWidget::editConflictResolution(
-    app::conflict::ConflictFileId id, const QByteArray& content, app::conflict::ConflictResolutionType type
-) {
-    if (m_current_conflict == nullptr) {
-        return;
-    }
-
-    switch (type) {
-    case app::conflict::ConflictResolutionType::Deleted:
-        m_controller->setEditorResolution(id);
-        break;
-
-    case app::conflict::ConflictResolutionType::Modified: {
-        auto resolution = m_controller->setEditorResolution(id, content);
-        if (!resolution.has_value()) {
-            const auto& err = resolution.error();
-            DISPLAY_ERROR(this, err.title, err.message);
-            return;
-        }
-        break;
-    }
     }
 }
 
@@ -565,5 +804,4 @@ void RebaseViewWidget::changeActionType(ActionType type) {
 
     m_list->model()->setData(m_current, new_type, app::rebase::RebasePlanModel::TypeRole);
 }
-
 }

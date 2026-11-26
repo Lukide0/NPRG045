@@ -40,6 +40,13 @@ struct ConflictTrees {
     std::string parent_tree_id;
     std::string commit_id;
 
+    static ConflictTrees create(const git_oid* tree_id, const git_oid* commit_id) {
+        return {
+            .parent_tree_id = git::format_oid_to_str<git::OID_SIZE>(tree_id),
+            .commit_id      = git::format_oid_to_str<git::OID_SIZE>(commit_id),
+        };
+    }
+
     bool operator<(const ConflictTrees& other) const {
         if (parent_tree_id != other.parent_tree_id) {
             return parent_tree_id < other.parent_tree_id;
@@ -150,7 +157,7 @@ public:
      * @param conflict Tree conflict key.
      * @param resolution Resolved tree object.
      */
-    void add_trees_resolution(const ConflictTrees& conflict, git::tree_t&& resolution);
+    [[nodiscard]] git::tree_t replace_trees_resolution(const ConflictTrees& conflict, git::tree_t&& resolution);
 
     /**
      * @brief Retrieves a resolved tree for a conflict.

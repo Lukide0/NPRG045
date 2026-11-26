@@ -11,7 +11,9 @@ target_sources(${PROJECT_NAME} PRIVATE
     ${INCLUDE_PATH}/app/conflict/ConflictEditorManager.h
     ConflictEditorManager.cpp
 
-
+    ConflictCheckout.cpp
     ConflictEditor.cpp
+
+    blob.cpp
 )
 

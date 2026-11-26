@@ -22,11 +22,6 @@ inline std::size_t qHash(const ConflictFileId& id, std::size_t seed = 0) noexcep
     return qHashMulti(seed, id.path, id.entry.ancestor_id, id.entry.our_id, id.entry.their_id);
 }
 
-struct TemporaryConflictFiles {
-    std::shared_ptr<QTemporaryDir> directory;
-    ConflictEditor::EditorValues files;
-};
-
 enum class ConflictResolutionType {
     Deleted,
     Modified,
@@ -37,7 +32,7 @@ class ConflictEditorSession : public QObject {
 
 public:
     ConflictEditorSession(
-        ConflictFileId id, ConflictEditor::Editor editor, TemporaryConflictFiles files, QObject* parent = nullptr
+        ConflictFileId id, ConflictEditor::Editor editor, ConflictEditor::EditorValues files, QObject* parent = nullptr
     );
 
     void start();
@@ -50,13 +45,13 @@ public:
     [[nodiscard]] bool isFinished() const { return m_finished; }
 
 signals:
-    void resolved(QByteArray result, ConflictResolutionType type);
+    void closedEditor();
     void failed(QString message);
     void stopped();
 
 private:
     ConflictFileId m_id;
-    TemporaryConflictFiles m_files;
+    ConflictEditor::EditorValues m_files;
     ConflictEditor::Editor m_editor;
     QProcess m_process;
 

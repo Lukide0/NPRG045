@@ -216,9 +216,20 @@ void ConflictManager::add_resolution(const ConflictEntry& entry, std::string id)
     m_conflicts[entry] = id;
 }
 
-void ConflictManager::add_trees_resolution(const ConflictTrees& conflict, git::tree_t&& resolution) {
+git::tree_t ConflictManager::replace_trees_resolution(const ConflictTrees& conflict, git::tree_t&& resolution) {
     m_revision += 1;
-    m_trees[conflict] = std::move(resolution);
+
+    git::tree_t current;
+
+    auto it = m_trees.find(conflict);
+    if (it != m_trees.end()) {
+        current    = std::move(it->second);
+        it->second = std::move(resolution);
+    } else {
+        m_trees.emplace(conflict, std::move(resolution));
+    }
+
+    return current;
 }
 
 git_tree* ConflictManager::get_trees_resolution(const git_tree* old_tree, const git_commit* new_commit) {

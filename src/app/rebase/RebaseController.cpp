@@ -132,9 +132,9 @@ private:
     core::git::commit_t m_original;
 };
 
-class RebaseController::ResolutionCommand : public QUndoCommand {
+class RebaseController::FileResolutionCommand : public QUndoCommand {
 public:
-    ResolutionCommand(
+    FileResolutionCommand(
         RebaseController& controller,
         conflict::ConflictFileId id,
         std::optional<std::string> oldBlob,
@@ -166,6 +166,28 @@ private:
     conflict::ConflictFileId m_id;
     std::optional<std::string> m_old;
     std::optional<std::string> m_new;
+};
+
+class RebaseController::ConflictResolutionCommand : public QUndoCommand {
+public:
+    ConflictResolutionCommand(
+        RebaseController& controller, core::conflict::ConflictTrees conflict, bool edit, core::git::tree_t&& new_tree
+    )
+        : QUndoCommand(edit ? "Edit resolution" : "Resolve conflict")
+        , m_controller(controller)
+        , m_id(std::move(conflict))
+        , m_tree(std::move(new_tree)) { }
+
+    void redo() override { m_tree = m_controller.applyConflictResolution(m_id, std::move(m_tree)); }
+
+    void undo() override { m_tree = m_controller.applyConflictResolution(m_id, std::move(m_tree)); }
+
+private:
+    static QString text(const git_tree* current) { return current != nullptr ? "Edit resolution" : "Resolve conflict"; }
+
+    RebaseController& m_controller;
+    core::conflict::ConflictTrees m_id;
+    core::git::tree_t m_tree;
 };
 
 RebaseController::RebaseController(
@@ -202,7 +224,7 @@ bool RebaseController::runGuarded(GuardedAction action, GateScope scope) {
         blocked = false;
         break;
     case GateScope::Kind::Global:
-        blocked = m_editors->hasOpenEditors();
+        blocked = m_editors->hasOpenEditors() || m_editors->isOpenResolution();
         break;
     case GateScope::Kind::File:
         blocked = m_editors->isOpen(*scope.file);
@@ -216,9 +238,17 @@ bool RebaseController::runGuarded(GuardedAction action, GateScope scope) {
     m_pending.action = std::move(action);
     m_pending.scope  = scope;
 
-    emit blockedByOpenEditors(
-        m_pending.scope.kind == GateScope::Kind::File ? QList { *m_pending.scope.file } : m_editors->openIds()
-    );
+    auto editors
+        = m_pending.scope.kind == GateScope::Kind::File ? QList { *m_pending.scope.file } : m_editors->openIds();
+
+    BlockType kind;
+    if (scope.kind == GateScope::Kind::Global && m_editors->isOpenResolution()) {
+        kind = BlockType::OpenConflictResolution;
+    } else {
+        kind = BlockType::OpenEditor;
+    }
+
+    emit blockedByOpenResolution(kind, editors);
     return false;
 }
 
@@ -242,7 +272,7 @@ bool RebaseController::completesConflict(const conflict::ConflictFileId& id) con
 }
 
 RebaseController::GateScope RebaseController::scopeOf(const QUndoCommand* cmd, bool is_undo) const {
-    const auto* resolution = dynamic_cast<const ResolutionCommand*>(cmd);
+    const auto* resolution = dynamic_cast<const FileResolutionCommand*>(cmd);
     if (resolution != nullptr) {
         const auto file = resolution->file();
         if (is_undo) {
@@ -458,7 +488,7 @@ bool RebaseController::commitResolution(const conflict::ConflictFileId& id, std:
     }
 
     const auto before = blockingRow();
-    m_stack.push(new ResolutionCommand(*this, id, std::move(old_resolution), std::move(blob)));
+    m_stack.push(new FileResolutionCommand(*this, id, std::move(old_resolution), std::move(blob)));
 
     // conflict advanced
     if (blockingRow() != before) {
@@ -502,6 +532,11 @@ RebaseController::setEditorResolution(const conflict::ConflictFileId& id, const 
     commitResolution(id, blob_id);
 
     return { };
+}
+
+void RebaseController::resolveConflict(const core::conflict::ConflictTrees& conflict, core::git::tree_t&& resolution) {
+    const auto* current = m_session.conflicts().get_trees_resolution(conflict);
+    m_stack.push(new ConflictResolutionCommand(*this, conflict, current != nullptr, std::move(resolution)));
 }
 
 void RebaseController::markSaved() {
@@ -651,5 +686,15 @@ void RebaseController::applyResolution(
     }
 
     afterChange();
+}
+
+core::git::tree_t
+RebaseController::applyConflictResolution(const core::conflict::ConflictTrees& trees, core::git::tree_t&& resolution) {
+    auto& conflicts = m_session.conflicts();
+    auto tree       = conflicts.replace_trees_resolution(trees, std::move(resolution));
+
+    afterChange();
+
+    return tree;
 }
 }

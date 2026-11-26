@@ -1,11 +1,18 @@
 #include "app/conflict/ConflictEditorSession.h"
+#include "app/conflict/ConflictEditor.h"
 
 #include <utility>
+
+#include <QFile>
+#include <QFileDevice>
+#include <QFileInfo>
+#include <QObject>
+#include <QProcess>
 
 namespace app::conflict {
 
 ConflictEditorSession::ConflictEditorSession(
-    ConflictFileId id, ConflictEditor::Editor editor, TemporaryConflictFiles files, QObject* parent
+    ConflictFileId id, ConflictEditor::Editor editor, ConflictEditor::EditorValues files, QObject* parent
 )
     : QObject(parent)
     , m_id(std::move(id))
@@ -23,6 +30,7 @@ void ConflictEditorSession::start() {
 
     m_process.setProgram(m_editor.program);
     m_process.setArguments(m_editor.arguments);
+    m_process.setWorkingDirectory(m_files.working_dir);
 
     m_process.start();
 }
@@ -50,28 +58,7 @@ void ConflictEditorSession::onFinished(int exit_code, QProcess::ExitStatus statu
         return;
     }
 
-    if (!QFileInfo::exists(m_files.files.result)) {
-        emit resolved({ }, ConflictResolutionType::Deleted);
-
-        finish();
-        return;
-    }
-
-    QFile file(m_files.files.result);
-    if (!file.open(QIODevice::ReadOnly)) {
-        finishWithError(QStringLiteral("Could not read the editor result: %1").arg(file.errorString()));
-        return;
-    }
-
-    const QByteArray contents = file.readAll();
-
-    if (file.error() != QFileDevice::NoError) {
-        finishWithError(QStringLiteral("Could not read the complete editor result: %1").arg(file.errorString()));
-        return;
-    }
-
-    emit resolved(contents, ConflictResolutionType::Modified);
-
+    emit closedEditor();
     finish();
 }
 

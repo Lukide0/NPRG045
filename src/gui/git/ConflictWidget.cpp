@@ -1,4 +1,5 @@
 #include "gui/git/ConflictWidget.h"
+#include "logging/Log.h"
 
 #include <string>
 
@@ -38,18 +39,27 @@ ConflictWidget::ConflictWidget(QWidget* parent)
     header->addStretch();
     header->addWidget(m_summary);
 
-    m_button.widget = new QToolButton();
-    m_button.widget->setPopupMode(QToolButton::MenuButtonPopup);
+    m_buttons.open_directory = new QPushButton("Open conflict workspace");
+    m_buttons.open_file      = new QPushButton("Open file conflict");
 
-    auto* menu = new QMenu(m_button.widget);
+    m_buttons.open_file->setEnabled(false);
+    m_buttons.open_directory->setEnabled(false);
 
-    m_button.resolve_conflict = menu->addAction("Resolve original conflict");
-    m_button.edit_resolution  = menu->addAction("Edit resolution");
+    m_save_button.widget = new QToolButton();
+    m_save_button.widget->setPopupMode(QToolButton::MenuButtonPopup);
+    {
+        auto* menu = new QMenu(m_save_button.widget);
 
-    m_button.widget->setMenu(menu);
-    m_button.widget->setDefaultAction(m_button.resolve_conflict);
-    m_button.widget->setEnabled(false);
+        m_save_button.start  = menu->addAction("Start");
+        m_save_button.save   = menu->addAction("Save");
+        m_save_button.cancel = menu->addAction("Cancel");
 
+        m_save_button.save->setEnabled(false);
+        m_save_button.cancel->setEnabled(false);
+
+        m_save_button.widget->setMenu(menu);
+        m_save_button.widget->setDefaultAction(m_save_button.start);
+    }
     m_model = new ConflictTreeModel(this);
 
     m_view = new QTreeView();
@@ -78,10 +88,18 @@ ConflictWidget::ConflictWidget(QWidget* parent)
     m_status_bar->setSizeGripEnabled(false);
     m_status_bar->addPermanentWidget(m_status_count);
 
+    auto* actions_layout = new QHBoxLayout();
+    actions_layout->setContentsMargins(0, 0, 0, 0);
+    actions_layout->setSpacing(6);
+    actions_layout->addStretch();
+    actions_layout->addWidget(m_save_button.widget);
+    actions_layout->addWidget(m_buttons.open_directory);
+    actions_layout->addWidget(m_buttons.open_file);
+
     auto* layout = new QVBoxLayout();
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addLayout(header);
-    layout->addWidget(m_button.widget);
+    layout->addLayout(actions_layout);
     layout->addWidget(m_view);
     layout->addWidget(m_status_bar);
     setLayout(layout);
@@ -94,15 +112,84 @@ ConflictWidget::ConflictWidget(QWidget* parent)
         showSelection(current);
     });
 
-    connect(m_button.resolve_conflict, &QAction::triggered, this, [this]() {
+    connect(m_buttons.open_file, &QPushButton::clicked, this, [this]() {
+        if (!m_started) {
+            return;
+        }
         resolveConflict(ConflictEditMode::Resolve);
+
+        updateButtons();
     });
 
-    connect(m_button.edit_resolution, &QAction::triggered, this, [this]() {
-        resolveConflict(ConflictEditMode::EditResolution);
+    connect(m_buttons.open_directory, &QPushButton::clicked, this, [this]() {
+        if (!m_started) {
+            return;
+        }
+
+        emit openDirectoryRequested();
+    });
+
+    connect(m_save_button.start, &QAction::triggered, this, [this]() {
+        if (m_started || m_start_pending) {
+            return;
+        }
+
+        m_start_pending = true;
+        updateButtons();
+
+        emit resolutionStartRequested();
+    });
+
+    connect(m_save_button.save, &QAction::triggered, this, [this]() {
+        if (!m_started) {
+            return;
+        }
+
+        emit resolutionSaveRequested();
+        updateButtons();
+    });
+
+    connect(m_save_button.cancel, &QAction::triggered, this, [this]() {
+        if (!m_started) {
+            return;
+        }
+
+        emit resolutionCancelRequested();
+        updateButtons();
     });
 
     updateSummary(0, 0);
+}
+
+void ConflictWidget::onStartFinished(bool success) {
+    m_start_pending = false;
+
+    if (success) {
+        m_started = true;
+    }
+
+    updateButtons();
+}
+
+void ConflictWidget::discardResolution() {
+    m_start_pending = false;
+    m_started       = false;
+
+    updateButtons();
+}
+
+void ConflictWidget::updateButtons() {
+
+    m_save_button.start->setEnabled(!m_started);
+    m_save_button.save->setEnabled(m_started);
+    m_save_button.cancel->setEnabled(m_started);
+
+    m_save_button.widget->setDefaultAction(m_started ? m_save_button.save : m_save_button.start);
+
+    m_save_button.widget->setEnabled(!m_start_pending);
+
+    m_buttons.open_file->setEnabled(m_started);
+    m_buttons.open_directory->setEnabled(m_started);
 }
 
 void ConflictWidget::resolveConflict(ConflictEditMode mode) {
@@ -130,6 +217,8 @@ void ConflictWidget::setConflictFiles(const ConflictFiles& files) {
     m_status_bar->clearMessage();
     m_model->setPaths(files);
 
+    updateButtons();
+
     showSelection(m_view->currentIndex());
 }
 
@@ -145,7 +234,11 @@ bool ConflictWidget::hasConflict() const { return m_model->unresolvedCount() > 0
 
 void ConflictWidget::clearConflicts() {
     m_status_bar->clearMessage();
+    m_started       = false;
+    m_start_pending = false;
     m_model->clear();
+
+    updateButtons();
 }
 
 void ConflictWidget::updateSummary(int unresolved, int total) {
@@ -160,9 +253,8 @@ void ConflictWidget::updateSummary(int unresolved, int total) {
 }
 
 void ConflictWidget::showSelection(const QModelIndex& current) {
-    const QString path        = m_model->pathAt(current);
-    const bool is_file        = !path.isEmpty();
-    const bool has_resolution = is_file && m_model->isResolved(current);
+    const QString path = m_model->pathAt(current);
+    const bool is_file = !path.isEmpty();
 
     m_status_bar->clearMessage();
 
@@ -170,13 +262,7 @@ void ConflictWidget::showSelection(const QModelIndex& current) {
         m_status_bar->showMessage(path);
     }
 
-    m_button.resolve_conflict->setEnabled(is_file);
-    m_button.edit_resolution->setEnabled(has_resolution);
-
-    auto* active = has_resolution ? m_button.edit_resolution : m_button.resolve_conflict;
-
-    m_button.widget->setDefaultAction(active);
-    m_button.widget->setEnabled(is_file);
+    m_buttons.open_file->setEnabled(m_started && is_file);
 }
 
 }

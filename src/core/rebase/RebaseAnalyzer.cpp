@@ -310,8 +310,29 @@ Result<void> RebaseAnalyzer::compute_pick(const action::Action& act, const git_t
         });
     }
 
-    step.conflict = info;
+    step.conflict                 = info;
+    step.conflict->conflict_index = std::move(merge_index);
 
+    git_index* index = step.conflict->conflict_index;
+
+    // 1. lookup the trees resolution
+    git_tree* resolution = m_conflicts.get_trees_resolution(prev, act.get_commit());
+    if (resolution != nullptr) {
+        git::tree_t tree;
+
+        if (git_tree_dup(&tree, resolution) != 0) {
+            return std::unexpected<Error>({
+                .title   = "Recorded resolution error",
+                .message = git::get_last_error(),
+            });
+        }
+
+        step.status = conflict::ConflictState::Resolved;
+        step.tree   = git::make_shared_ptr_object<git::tree_t>(std::move(tree));
+        return { };
+    }
+
+    // 2. apply stored resolutions
     if (!info->all_resolved()) {
         step.status = conflict::ConflictState::Conflict;
         return { };
@@ -326,14 +347,14 @@ Result<void> RebaseAnalyzer::compute_pick(const action::Action& act, const git_t
         paths.push_back(file.path);
     }
 
-    if (!m_conflicts.apply_resolutions_no_write(entries, paths, m_repo.repo(), merge_index)) {
+    if (!m_conflicts.apply_resolutions_no_write(entries, paths, m_repo.repo(), index)) {
         return std::unexpected<Error>({
             .title   = "Recorded resolution error",
             .message = git::get_last_error(),
         });
     }
 
-    auto tree = write_tree(m_repo.repo(), merge_index);
+    auto tree = write_tree(m_repo.repo(), index);
     if (!tree.has_value()) {
         return std::unexpected<Error>({
             .title   = "Recorded resolution error",
